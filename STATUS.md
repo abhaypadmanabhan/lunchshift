@@ -1,6 +1,6 @@
 # LunchShift status
 
-**Updated 13:01 PT. Milestone:** product integrated with the design pass. The parent app at 1440 shows the phone app plus a live "LunchShift at work" panel crediting each sponsor step; "Kept Maya safe" hero; cart, orders and onboarding on the real engine. DEMO.md rewritten for the product flow. Waiting on: the Open Food Facts catalog lane (Codex), then a rehearsal with Abhay's Statsig flip.
+**Updated 13:07 PT. Milestone:** feature-complete product on real Open Food Facts products: parent app + live agent panel, cart, orders, onboarding, `/console`. README and DEMO.md updated, secret scan PASS. Next: rehearsal with Abhay's Statsig flip, a backup recording, final README pass. Freeze 3:30.
 
 **Latest checks**
 - `npm run kpi`: **21/21 scenarios**. Unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept · swaps traced 100%. New: two-allergy child (peanut + sesame); full-auto pay-at-pickup order with a dropped reply (exactly 1 order); payment still 403.

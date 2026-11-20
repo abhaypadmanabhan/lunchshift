@@ -53,3 +53,8 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
   1. **Approval gate leak (critical).** A run that needed approval for more swaps than the mandate allows was applied and held on the next tick, because the mode re-read forgot the pending approval. The two-allergy scenario now ticks twice before approving; it failed on the old code (hold placed), and the fix (the run remembers it is awaiting approval and caps autonomy) passes.
   2. **SIE classifier false positive.** "Contains: milk." scored 0.65 "contains peanuts" because the model had no neutral class to choose. Added an "only other ingredients" class and raised the threshold to 0.85. Live check: peanut flags exactly 2 products, peanut+sesame exactly 3, dairy exactly 1.
 - Suite 21/21; allergen matrix all pass.
+
+## Loop 11 · real catalog + design · 13:06 PT
+- Real Open Food Facts snapshot (45 products, 42 photos, demo prices) behind `LUNCHSHIFT_CATALOG=off`, the demo default. The story holds on real labels: the usual When Pigs Fly whole wheat sells out; the cheaper Country Hearth Dakota 12-Grain is refused (OFF traces: peanuts; SIE 0.95); the Hannaford bread with no ingredient text is blocked; Monday becomes the rice-and-bean bowl ($30.36/$35).
+- Design pass merged (desktop stage with the "LunchShift at work" panel, the "Kept Maya safe" hero, short status lines). Live fixes: feed copy from real event data (sponsor credits: Cognee, SIE, SingleStore, Claude, Statsig, Store); the hero shows the allergen sentence of a real label, not the full ingredient list.
+- Suites unchanged and green (fixture): kpi 21/21, allergen matrix all pass. Secret scan PASS; history grep shows no keys.
