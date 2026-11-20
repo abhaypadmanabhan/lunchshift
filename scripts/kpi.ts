@@ -260,6 +260,21 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
     },
   },
   {
+    name: "A hold that would expire before pickup is not confirmed",
+    auto: false,
+    fn: async () => {
+      const w = await world("auto_swap_and_hold");
+      const real = w.client.readHold.bind(w.client);
+      w.client.readHold = async (k: string) => {
+        const h = await real(k);
+        return h ? { ...h, expiresAt: "2026-11-22T19:00:00.000Z" } : h;
+      };
+      const r = await w.run();
+      await w.grocer.close();
+      return { pass: r.run.status !== "hold_verified", detail: `status ${r.run.status}` };
+    },
+  },
+  {
     name: "Human sign-off: suggest_only proposal + one parent approval places one verified hold",
     auto: false,
     fn: async () => {
