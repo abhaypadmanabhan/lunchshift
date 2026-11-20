@@ -30,6 +30,7 @@ async function main() {
   const deps = await liveDeps();
   if (process.env.WORKER_RESET_ON_START === "1") {
     await deps.store.reset(); // clean app state for the unattended full-auto proof
+    await deps.store.saveHousehold(HOUSEHOLD);
     persist({ lastStockEventSeq: 0 });
   }
   const state = load();

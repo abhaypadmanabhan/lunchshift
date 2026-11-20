@@ -10,7 +10,7 @@ const child = spawn("node", ["scripts/stack.mjs"], {
   env: {
     ...process.env,
     WORKER_SCHEDULE_AT: at,
-    GROCER_PRESET_STOCKOUT: "bread-harvest-ww",
+    GROCER_PRESET_STOCKOUT: "demo", // the active catalog's usual bread
     GROCER_RESET_ON_START: "1",
     WORKER_RESET_ON_START: "1",
   },

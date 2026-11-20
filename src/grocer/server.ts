@@ -55,7 +55,8 @@ function seed(db: DatabaseSync) {
   db.exec("DELETE FROM products; DELETE FROM holds; DELETE FROM faults; DELETE FROM stock_events; DELETE FROM orders;");
   const ins = db.prepare("INSERT INTO products (id, sku, stock, price_cents) VALUES (?, ?, ?, ?)");
   // Fixture state for the unattended full-auto proof: a SKU can start the day sold out (no stock event emitted).
-  const presetOut = process.env.GROCER_PRESET_STOCKOUT;
+  const preset = process.env.GROCER_PRESET_STOCKOUT;
+  const presetOut = preset === "demo" ? activeCatalog().stockoutSku : preset;
   for (const s of activeCatalog().skus) ins.run(s.id, JSON.stringify(s), s.id === presetOut ? 0 : s.stock, s.priceCents);
 }
 
