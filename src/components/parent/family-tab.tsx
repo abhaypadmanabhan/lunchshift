@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { cn } from "cn";
-import { X } from "lucide-react";
+import { ChevronRight, X } from "lucide-react";
 import { MODE_RANK } from "@/lib/domain/types";
 import type { HouseholdUpdate, HouseholdUpdateResult, RunView } from "@/lib/domain/view";
 import { MODE_STEPS, allergyChips, pickupWindow, type AllergyChip } from "./copy";
@@ -42,7 +42,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   );
 }
 
-export function FamilyTab({ view, onRefresh }: { view: RunView; onRefresh: () => Promise<void> }) {
+export function FamilyTab({ view, onRefresh, onSetup }: { view: RunView; onRefresh: () => Promise<void>; onSetup: () => void }) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(view));
   const [dirty, setDirty] = useState(false);
   const [entry, setEntry] = useState("");
@@ -254,6 +254,18 @@ export function FamilyTab({ view, onRefresh }: { view: RunView; onRefresh: () =>
           </p>
         </div>
       </section>
+
+      <button
+        type="button"
+        onClick={onSetup}
+        className="flex w-full items-center gap-4 rounded-xl bg-card px-5 py-4 text-left shadow-[0_1px_0_var(--border)] hover:bg-secondary/60"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-medium">Run setup again</span>
+          <span className="block text-[0.9375rem] text-muted-foreground">Name, allergies, budget and pickup in three short steps</span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      </button>
 
       <div className="sticky bottom-[4.75rem] z-10 space-y-3 rounded-xl bg-background/90 py-2 backdrop-blur-sm">
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}

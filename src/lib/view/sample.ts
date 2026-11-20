@@ -1,5 +1,6 @@
 // Sample RunView objects for the four demo states. Used by GET /api/state until the
 // orchestrator swaps in the real builder. Ids, names, labels and prices come from the fixture.
+import { MAJOR_ALLERGENS } from "@/lib/domain/allergens";
 import { CATALOG, CATALOG_VERSION, HOUSEHOLD, PICKUP_SLOT, RECIPES } from "@/lib/domain/fixture";
 import type {
   AuditEvent,
@@ -9,15 +10,19 @@ import type {
   CandidateDecision,
   KpiSet,
   MemoryRecall,
+  Order,
   Receipt,
   Run,
   RunStatus,
   SwapProposal,
 } from "@/lib/domain/types";
-import type { IntegrationStatus, KpiSuiteResult, PlanRow, RunView } from "@/lib/domain/view";
+import type { CartView, IntegrationStatus, KpiSuiteResult, PlanRow, RunView } from "@/lib/domain/view";
 
-export type SampleState = "a" | "b" | "c" | "d";
-export const isSampleState = (v: unknown): v is SampleState => v === "a" || v === "b" || v === "c" || v === "d";
+// a: proposal waiting · b: swapped, cart editable · c: hold pending · d: hold verified + order placed by the agent
+// e: hold verified, order not placed yet (parent places it) · f: first run, no allergies set (onboarding)
+export type SampleState = "a" | "b" | "c" | "d" | "e" | "f";
+export const isSampleState = (v: unknown): v is SampleState =>
+  v === "a" || v === "b" || v === "c" || v === "d" || v === "e" || v === "f";
 
 const RUN_ID = "run-2026-11-22";
 const OPERATION_KEY = `hold:${RUN_ID}`;
@@ -256,12 +261,100 @@ const RECEIPT: Receipt = {
   activeHoldsForRun: 1,
 };
 
+// ---------- Cart and orders (parent app) ----------
+
+const lunchNames = (recipeIds: string[]) => recipeIds.map(recipeName);
+
+const cartView = (b: Basket, editable: boolean): CartView => {
+  const inCart = new Set(b.lines.map((l) => l.skuId));
+  const ruleOut: Record<string, string> = {
+    "bread-value-wheat": "May contain peanuts: Maya's allergy",
+    "sauce-thai-peanut": "Contains peanuts: Maya's allergy",
+    "bread-artisan-sour": "No allergen label on file, so LunchShift can't check it",
+    "bread-harvest-ww": "Sold out at the store this week",
+  };
+  return {
+    lines: b.lines.map((l) => {
+      const s = sku(l.skuId);
+      return { ...l, brand: s.brand, imageUrl: s.imageUrl, usedBy: lunchNames(l.usedBy) };
+    }),
+    totalCents: b.totalCents,
+    budgetCents: HOUSEHOLD.mandate.budgetCents,
+    editable,
+    source: "agent",
+    catalog: CATALOG.filter((c) => !inCart.has(c.id)).map((c) => ({
+      skuId: c.id,
+      name: c.name,
+      brand: c.brand,
+      priceCents: c.priceCents,
+      imageUrl: c.imageUrl,
+      safe: !ruleOut[c.id],
+      reason: ruleOut[c.id],
+    })),
+  };
+};
+
+const ORDER_NOW: Order = {
+  orderId: "LS-7F3A2C",
+  operationKey: `order:${RUN_ID}`,
+  holdId: "hold_7f3a9c2e41b8",
+  runId: RUN_ID,
+  status: "placed",
+  payment: "pay_at_pickup",
+  placedBy: "agent",
+  lines: AFTER.lines.map((l) => ({ skuId: l.skuId, packs: l.packs, unitPriceCents: l.unitPriceCents })),
+  totalCents: AFTER.totalCents,
+  slot: PICKUP_SLOT,
+  placedAt: T("16:02:19"),
+  timeline: [
+    { step: "placed", at: T("16:02:19"), label: "Order placed" },
+    { step: "held", at: T("16:02:17"), label: "Groceries held at the store" },
+    { step: "ready", at: null, label: "Ready for pickup" },
+  ],
+};
+
+const pastOrder = (orderId: string, week: string, totalCents: number, status: Order["status"], placedBy: Order["placedBy"], skuIds: string[]): Order => {
+  const at = (hhmm: string) => `${week}T${hhmm}:00-08:00`;
+  return {
+    orderId,
+    operationKey: `order:run-${week}`,
+    holdId: `hold_${orderId.slice(3).toLowerCase()}`,
+    runId: `run-${week}`,
+    status,
+    payment: "pay_at_pickup",
+    placedBy,
+    lines: skuIds.map((id) => ({ skuId: id, packs: 1, unitPriceCents: sku(id).priceCents })),
+    totalCents,
+    slot: `Sun ${week} 16:00-18:00`,
+    placedAt: at("16:03"),
+    timeline:
+      status === "cancelled"
+        ? [
+            { step: "placed", at: at("16:03"), label: "Order placed" },
+            { step: "held", at: at("16:02"), label: "Groceries held at the store" },
+            { step: "cancelled", at: at("19:10"), label: "Cancelled: hold released, nothing paid" },
+          ]
+        : [
+            { step: "placed", at: at("16:03"), label: "Order placed" },
+            { step: "held", at: at("16:02"), label: "Groceries held at the store" },
+            { step: "ready", at: at("16:40"), label: "Ready for pickup" },
+            { step: "picked_up", at: at("17:12"), label: "Picked up and paid at the store" },
+          ],
+  };
+};
+
+const PAST_ORDERS: Order[] = [
+  pastOrder("LS-5B19E4", "2026-11-15", 2814, "picked_up", "agent", BEFORE.lines.map((l) => l.skuId).filter((id) => id !== "turkey-sliced")),
+  pastOrder("LS-31C0A7", "2026-11-08", 3122, "picked_up", "parent", BEFORE.lines.map((l) => l.skuId)),
+  pastOrder("LS-0E8D52", "2026-11-01", 2690, "cancelled", "parent", KEPT_LINES.map((l) => l.skuId)),
+];
+
 const base = (): Omit<RunView, "run" | "mode" | "plan" | "basket" | "receipt" | "kpis" | "events" | "proposal" | "proposals" | "needsApproval"> => ({
   generatedAt: new Date().toISOString(),
-  allergens: [],
+  allergens: MAJOR_ALLERGENS.map((a) => ({ id: a.id, label: a.label, examples: a.terms.slice(0, 4) })),
   cart: null,
   order: null,
-  orders: [],
+  orders: PAST_ORDERS,
   household: { id: HOUSEHOLD.id, childName: HOUSEHOLD.childName, facts: HOUSEHOLD.facts, mandate: HOUSEHOLD.mandate },
   stockout: { skuId: "bread-harvest-ww", name: "Harvest Whole Wheat Bread" },
   refusals: REFUSALS,
@@ -291,6 +384,7 @@ export function sampleRunView(state: SampleState): RunView {
         proposals: [PROPOSAL],
         plan: plan("proposed_swap"),
         basket: BEFORE,
+        cart: cartView(BEFORE, true),
         receipt: null,
         kpis: null,
         events: events("swap_proposed", "suggest_only", "rule-default-suggest", true),
@@ -305,6 +399,7 @@ export function sampleRunView(state: SampleState): RunView {
         proposals: [PROPOSAL],
         plan: plan("swapped"),
         basket: AFTER,
+        cart: cartView(AFTER, true),
         receipt: null,
         kpis: null,
         events: events("swap_applied", "auto_swap", "rule-demo-household", true),
@@ -319,6 +414,7 @@ export function sampleRunView(state: SampleState): RunView {
         proposals: [PROPOSAL],
         plan: plan("swapped"),
         basket: AFTER,
+        cart: cartView(AFTER, false),
         receipt: null,
         kpis: null,
         events: events("hold_readback", "auto_swap", "rule-demo-household", false),
@@ -333,9 +429,51 @@ export function sampleRunView(state: SampleState): RunView {
         proposals: [PROPOSAL],
         plan: plan("swapped"),
         basket: AFTER,
+        cart: cartView(AFTER, false),
+        order: ORDER_NOW,
+        orders: [ORDER_NOW, ...PAST_ORDERS],
         receipt: RECEIPT,
         kpis: VERIFIED_KPIS,
         events: events("metrics_computed", "auto_swap", "rule-demo-household", false),
+      };
+    case "e":
+      return {
+        ...base(),
+        needsApproval: null,
+        run: run("hold_verified", "auto_swap_and_hold", T("16:02:18")),
+        mode: mode("auto_swap_and_hold", "rule-demo-household", T("16:02:11")),
+        proposal: PROPOSAL,
+        proposals: [PROPOSAL],
+        plan: plan("swapped"),
+        basket: AFTER,
+        cart: cartView(AFTER, false),
+        receipt: RECEIPT,
+        kpis: VERIFIED_KPIS,
+        events: events("metrics_computed", "auto_swap", "rule-demo-household", false),
+      };
+    case "f":
+      return {
+        ...base(),
+        household: {
+          id: HOUSEHOLD.id,
+          childName: "",
+          facts: HOUSEHOLD.facts.filter((f) => f.kind !== "hard_restriction" && f.kind !== "member"),
+          mandate: HOUSEHOLD.mandate,
+        },
+        stockout: null,
+        refusals: [],
+        memory: null,
+        needsApproval: null,
+        run: null,
+        mode: mode("suggest_only", "rule-default-suggest", T("16:00:01")),
+        proposal: null,
+        proposals: [],
+        plan: [],
+        basket: null,
+        orders: [],
+        receipt: null,
+        kpis: null,
+        events: [],
       };
   }
 }

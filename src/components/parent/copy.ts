@@ -254,3 +254,31 @@ export function describeEvent(e: AuditEvent, view: RunView): { title: string; de
       return { title: e.actor === "parent" ? "You approved the change" : e.summary, detail: e.summary };
   }
 }
+
+// ---------- Orders ----------
+
+export const ORDER_STATUS: Record<"placed" | "ready" | "picked_up" | "cancelled", string> = {
+  placed: "Placed",
+  ready: "Ready for pickup",
+  picked_up: "Picked up",
+  cancelled: "Cancelled",
+};
+
+export const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: TZ });
+
+/** "Sun 2026-11-22 16:00-18:00" -> "Sunday, Nov 22 · 4-6 pm". */
+export function slotLabel(slot: string): string {
+  const m = slot.match(/^\w+\s+(\d{4}-\d{2}-\d{2})\s+/);
+  const win = pickupWindow(slot).replace(/^\w+\s+/, "");
+  if (!m) return pickupWindow(slot);
+  const d = new Date(`${m[1]}T12:00:00-08:00`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: TZ });
+  return `${d} · ${win}`;
+}
+
+/** A product name for an order line: the cart or catalog's name, else the id made readable. */
+export function skuName(view: RunView, skuId: string): string {
+  const c = view.cart;
+  const hit = c?.lines.find((l) => l.skuId === skuId)?.name ?? c?.catalog.find((x) => x.skuId === skuId)?.name ?? view.basket?.lines.find((l) => l.skuId === skuId)?.name;
+  return hit ?? skuId.replace(/-/g, " ").replace(/^\w/, (x) => x.toUpperCase());
+}

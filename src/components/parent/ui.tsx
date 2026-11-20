@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "cn";
 import { LoaderCircle } from "lucide-react";
 
@@ -57,6 +57,64 @@ export function SectionTitle({ children, aside }: { children: ReactNode; aside?:
     <div className="flex items-baseline justify-between gap-4 px-1">
       <h2 className="text-lg font-semibold tracking-[-0.01em]">{children}</h2>
       {aside ? <span className="text-[0.9375rem] text-muted-foreground">{aside}</span> : null}
+    </div>
+  );
+}
+
+/** Product photo on a neutral tile. A missing or broken image keeps the tile with the brand's initial. */
+export function ProductTile({ src, name, brand, size = "md" }: { src?: string; name: string; brand: string; size?: "sm" | "md" }) {
+  const [broken, setBroken] = useState(false);
+  const box = size === "sm" ? "size-12" : "size-16";
+  return (
+    <span className={cn("relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sunken", box)} aria-hidden>
+      {src && !broken ? (
+        // eslint-disable-next-line @next/next/no-img-element -- local /public product shots, sizes vary
+        <img src={src} alt="" className="size-full object-contain p-1.5 mix-blend-multiply" onError={() => setBroken(true)} loading="lazy" />
+      ) : (
+        <span className="text-lg font-semibold text-muted-foreground/70" title={name}>
+          {(brand || name).trim().charAt(0).toUpperCase()}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Eases a number toward its new value (420 ms). Reduced motion jumps straight there. */
+export function useTween(value: number, ms = 420): number {
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    const start = from.current;
+    if (start === value) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      from.current = value;
+      setShown(value);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / ms);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const v = start + (value - start) * eased;
+      from.current = v;
+      setShown(v);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, ms]);
+  return shown;
+}
+
+/** A plain empty or error state inside a card: what this is, and the next step. */
+export function EmptyCard({ title, body, children }: { title: string; body: string; children?: ReactNode }) {
+  return (
+    <div className="rounded-xl bg-card px-6 py-10 text-center shadow-[0_1px_0_var(--border)]">
+      <p className="text-lg font-semibold tracking-[-0.01em]">{title}</p>
+      <p className="mx-auto mt-1.5 max-w-[22rem] text-base text-muted-foreground">{body}</p>
+      {children ? <div className="mt-6 flex justify-center gap-3">{children}</div> : null}
     </div>
   );
 }
