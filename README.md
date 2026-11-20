@@ -4,14 +4,27 @@
 
 Built for the tokens& Personal Agents Hackathon (Nov 20, 2026). Products are real US items captured from Open Food Facts (labels, allergen and trace tags, photos) with demo prices; the store is a sandbox. This is a demonstration of evidence handling, never real-world allergy assurance.
 
+## Try it
+
+- **Live:** https://lunchshift-web-production.up.railway.app (set up your own family through the chat, or pick a sample family).
+- **Guided demo:** [/demo](https://lunchshift-web-production.up.railway.app/demo): the eight-step story with a **Next step** bar. Runbook: `DEMO.md`.
+- **Console:** [/console](https://lunchshift-web-production.up.railway.app/console): evidence, autonomy mode, store receipt, the six KPIs and the audit trail.
+- **Video:** `docs/proof/backup-story.mp4` (the guided demo, recorded against the public URL).
+
+It is one shared demo instance: other visitors see the same families, and **Reset demo** on the console returns it to a clean state.
+
 ## The product
 
-- **Parent app (`/`).** Phone-first, with four tabs. *This week* opens on "Kept Maya safe": the refused product, its label line and the confirmed allergy, then the five lunches with one-line reasons and a **Why?** sheet. *Cart* has a live budget meter; adding an unsafe item is refused with the reason. *Orders* shows the pay-at-pickup order and its timeline. *Family* takes any allergy in plain words ("dairy", "tree nuts", "kiwi"), the budget, and the one-time approval: "LunchShift can hold, never pay". At desktop width a live **LunchShift at work** panel shows each agent step and which service did it.
-- **Console (`/console`).** For operators and judges: the evidence, the autonomy mode, the store receipt, the six KPIs and the append-only audit trail.
+A desktop web app: a sidebar (This week, Cart, Orders, Routines, Inbox, Memory, Family), the main view, and a **LunchShift at work** rail that streams each agent step and the service that did it.
+
+- **Chat setup.** The parent writes "Noah is 7, tree nuts and eggs, no may-contain; Ivy is 5, sesame; both hate mushrooms; $50 a week; Sunday pickup". **Claude** extracts kids, allergies (with cross-contact tolerance), dislikes, budget and pickup as chips; code validates them; the parent confirms; they are saved to the household record (the authority) and to **Cognee** memory. No seed data is needed, and several kids per family share one menu that is safe for every kid.
+- **Live shopping.** *Plan this week* shops real Open Food Facts products item by item, compares options, and refuses unsafe ones with the label line and the fact it broke. The cart fills with a live budget meter.
+- **Review, hold, order.** The parent approves once (or the agent holds on its own, within the autonomy the parent and **Statsig** allow). The store holds the cart for pickup and the order is pay-at-pickup. LunchShift can hold, never pay.
+- **Day to day.** The chat is the main interface ("Leo was just diagnosed with a sesame allergy", "no school Friday"). Routines (weekly plan, stock and label watch, school calendar, budget alert) run in the background worker with last and next run. The inbox lists what the agent did and what needs the parent. Every fact change is dated and revisioned.
 
 ## What it does
 
-Maya (8) has a peanut allergy. Her parent packs five school lunches, shops on Sundays and keeps a $35 all-in budget. The parent approves a standing mandate once: one store, Sunday 4-6 p.m., at most one meal swap and one no-fee hold per week, with expiry and revocation.
+The core loop, shown for the sample family Maya (8, peanut allergy). Her parent packs five school lunches, shops on Sundays and keeps a $35 all-in budget. The parent approves a standing mandate once: one store, Sunday 4-6 p.m., at most one meal swap and one no-fee hold per week, with expiry and revocation.
 
 Every Sunday a background worker (running with the browser closed) builds the week's basket. When the usual bread sells out:
 
@@ -34,7 +47,7 @@ Any allergy works the same way. The nine major US allergens plus synonyms ("dair
 | Budget kept | 100% |
 | Swaps traced to evidence | 100% |
 
-`npm run kpi` runs a fixed scenario suite against the real sandbox store over HTTP and the real worker code: no stockout; stockout full-auto; commit-then-drop with replay and restart; read-back failure with an identical retry; `suggest_only`; parent sign-off; live `auto_swap` to `auto_swap_and_hold` flip; invalid and timed-out config; revoked mandate; late stockout (atomic reject, zero holds); scoped credential and key-reuse refusal. It also covers a two-allergy child (peanut + sesame), a full-auto pay-at-pickup order whose reply is dropped (still exactly one order), mid-run revocation, weekly hold limits, exact line-by-line read-back, and an approval that must persist across ticks. 21 scenarios; it exits non-zero on any miss. `LOOP-LOG.md` records each improve-and-measure loop.
+`npm run kpi` runs a fixed scenario suite against the real sandbox store over HTTP and the real worker code: no stockout; stockout full-auto; commit-then-drop with replay and restart; read-back failure with an identical retry; `suggest_only`; parent sign-off; live `auto_swap` to `auto_swap_and_hold` flip; invalid and timed-out config; revoked mandate; late stockout (atomic reject, zero holds); scoped credential and key-reuse refusal. It also covers a two-allergy child (peanut + sesame), a full-auto pay-at-pickup order whose reply is dropped (still exactly one order), mid-run revocation, weekly hold limits, exact line-by-line read-back, and an approval that must persist across ticks. It also covers a family built from scratch through the chat with two kids, a mid-week allergy change through the chat, routine runs, and two weeks for a chat-built family with zero clicks in week 2. 25 scenarios; it exits non-zero on any miss. `LOOP-LOG.md` records each improve-and-measure loop.
 
 `npm run test:allergens` is the allergy suite. The oracle is hand-written from the labels, so it doesn't reuse the parser it checks. It covers 34 parent inputs, 20 product labels, 32 label edge cases (sunflower and cocoa butter, coconut and oat milk, rice flour, buckwheat, ghee, ovalbumin, "facility also handles"), 5 tag-versus-text conflict checks, and 18 allergy sets end to end; every held basket is checked against the oracle.
 
@@ -46,7 +59,7 @@ Any allergy works the same way. The nine major US allergens plus synonyms ("dair
 | **SingleStore** | System of record: household, recipes, label snapshots, runs, the append-only audit trail (gap-free per-run sequence), baskets, receipts and KPIs. Stage 1 of ranking: alternatives are shortlisted with `VECTOR(n,F32)` dot-product SQL (`vec <*> query`) over labelled feature vectors. `npm run audit` replays any run's full decision from SingleStore. Falls back to SQLite (labelled on screen) when unreachable. |
 | **Statsig** | `autonomy_mode` dynamic config read at run start, on every waiting-run tick and right before the hold; a failed or defaulted read never authorizes anything. Agent analytics: one `agent_step` event per audit event (a trace), plus `candidate_rejected`, `autonomy_changed`, `meal_swapped`, `hold_verified` and `weekly_run_metrics` carrying the six KPIs (synthetic IDs and numbers only). |
 | **Superlinked SIE** | Small task-specific models used as tools. (1) Allergen screen: the `deberta-v3-large-zeroshot-v2.0` classifier reads every exact-SKU label line against the household's own allergens (the real Dakota 12-Grain bread: "may contain peanuts", 0.95). It can only *add* a refusal on top of the structured rules, never clear one. (2) Stage 2 of ranking: `Qwen3-Reranker-0.6B` reranks the SingleStore shortlist against the household's preferences. |
-| **Anthropic Claude** | Explains, and may choose, among the eligible alternatives only (`LLM_PROVIDER`, `LLM_MODEL`). It never sees or decides allergen, budget or stock rules. |
+| **Anthropic Claude** | Turns the parent's chat into typed facts for the parent to confirm, and explains (and may choose among) the eligible alternatives only (`LLM_PROVIDER`, `LLM_MODEL`). It never decides allergen, budget or stock rules. |
 
 ## Run it
 
@@ -81,4 +94,4 @@ One service runs the whole stack (`npm run start:prod`: web app, worker and sand
 - `src/worker`: the resumable weekly run state machine, background loop, operator actions
 - `src/grocer`: sandbox merchant (HTTP + SQLite, fault injection, scoped tokens)
 - `src/lib/{memory,autonomy,llm,ranking,store}`: sponsor adapters, each with a fallback
-- `src/app`: the one-screen demo UI
+- `src/app`, `src/components`: the parent web app, `/demo` and `/console`
