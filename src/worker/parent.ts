@@ -1,6 +1,7 @@
 // Parent actions from the app. Each one is a recorded parent event; the background worker stays the only writer
 // of plans and holds (these functions only record intent, supersede a stale run, or release a hold).
 import { applyHouseholdUpdate, currentRunId } from "../lib/domain/household";
+import { checkBudget, markRun, routinesOf, withRoutines, type RoutineId } from "./routines";
 import { blankFamily, currentWeekOf, readPointer, writePointer } from "../lib/domain/families";
 import { activeCatalog } from "../lib/domain/catalog";
 import { HOUSEHOLD } from "../lib/domain/fixture";
@@ -290,6 +291,7 @@ export async function confirmFacts(
   const h = await activeHousehold(store);
   if (!facts.length) return { ok: false, saved: [], reason: "Nothing to save" };
   const next = applyFacts(h, facts);
+  next.factLog = [...(h.factLog ?? []), ...h.facts.filter((f) => !next.facts.some((n) => n.id === f.id && n.revision === f.revision)).map((f) => ({ ...f, active: false }))];
   const childName = next.childName;
   // Replace this week's plan (release any hold), save, and re-plan unless this is first-time onboarding.
   const oldRun = await store.getRun(currentRunId(h, currentWeekOf()));
@@ -302,4 +304,62 @@ export async function confirmFacts(
     .catch(() => undefined);
   const memory = process.env.COGNEE_API_KEY && process.env.COGNEE_BASE_URL ? ("cognee" as const) : ("fallback" as const);
   return { ok: true, saved: facts.map((f) => ({ label: f.label, memory })), runId };
+}
+
+const ROUTINE_IDS: RoutineId[] = ["weekly_plan", "stock_watch", "school_skips", "budget_alert"];
+
+export async function updateRoutine(id: string, enabled?: boolean, config?: Record<string, unknown>): Promise<{ ok: boolean; reason?: string }> {
+  if (!ROUTINE_IDS.includes(id as RoutineId)) return { ok: false, reason: "Unknown routine" };
+  const store = await ensureSeeded();
+  const h = await activeHousehold(store);
+  const routines = routinesOf(h);
+  const cur = routines[id as RoutineId];
+  routines[id as RoutineId] = { ...cur, enabled: typeof enabled === "boolean" ? enabled : cur.enabled, config: { ...cur.config, ...(config ?? {}) } };
+  await store.saveHousehold(withRoutines(h, routines));
+  return { ok: true };
+}
+
+/** Run a routine now. School skips re-plan the week through the same path as a chat change. */
+export async function runRoutine(id: string): Promise<{ ok: boolean; result: string }> {
+  const store = await ensureSeeded();
+  const h = await activeHousehold(store);
+  const runId = currentRunId(h, currentWeekOf());
+  const run = await store.getRun(runId);
+  let result = "";
+  switch (id as RoutineId) {
+    case "weekly_plan": {
+      if (run && run.status !== "superseded") result = `This week is already planned · ${run.status.replace(/_/g, " ")}`;
+      else {
+        await scheduleRun(store, runId, "schedule", h.id);
+        result = "Planning started";
+      }
+      break;
+    }
+    case "stock_watch": {
+      const basket = run ? await store.getBasket(runId) : null;
+      const cat = await grocerClient().catalog();
+      const byId = new Map(cat.skus.map((s) => [s.id, s]));
+      const out = (basket?.lines ?? []).filter((l) => (byId.get(l.skuId)?.stock ?? 0) < l.packs);
+      result = basket ? (out.length ? `${out.length} item${out.length === 1 ? "" : "s"} sold out: ${out.map((l) => l.name).join(", ")}` : `All ${basket.lines.length} items in stock`) : "Nothing in the cart yet";
+      break;
+    }
+    case "school_skips": {
+      const days = (routinesOf(h).school_skips.config.days as string[]) ?? [];
+      const facts = days.map((d) => ({ id: `skip:${d}`, kind: "plan_change" as const, label: `No school ${d}`, value: { skip: d } }));
+      if (facts.length) {
+        await confirmFacts(facts, "assistant");
+        result = `Re-planned without ${days.join(", ")}`;
+      } else result = "No school days to skip";
+      break;
+    }
+    case "budget_alert": {
+      const k = run ? await store.getKpis(runId) : null;
+      result = k ? ((await checkBudget(store, h, runId, k)) ?? `$${(k.budgetKept.totalCents / 100).toFixed(2)} of $${(k.budgetKept.budgetCents / 100).toFixed(2)} · fine`) : "No cart this week yet";
+      break;
+    }
+    default:
+      return { ok: false, result: "Unknown routine" };
+  }
+  await markRun(store, h.id, id as RoutineId, result);
+  return { ok: true, result };
 }

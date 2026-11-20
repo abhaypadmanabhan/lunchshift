@@ -10,6 +10,7 @@ import { applyHouseholdUpdate, currentRunId } from "../src/lib/domain/household"
 import { blankFamily } from "../src/lib/domain/families";
 import { toFacts } from "../src/lib/llm/chat";
 import { applyFacts } from "../src/worker/parent";
+import { checkBudget, routinesOf, withRoutines } from "../src/worker/routines";
 import { FixtureMemory, MemoryStore, RecordingAnalytics, StaticAutonomy, TemplateExplainer } from "../src/worker/testing";
 import { LocalVectorRanker } from "../src/lib/ranking/local";
 import { buildRankQuery } from "../src/lib/ranking/features";
@@ -395,6 +396,30 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
       return {
         pass: r1.run.status === "hold_verified" && firstHolds.length === 1 && r2.run.status === "proposed" && r3.run.status === "hold_verified" && holds.length === 1 && !hummus && runId2 !== w.runId,
         detail: `week held ${r1.run.status}; after chat: revision ${next.policyRevision}, ${r2.run.status} -> approve -> ${r3.run.status}; hummus held ${hummus}`,
+        kpis: k,
+      };
+    },
+  },
+  {
+    name: "Routines: school calendar skips Friday; budget alert fires once near the cap",
+    auto: true,
+    fn: async () => {
+      const r = routinesOf(HOUSEHOLD);
+      r.school_skips = { ...r.school_skips, enabled: true, config: { days: ["Fri"] } };
+      r.budget_alert = { ...r.budget_alert, enabled: true, config: { withinCents: 500 } };
+      const hh = withRoutines({ ...HOUSEHOLD, mandate: { ...HOUSEHOLD.mandate, budgetCents: 2600 } }, r);
+      const w = await world("auto_swap_and_hold", hh);
+      const res = await w.run();
+      const holds = (await w.client.listHolds(w.runId)).filter((h) => h.status === "active");
+      const turkey = holds.flatMap((h) => h.lines).some((l) => l.skuId === "turkey-sliced");
+      const k = (await w.store.getKpis(w.runId))!;
+      const alert1 = await checkBudget(w.store, hh, w.runId, k);
+      const alert2 = await checkBudget(w.store, hh, w.runId, k);
+      const alerts = (await w.store.listEvents(w.runId)).filter((e) => e.data.budgetAlert === true).length;
+      await w.grocer.close();
+      return {
+        pass: res.run.status === "hold_verified" && !turkey && k.mealCompletenessPct === 100 && alert1 !== null && alert2 === null && alerts === 1,
+        detail: `status ${res.run.status}; Friday turkey held ${turkey}; complete ${k.mealCompletenessPct}% of 4 days; $${(k.budgetKept.totalCents / 100).toFixed(2)}/$26; alert "${alert1}", repeat ${alert2}, alert events ${alerts}`,
         kpis: k,
       };
     },

@@ -132,6 +132,8 @@ export interface Household {
   children?: { name: string; age?: number }[];
   /** Days with no school this week ("Fri"): no lunch planned. */
   skipDays?: string[];
+  /** Earlier revisions of facts the parent changed (fact history). */
+  factLog?: HouseholdFact[];
 }
 
 // ---------- Basket ----------

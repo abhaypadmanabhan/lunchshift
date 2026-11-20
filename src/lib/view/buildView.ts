@@ -7,6 +7,7 @@ import type { AuditEvent, CandidateDecision, MemoryRecall, Order, Sku, SwapPropo
 import type { CartView } from "../domain/view";
 import { checkSku, hardRestrictions } from "../domain/rules";
 import { cartBasket } from "../../worker/parent";
+import { describe, nextWeeklyRun, routinesOf } from "../../worker/routines";
 import type { IntegrationStatus, KpiSuiteResult, PlanRow, RunView } from "../domain/view";
 import { storeStatus } from "../store";
 import { getAutonomy } from "../autonomy";
@@ -185,9 +186,28 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
     generatedAt: new Date().toISOString(),
     household: { id: household.id, childName: household.childName, facts: household.facts, mandate: household.mandate, onboarded: household.onboarded !== false },
     families: await familiesView(store),
-    routines: [],
-    inbox: [],
-    factHistory: [],
+    routines: routinesView(household),
+    inbox: inboxView({
+      run,
+      events,
+      needsApproval:
+        run?.status === "proposed"
+          ? (([...events].reverse().find((e) => typeof e.data.approvalReason === "string")?.data.approvalReason as string | undefined) ??
+            "LunchShift is waiting for you before it changes the cart.")
+          : null,
+      order: liveOrder,
+      refusals,
+      household,
+    }),
+    factHistory: [...household.facts, ...(household.factLog ?? [])].map((f) => ({
+      id: f.id,
+      text: f.text,
+      kind: f.kind,
+      revision: f.revision,
+      confirmedAt: f.confirmedAt,
+      child: f.child,
+      active: f.active,
+    })),
     week: weekView(),
     run,
     mode: run
@@ -265,4 +285,66 @@ function weekView() {
   const weekOf = WEEKS[i];
   const d = new Date(`${weekOf}T12:00:00-08:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Los_Angeles" });
   return { weekOf, label: `${i === 0 ? "This Sunday" : "Next Sunday"} · ${d}`, index: i };
+}
+
+function routinesView(h: import("../domain/types").Household): import("../domain/view").RoutineView[] {
+  const r = routinesOf(h);
+  return (Object.keys(r) as (keyof typeof r)[]).map((id) => {
+    const s = r[id];
+    const d = describe(id, s);
+    return {
+      id,
+      ...d,
+      enabled: s.enabled,
+      config: s.config,
+      lastRun: s.lastRun ?? null,
+      nextRun: id === "weekly_plan" && s.enabled ? nextWeeklyRun(String(s.config.day ?? "Sun"), String(s.config.time ?? "16:00")) : null,
+    };
+  });
+}
+
+/** "While you were away": what needs the parent, then what the agent did. Derived from the run's audit trail. */
+function inboxView(view: {
+  run: import("../domain/types").Run | null;
+  events: AuditEvent[];
+  needsApproval: string | null;
+  order: Order | null;
+  refusals: CandidateDecision[];
+  household: { childName: string };
+}): import("../domain/view").InboxItem[] {
+  const out: import("../domain/view").InboxItem[] = [];
+  const { run, events } = view;
+  if (!run) return out;
+  if (run.status === "proposed") {
+    out.push({
+      id: `approve-${run.id}`,
+      at: run.updatedAt,
+      kind: "needs_you",
+      title: "Approve this week's lunches",
+      body: view.needsApproval ?? "LunchShift is waiting for you before it changes the cart.",
+      action: { label: "Approve", endpoint: "/api/parent/approve" },
+    });
+  }
+  if (run.status === "escalated") {
+    const e = [...events].reverse().find((x) => x.type === "hold_escalated");
+    out.push({ id: `esc-${run.id}`, at: e?.at ?? run.updatedAt, kind: "needs_you", title: "LunchShift needs you", body: e ? e.summary.replace(/^Escalated to parent: /, "") : "It stopped before placing anything." });
+  }
+  for (const e of events) {
+    if (e.data.budgetAlert === true) out.push({ id: `budget-${e.seq}`, at: e.at, kind: "alert", title: "Budget alert", body: e.summary.replace(/^Budget alert: /, "") });
+  }
+  if (view.order) {
+    out.push({ id: `order-${view.order.orderId}`, at: view.order.placedAt, kind: "done", title: `Order ${view.order.orderId} placed`, body: `Pay at pickup · $${(view.order.totalCents / 100).toFixed(2)}` });
+  }
+  const held = [...events].reverse().find((x) => x.type === "hold_verified");
+  if (held) out.push({ id: `held-${held.seq}`, at: held.at, kind: "done", title: "Pickup held", body: held.summary.replace(/^Hold \S+ verified: /, "") });
+  for (const sw of events.filter((x) => x.type === "swap_applied")) {
+    out.push({ id: `swap-${sw.seq}`, at: sw.at, kind: "done", title: "Lunches swapped", body: sw.summary.replace(/^Applied /, "") });
+  }
+  const first = view.refusals.find((r) => r.factId);
+  const refEv = first ? events.find((x) => x.type === "candidate_rejected" && x.data.candidateId === first.candidateId) : undefined;
+  if (first && refEv) {
+    out.push({ id: `safe-${refEv.seq}`, at: refEv.at, kind: "done", title: `Kept ${view.household.childName || "your kids"} safe`, body: `Refused ${String(refEv.data.skuName ?? refEv.data.recipeName ?? "an unsafe item")}` });
+  }
+  const rank = (k: string) => (k === "done" ? 1 : 0);
+  return out.sort((a, b) => rank(a.kind) - rank(b.kind) || b.at.localeCompare(a.at));
 }

@@ -5,6 +5,7 @@ import { HOUSEHOLD } from "../lib/domain/fixture";
 import { activeCatalog } from "../lib/domain/catalog";
 import { activeHousehold, liveDeps, runIdNow } from "./deps";
 import { currentWeekOf } from "../lib/domain/families";
+import { checkBudget, markRun, routinesOf } from "./routines";
 import { processRun } from "./runWeekly";
 
 const TICK_MS = Number(process.env.WORKER_TICK_MS ?? 3000);
@@ -49,11 +50,14 @@ async function main() {
         const evs = await deps.grocer.events(0);
         if (evs.length === 0) state.lastStockEventSeq = 0;
       }
+      const household = await activeHousehold(deps.store);
+      const routines = routinesOf(household);
       let trigger: "schedule" | "stockout_event" | null = null;
       const events = await deps.grocer.events(state.lastStockEventSeq);
       for (const e of events) {
         state.lastStockEventSeq = Math.max(state.lastStockEventSeq, e.seq);
-        if (e.kind === "stockout" && WATCHED_SKUS.has(e.skuId)) trigger = "stockout_event";
+        // Stock and label watch routine: a sold-out item in this family's cart triggers a re-check.
+        if (e.kind === "stockout" && WATCHED_SKUS.has(e.skuId) && routines.stock_watch.enabled && household.onboarded !== false) trigger = "stockout_event";
       }
       if (events.length) persist(state);
       if (!run && Date.now() >= dueAt) trigger = trigger ?? "schedule";
@@ -64,7 +68,12 @@ async function main() {
           weekOf: currentWeekOf(),
           trigger: trigger ?? run?.trigger ?? "schedule",
         });
-        if (!run || r.run.status !== run.status) console.log(`[worker] ${r.run.id} -> ${r.run.status} (${r.run.effectiveMode})`);
+        if (!run || r.run.status !== run.status) {
+          console.log(`[worker] ${r.run.id} -> ${r.run.status} (${r.run.effectiveMode})`);
+          if (trigger === "stockout_event") await markRun(deps.store, household.id, "stock_watch", `Item sold out · ${r.run.status === "hold_verified" ? "re-planned and held" : r.run.status.replace(/_/g, " ")}`);
+          if (trigger === "schedule") await markRun(deps.store, household.id, "weekly_plan", `Planned · ${r.run.status.replace(/_/g, " ")}`);
+          await checkBudget(deps.store, household, r.run.id, await deps.store.getKpis(r.run.id));
+        }
       }
     } catch (e) {
       console.error(`[worker] tick error: ${e instanceof Error ? e.message : String(e)}`);
