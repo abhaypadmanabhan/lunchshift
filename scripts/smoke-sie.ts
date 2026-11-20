@@ -38,6 +38,14 @@ async function main() {
     console.log(JSON.stringify(await r.json()).slice(0, 600));
     return;
   }
+  if (cmd === "newfamily") {
+    // A chat-built family: only dislikes, no positive preference. Its scores must still separate the lunches.
+    const pool = RECIPES.filter((r) => ["r-veggie-pasta", "r-rice-bean-bowl", "r-turkey-rice-box", "r-bean-quesadilla"].includes(r.id));
+    const text = "Whole school lunch for Noah and Ivy. Noah dislikes mushrooms. Ivy dislikes mushrooms. Week already has: r-turkey-pita, r-pasta-salad.";
+    const res = await new SieRanker(key, base).rank({ text, maxPrepMinutes: 20, preferTags: [], pantryRoles: [] }, pool);
+    console.log("newfamily via SieRanker", res.ranked.map((x) => `${x.id}=${x.score.toFixed(4)}`).join(" "));
+    return;
+  }
   const t0 = Date.now();
   const res = await new SieRanker(key, base).rank(q, cands);
   console.log("rank via SieRanker", `${Date.now() - t0} ms`, res.model, res.ranked.map((x) => `${x.id}=${x.score.toFixed(4)}`).join(" "));

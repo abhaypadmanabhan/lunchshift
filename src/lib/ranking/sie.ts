@@ -25,6 +25,13 @@ function parseScores(body: unknown, ids: string[]): Array<{ id: string; score: n
   return out;
 }
 
+/** The reranker scores "is this item relevant to the query". A chat-built family often has only dislikes and recipe ids,
+ * which scores every lunch near 0 (and an empty query is HTTP 400), so the query always states what a good item is. */
+export function sieQueryText(familyText: string): string {
+  const family = familyText.replace(/Week already has:[^.]*\./, "").trim();
+  return `A complete, kid-friendly school lunch that is quick to pack. ${family}`.trim();
+}
+
 export class SieRanker implements Ranker {
   constructor(
     private readonly apiKey: string,
@@ -36,8 +43,7 @@ export class SieRanker implements Ranker {
     const res = await fetch(`${this.baseUrl.replace(/\/$/, "")}/v1/score/${encodeURIComponent(MODEL)}`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${this.apiKey}` },
-      // A family with no preferences yet still gets a meaningful query (SIE rejects an empty one with HTTP 400).
-      body: JSON.stringify({ query: { text: query.text.trim() || "A complete, kid-friendly school lunch that is quick to pack" }, items }),
+      body: JSON.stringify({ query: { text: sieQueryText(query.text) }, items }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`SIE HTTP ${res.status}`);
