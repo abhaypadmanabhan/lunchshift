@@ -154,7 +154,8 @@ export function toFacts(p: Parsed): ProposedFact[] {
 export async function interpret(message: string, mode: string, h: Household): Promise<Interpretation> {
   try {
     const parsed = await parseWithClaude(message, mode, h);
-    return { reply: parsed.reply ?? "Here's what I understood.", facts: toFacts(parsed), provider: "anthropic" };
+    const reply = typeof parsed.reply === "string" && parsed.reply.trim() ? parsed.reply.slice(0, 600) : "Here's what I understood.";
+    return { reply, facts: toFacts(parsed), provider: "anthropic" };
   } catch {
     const parsed = parseWithRules(message);
     return { reply: parsed.reply!, facts: toFacts(parsed), provider: "rules" };

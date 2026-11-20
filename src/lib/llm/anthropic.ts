@@ -80,12 +80,12 @@ export class AnthropicExplainer implements SwapExplainer {
       const rationale = typeof parsed.rationale === "string" ? clampSentences(parsed.rationale, 2) : "";
       if (typeof parsed.choiceId !== "string" || !eligibleIds.has(parsed.choiceId) || !rationale) {
         // Never trust an out-of-list choice: use the ranking top with the template rationale.
-        this.lastError = `model returned invalid choice ${JSON.stringify(parsed.choiceId)}`;
+        this.lastError = "model returned an invalid choice or explanation";
         return this.fallback.explain(input);
       }
       return { choiceId: parsed.choiceId, rationale, provider: "anthropic" };
-    } catch (e) {
-      this.lastError = e instanceof Error ? `${e.name}: ${e.message.slice(0, 200)}` : String(e);
+    } catch {
+      this.lastError = "model request failed";
       return this.fallback.explain(input);
     }
   }

@@ -7,6 +7,7 @@ import { activeHousehold, liveDeps, runIdNow } from "./deps";
 import { currentWeekOf } from "../lib/domain/families";
 import { checkBudget, markRun, routinesOf } from "./routines";
 import { processRun } from "./runWeekly";
+import { errorClass } from "../lib/store";
 
 const TICK_MS = Number(process.env.WORKER_TICK_MS ?? 3000);
 // Demo schedule: "Sunday 16:00" for the fixture week. WORKER_SCHEDULE_AT=now makes the run due at start.
@@ -76,7 +77,7 @@ async function main() {
         }
       }
     } catch (e) {
-      console.error(`[worker] tick error: ${e instanceof Error ? e.message : String(e)}`);
+      console.error(`[worker] tick error: ${errorClass(e)}`);
     } finally {
       busy = false;
     }

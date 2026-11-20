@@ -16,7 +16,8 @@ const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
 
 /** Error class only (never a host, user or value): DNS, auth, TLS, network, timeout. */
 export function errorClass(e: unknown): string {
-  const code = (e as { code?: string })?.code ?? "";
+  const rawCode = (e as { code?: unknown })?.code;
+  const code = typeof rawCode === "string" && /^[A-Z][A-Z0-9_]{1,45}$/.test(rawCode) ? rawCode : "";
   if (/ENOTFOUND|EAI_AGAIN/.test(code)) return `DNS: host does not resolve (${code})`;
   if (/ACCESS_DENIED|ER_DBACCESS|ER_BAD_DB/.test(code)) return `auth/database (${code})`;
   if (/CERT|SSL|TLS|SELF_SIGNED|UNABLE_TO_VERIFY/i.test(code)) return `TLS (${code})`;

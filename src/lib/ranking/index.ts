@@ -1,7 +1,7 @@
 // getRanker(): SIE if keyed, else SingleStore vector when the store is SingleStore, else local.
 // Any throw or timeout falls through to the next ranker; fallbackReason says why.
 import type { RankQuery, RankResult, Ranker, Recipe } from "../domain/types";
-import { getStore, SingleStoreStore } from "../store";
+import { errorClass, getStore, SingleStoreStore } from "../store";
 import { defaultPriceBook, type PriceBook } from "./features";
 import { LocalVectorRanker } from "./local";
 import { SieRanker } from "./sie";
@@ -10,8 +10,6 @@ import { SingleStoreVectorRanker } from "./singlestoreVector";
 export { buildRankQuery } from "./features";
 
 const RANK_TIMEOUT_MS = 10000;
-
-const msg = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 120);
 
 /**
  * Two stages, per the design: SingleStore (or local) vector SQL builds the auditable shortlist from structured
@@ -31,7 +29,7 @@ class TwoStageRanker implements Ranker {
     try {
       stage1 = await withTimeoutR(this.shortlist.rank(query, candidates));
     } catch (e) {
-      why.push(`${this.shortlistName}: ${msg(e)}`);
+      why.push(`${this.shortlistName}: ${errorClass(e)}`);
       stage1 = await new LocalVectorRanker().rank(query, candidates);
     }
     const shortlist = { provider: stage1.provider, model: stage1.model, ranked: stage1.ranked };
@@ -45,7 +43,7 @@ class TwoStageRanker implements Ranker {
         ...(why.length ? { fallbackReason: why.join("; ") } : {}),
       };
     } catch (e) {
-      why.push(`sie: ${msg(e)}`);
+      why.push(`sie: ${errorClass(e)}`);
       return { ...stage1, inputs: { ...stage1.inputs, shortlist }, fallbackReason: why.join("; ") };
     }
   }

@@ -5,12 +5,19 @@ import type { Household, HouseholdFact } from "./types";
 import type { HouseholdUpdate } from "./view";
 
 export const WEEK_OF = "2026-11-22";
+const LAST_UNVERSIONED_REVISION = 3;
 
 /** One run per family per week per policy revision: rules changed mid-week means a fresh plan (the old run is superseded). */
 export function currentRunId(h: Pick<Household, "id" | "policyRevision" | "mandate">, weekOf: string = WEEK_OF): string {
   const base = h.id === "lunchshift-demo" || !h.id ? `run-${weekOf}` : `run-${h.id}-${weekOf}`;
   const approved = h.mandate.policyRevision ?? h.policyRevision;
-  return h.policyRevision <= 3 && approved <= 3 ? base : `${base}-r${h.policyRevision}`;
+  return h.policyRevision <= LAST_UNVERSIONED_REVISION && approved <= LAST_UNVERSIONED_REVISION ? base : `${base}-r${h.policyRevision}`;
+}
+
+/** Keep existing run IDs stable. The first edit after onboarding needs a versioned ID of its own. */
+export function nextPolicyRevision(h: Pick<Household, "onboarded" | "policyRevision">): number {
+  const next = h.policyRevision + 1;
+  return h.onboarded === false && h.policyRevision === 1 ? next : Math.max(next, LAST_UNVERSIONED_REVISION + 1);
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -36,7 +43,7 @@ export function applyHouseholdUpdate(
   u: HouseholdUpdate,
 ): { household: Household; normalized: { input: string; id: string; label: string; custom: boolean }[] } {
   const childName = (u.childName ?? h.childName).trim() || h.childName;
-  const revision = h.policyRevision + 1;
+  const revision = nextPolicyRevision(h);
   const seen = new Set<string>();
   const normalized: NormalizedAllergy[] = [];
   const allergyFacts: HouseholdFact[] = [];
@@ -76,6 +83,6 @@ export function kidCount(h: Pick<Household, "children">): number {
 
 /** The week's lunch days after school skips. */
 export function activePlan<T extends Pick<Household, "plan" | "skipDays">>(h: T): T["plan"] {
-  const skip = new Set(h.skipDays ?? []);
+  const skip = new Set(Array.isArray(h.skipDays) ? h.skipDays : []);
   return h.plan.filter((p) => !skip.has(p.day));
 }
