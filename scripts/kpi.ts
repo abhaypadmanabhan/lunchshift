@@ -6,7 +6,10 @@ import type { AutonomyMode, Household, KpiSet, Ranker } from "../src/lib/domain/
 import { startGrocer, AGENT_TOKEN, OPERATOR_TOKEN } from "../src/grocer/server";
 import { GrocerClient, GrocerOperator } from "../src/grocer/client";
 import { approveProposal, allProposals, placeOrderFor, processRun, type WorkerDeps } from "../src/worker/runWeekly";
-import { applyHouseholdUpdate } from "../src/lib/domain/household";
+import { applyHouseholdUpdate, currentRunId } from "../src/lib/domain/household";
+import { blankFamily } from "../src/lib/domain/families";
+import { toFacts } from "../src/lib/llm/chat";
+import { applyFacts } from "../src/worker/parent";
 import { FixtureMemory, MemoryStore, RecordingAnalytics, StaticAutonomy, TemplateExplainer } from "../src/worker/testing";
 import { LocalVectorRanker } from "../src/lib/ranking/local";
 import { buildRankQuery } from "../src/lib/ranking/features";
@@ -189,13 +192,15 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
     },
   },
   {
-    name: "Parent click never exceeds the parent's own maximum, or a failed config read",
+    name: "Parent approval authorizes this order only with a live mandate and a good config read",
     auto: false,
     fn: async () => {
       const out: string[] = [];
       let ok = true;
       for (const variant of ["max_auto_swap", "read_timeout"] as const) {
-        const hh = variant === "max_auto_swap" ? { ...HOUSEHOLD, mandate: { ...HOUSEHOLD.mandate, maxAutonomy: "auto_swap" as const } } : HOUSEHOLD;
+        // ("max_auto_swap" = the expired-mandate variant; name kept for the log)
+        // Mandate expired: an approval can't hold. Config read timed out: an approval can't hold.
+        const hh = variant === "max_auto_swap" ? { ...HOUSEHOLD, mandate: { ...HOUSEHOLD.mandate, expiresAt: "2026-01-01" } } : HOUSEHOLD;
         const w = await world("suggest_only", hh);
         await w.op.setStock(DEMO_STOCKOUT_SKU, 0);
         await w.run();
@@ -333,6 +338,63 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
       return {
         pass: r.run.status === "hold_verified" && lost && placed === 1 && orders.length === 1 && orders[0].payment === "pay_at_pickup" && orders[0].placedBy === "agent" && pay.status === 403,
         detail: `status ${r.run.status}, reply lost ${lost}, order events ${placed}, store orders ${orders.length} (${orders[0]?.orderId} ${orders[0]?.payment}, by ${orders[0]?.placedBy}), payment ${pay.status}`,
+        kpis: k,
+      };
+    },
+  },
+  {
+    name: "New family from scratch through chat: 2 kids (peanut; sesame + milk), approve, one safe hold packed for both",
+    auto: false,
+    fn: async () => {
+      // What Claude extracts from: "Maya is 8, peanut allergy. Leo is 6, sesame and milk. $45 a week."
+      const facts = toFacts({
+        kids: [{ name: "Maya", age: 8 }, { name: "Leo", age: 6 }],
+        allergies: [{ child: "Maya", allergen: "peanuts" }, { child: "Leo", allergen: "sesame" }, { child: "Leo", allergen: "milk" }],
+        budgetDollars: 45,
+      });
+      const fam = applyFacts(blankFamily(1), facts);
+      const w = await world("auto_swap_and_hold", fam);
+      const runId = currentRunId(fam, "2026-11-22");
+      const go = () => processRun(w.deps, { runId, householdId: fam.id, weekOf: "2026-11-22", trigger: "manual" });
+      const r1 = await go();
+      const r2 = r1.run.status === "proposed" ? await approveProposal(w.deps, runId) : r1;
+      const holds = (await w.client.listHolds(runId)).filter((h) => h.status === "active");
+      const bad = holds.flatMap((h) => h.lines).filter((l) => ["bread-value-wheat", "sauce-thai-peanut", "hummus-classic", "cheddar-sticks", "bread-artisan-sour"].includes(l.skuId));
+      const k = (await w.store.getKpis(runId))!;
+      const swaps = (await allProposals(w.store, runId)).length;
+      await w.grocer.close();
+      return {
+        pass: fam.children?.length === 2 && fam.onboarded === true && r1.run.status === "proposed" && r2.run.status === "hold_verified" && holds.length === 1 && bad.length === 0 && k.mealCompletenessPct === 100 && k.budgetKept.kept,
+        detail: `kids ${fam.children?.map((c) => c.name).join("+")}, facts ${facts.length}, ${r1.run.status} -> ${r2.run.status}, swaps ${swaps}, unsafe lines ${bad.length}, $${(k.budgetKept.totalCents / 100).toFixed(2)}/$${(k.budgetKept.budgetCents / 100).toFixed(2)}, complete ${k.mealCompletenessPct}%`,
+        kpis: k,
+      };
+    },
+  },
+  {
+    name: "Mid-week allergy change through chat: plan replaced, hummus refused, new hold only after approval",
+    auto: false,
+    fn: async () => {
+      const w = await world("auto_swap_and_hold");
+      const r1 = await w.run();
+      const firstHolds = await w.client.listHolds(w.runId);
+      // Parent: "Maya got diagnosed with a sesame allergy" -> chip confirmed.
+      const before = (await w.store.getHousehold(HOUSEHOLD.id))!;
+      const next = applyFacts(before, toFacts({ allergies: [{ child: "Maya", allergen: "sesame" }] }));
+      await w.store.saveHousehold(next);
+      // The old plan is replaced: its hold is released and the run superseded (what /api/chat/confirm does).
+      await w.client.releaseHold(`hold:${w.runId}`);
+      await w.store.upsertRun({ ...(await w.store.getRun(w.runId))!, status: "superseded" });
+      const runId2 = currentRunId(next, "2026-11-22");
+      const go = () => processRun(w.deps, { runId: runId2, householdId: next.id, weekOf: "2026-11-22", trigger: "manual" });
+      const r2 = await go();
+      const r3 = await approveProposal(w.deps, runId2);
+      const holds = (await w.client.listHolds(runId2)).filter((h) => h.status === "active");
+      const hummus = holds.flatMap((h) => h.lines).some((l) => l.skuId === "hummus-classic");
+      const k = (await w.store.getKpis(runId2))!;
+      await w.grocer.close();
+      return {
+        pass: r1.run.status === "hold_verified" && firstHolds.length === 1 && r2.run.status === "proposed" && r3.run.status === "hold_verified" && holds.length === 1 && !hummus && runId2 !== w.runId,
+        detail: `week held ${r1.run.status}; after chat: revision ${next.policyRevision}, ${r2.run.status} -> approve -> ${r3.run.status}; hummus held ${hummus}`,
         kpis: k,
       };
     },

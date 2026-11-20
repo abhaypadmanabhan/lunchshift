@@ -237,7 +237,7 @@ export function applyFacts(h: Household, facts: ProposedFact[]): Household {
   }
 
   let next: Household = { ...h, children, childName };
-  if (allergyChanged || !h.onboarded) {
+  if (allergyChanged || h.onboarded === false) {
     const r = applyHouseholdUpdate(next, { childName, allergies: [...allergies.values()].map((a) => ({ text: a.text, crossContact: a.crossContact })) });
     next = r.household;
     // Attribute each allergy to its kid(s); the safety gate still applies every allergy to every product (shared pantry).
@@ -251,7 +251,7 @@ export function applyFacts(h: Household, facts: ProposedFact[]): Household {
   } else {
     next = { ...next, policyRevision: h.policyRevision + 1, mandate: { ...next.mandate, policyRevision: h.policyRevision + 1 } };
   }
-  if (!h.onboarded) next.mandate = { ...next.mandate, policyRevision: next.policyRevision }; // onboarding is the first approval
+  if (h.onboarded === false) next.mandate = { ...next.mandate, policyRevision: next.policyRevision }; // onboarding is the first approval
 
   // Preferences, budget, pickup, store, plan changes
   const today = new Date().toISOString().slice(0, 10);
