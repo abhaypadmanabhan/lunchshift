@@ -30,7 +30,14 @@ for (let i = 0; i < 40 && !ws; i++) {
 await new Promise((r) => ws.addEventListener("open", r, { once: true }));
 let id = 0;
 const pending = new Map();
-const send = (method, params = {}) => new Promise((res) => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })); });
+// Every CDP call resolves within 5 s even if the page hangs, so the recording always finishes.
+const send = (method, params = {}) =>
+  new Promise((res) => {
+    const i = ++id;
+    const t = setTimeout(() => { pending.delete(i); res({ timeout: true }); }, 5000);
+    pending.set(i, (v) => { clearTimeout(t); res(v); });
+    try { ws.send(JSON.stringify({ id: i, method, params })); } catch { clearTimeout(t); res({ error: true }); }
+  });
 const shots = [];
 ws.addEventListener("message", (m) => {
   const msg = JSON.parse(m.data);
@@ -48,6 +55,7 @@ await sleep(3000);
 await send("Page.startScreencast", { format: "jpeg", quality: 85, maxWidth: W, maxHeight: H, everyNthFrame: 1 });
 const t0 = Date.now();
 const keepAlive = setInterval(() => void send("Runtime.evaluate", { expression: "void 0" }), 800);
+const hardStop = setTimeout(() => { console.log("[record] hard stop"); }, (HOLD.reduce((a, b) => a + b, 0) + 30) * 1000);
 for (let step = 0; step < HOLD.length; step++) {
   await sleep(HOLD[step] * 1000);
   if (step === HOLD.length - 1) break;
@@ -58,6 +66,7 @@ for (let step = 0; step < HOLD.length; step++) {
   console.log(`[record] t=${((Date.now() - t0) / 1000).toFixed(0)}s step ${step + 2}: ${r?.result?.value}`);
 }
 clearInterval(keepAlive);
+clearTimeout(hardStop);
 await send("Page.stopScreencast");
 chrome.kill("SIGTERM");
 const secs = (Date.now() - t0) / 1000;
