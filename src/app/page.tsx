@@ -1,103 +1,170 @@
-import Image from "next/image";
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { AuditEvent, RunStatus } from "@/lib/domain/types";
+import type { IntegrationStatus, RunView } from "@/lib/domain/view";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AuditTrail, EvidenceDrawer } from "@/components/lunchshift/audit-trail";
+import { AutonomyPanel } from "@/components/lunchshift/autonomy-panel";
+import { clock, shortDate } from "@/components/lunchshift/format";
+import { KpiStrip } from "@/components/lunchshift/kpi-strip";
+import { OperatorControls } from "@/components/lunchshift/operator-controls";
+import { ReceiptPanel } from "@/components/lunchshift/receipt-panel";
+import { RefusalHero } from "@/components/lunchshift/refusal-hero";
+import { WeekPlan } from "@/components/lunchshift/week-plan";
+
+const POLL_MS = 1500;
+
+const RUN_HEADLINE: Record<RunStatus, { text: string; tone: "ok" | "wait" | "refuse" | "plain" }> = {
+  scheduled: { text: "Sunday run scheduled", tone: "plain" },
+  running: { text: "Placing this week's order", tone: "plain" },
+  proposed: { text: "Monday swap proposed, waiting for approval", tone: "wait" },
+  swapped_waiting: { text: "Cart repaired, no hold yet", tone: "plain" },
+  hold_pending: { text: "Checking with the store", tone: "wait" },
+  hold_verified: { text: "Pickup hold verified", tone: "ok" },
+  escalated: { text: "Needs a parent", tone: "refuse" },
+  failed: { text: "Run failed", tone: "refuse" },
+};
+
+const TONE = { ok: "text-ok", wait: "text-wait", refuse: "text-refuse", plain: "text-foreground" } as const;
+
+function IntegrationsRow({ items }: { items: IntegrationStatus[] }) {
+  return (
+    <ul className="flex flex-wrap gap-x-6 gap-y-1 text-sm" aria-label="Integrations">
+      {items.map((i) => (
+        <li key={i.name} title={i.detail} className="flex items-baseline gap-1.5">
+          <span>{i.name}</span>
+          <span
+            className={
+              i.status === "live" ? "text-muted-foreground" : i.status === "fallback" ? "font-medium text-wait" : "font-medium text-wait"
+            }
+          >
+            {i.status === "live" ? "live" : i.status === "fallback" ? "fallback" : "missing"}
+          </span>
+          {i.status !== "live" ? <span className="text-muted-foreground">({i.detail})</span> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function LoadingView() {
+  return (
+    <div className="grid grid-cols-12 gap-6" aria-busy="true" aria-label="Loading this week's run">
+      <Skeleton className="col-span-8 h-[26rem] rounded-xl" />
+      <Skeleton className="col-span-4 h-[26rem] rounded-xl" />
+      <Skeleton className="col-span-8 h-[30rem] rounded-xl" />
+      <Skeleton className="col-span-4 h-[30rem] rounded-xl" />
+    </div>
+  );
+}
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [view, setView] = useState<RunView | null>(null);
+  const [error, setError] = useState<{ at: string } | null>(null);
+  const [event, setEvent] = useState<AuditEvent | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const qs = useRef("");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/state${qs.current}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      setView((await res.json()) as RunView);
+      setError(null);
+    } catch {
+      setError((prev) => prev ?? { at: new Date().toISOString() });
+    }
+  }, []);
+
+  useEffect(() => {
+    // Demo passthrough: /?state=a|b|c|d forwards to /api/state for the sample views.
+    const s = new URLSearchParams(window.location.search).get("state");
+    qs.current = s ? `?state=${encodeURIComponent(s)}` : "";
+    void load();
+    const t = setInterval(() => void load(), POLL_MS);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const openEvent = useCallback((e: AuditEvent) => {
+    setEvent(e);
+    setDrawerOpen(true);
+  }, []);
+
+  const headline = view?.run ? RUN_HEADLINE[view.run.status] : null;
+
+  return (
+    <div className="min-h-screen">
+      <header className="border-b bg-background/80 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-[86rem] items-center justify-between gap-6 px-4 md:px-10 py-4">
+          <div className="flex items-baseline gap-4">
+            <span className="text-xl font-semibold tracking-[-0.02em]">LunchShift</span>
+            <span className="text-[0.9375rem] text-muted-foreground">
+              {view ? `${view.household.childName}'s school lunches` : "School lunches"}
+              {view?.run ? ` · Sunday order, ${shortDate(view.run.weekOf).replace(/, \d{4}$/, "")}` : ""}
+            </span>
+          </div>
+          {headline ? (
+            <p key={view?.run?.status} className={`text-[1.0625rem] font-semibold animate-in fade-in-0 duration-300 ${TONE[headline.tone]}`}>
+              {headline.text}
+              {view?.run ? <span className="ml-2 text-sm font-normal text-muted-foreground">updated {clock(view.run.updatedAt)}</span> : null}
+            </p>
+          ) : view ? (
+            <p className="text-[1.0625rem] font-semibold">No run yet this week</p>
+          ) : null}
         </div>
+        {view ? (
+          <div className="mx-auto max-w-[86rem] px-4 md:px-10 pb-3">
+            <IntegrationsRow items={view.integrations} />
+          </div>
+        ) : null}
+      </header>
+
+      {error ? (
+        <div role="status" className="border-b bg-wait-soft">
+          <p className="mx-auto max-w-[86rem] px-4 md:px-10 py-2.5 text-[0.9375rem]">
+            <span className="font-medium text-wait">Can&apos;t reach the LunchShift server.</span>{" "}
+            <span className="text-muted-foreground">
+              {view ? `Showing the last state received. ` : ""}Retrying every {POLL_MS / 1000} s since {clock(error.at)}.
+            </span>
+          </p>
+        </div>
+      ) : null}
+
+      <main className="mx-auto max-w-[86rem] px-4 pt-8 pb-16 md:px-10">
+        {!view ? (
+          <LoadingView />
+        ) : (
+          <div className="grid grid-cols-12 gap-6">
+            <div className="col-span-12 lg:col-span-8">
+              <RefusalHero view={view} onOpenEvent={openEvent} />
+            </div>
+            <div className="col-span-12 lg:col-span-4">
+              <ReceiptPanel view={view} />
+            </div>
+
+            <div className="col-span-12 mt-4 lg:col-span-8">
+              <WeekPlan view={view} />
+            </div>
+            <div className="col-span-12 mt-4 lg:col-span-4">
+              <AutonomyPanel view={view} />
+            </div>
+
+            <div className="col-span-12 mt-10">
+              <KpiStrip kpis={view.kpis} suite={view.kpiSuite} />
+            </div>
+
+            <div className="col-span-12 mt-4 lg:col-span-8">
+              <AuditTrail events={view.events} onOpenEvent={openEvent} />
+            </div>
+            <div className="col-span-12 mt-4 lg:col-span-4">
+              <OperatorControls onDone={() => void load()} />
+            </div>
+          </div>
+        )}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+      <EvidenceDrawer event={event} open={drawerOpen} onOpenChange={setDrawerOpen} />
     </div>
   );
 }
