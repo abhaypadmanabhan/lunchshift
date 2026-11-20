@@ -44,13 +44,15 @@ interface Pointer {
   householdId: string;
   weekIndex: number;
   newFamilies: number;
+  /** Families created in the app since the last reset (ids are unique, never reused). */
+  newFamilyIds: string[];
 }
 export function readPointer(): Pointer {
   try {
     const p = JSON.parse(readFileSync(FILE, "utf8")) as Partial<Pointer>;
-    return { householdId: p.householdId ?? HOUSEHOLD.id, weekIndex: p.weekIndex ?? 0, newFamilies: p.newFamilies ?? 0 };
+    return { householdId: p.householdId ?? HOUSEHOLD.id, weekIndex: p.weekIndex ?? 0, newFamilies: p.newFamilies ?? 0, newFamilyIds: p.newFamilyIds ?? [] };
   } catch {
-    return { householdId: HOUSEHOLD.id, weekIndex: 0, newFamilies: 0 };
+    return { householdId: HOUSEHOLD.id, weekIndex: 0, newFamilies: 0, newFamilyIds: [] };
   }
 }
 export function writePointer(p: Partial<Pointer>) {
@@ -60,11 +62,11 @@ export function writePointer(p: Partial<Pointer>) {
 export const activeHouseholdId = () => readPointer().householdId;
 export const currentWeekOf = () => WEEKS[Math.min(readPointer().weekIndex, WEEKS.length - 1)];
 
-/** A blank family that starts with chat onboarding. */
-export function blankFamily(n: number): Household {
+/** A blank family that starts with chat onboarding. `n` only seeds tests; the app passes a unique id. */
+export function blankFamily(n: number | string): Household {
   return {
     ...HOUSEHOLD,
-    id: `fam-new-${n}`,
+    id: typeof n === "string" ? n : `fam-new-${n}`,
     childName: "",
     facts: [],
     policyRevision: 1,

@@ -19,7 +19,7 @@ export async function operatorAction(action: OperatorAction): Promise<{ ok: true
     case "reset":
       await store.reset();
       for (const p of PRESETS) await store.saveHousehold(p); // back to the preset families (Maya: peanut, revision 3)
-      writePointer({ householdId: HOUSEHOLD.id, weekIndex: 0, newFamilies: 0 }); // hides families made during the demo
+      writePointer({ householdId: HOUSEHOLD.id, weekIndex: 0, newFamilies: 0, newFamilyIds: [] }); // hides families made during the demo
       await op.reset();
       return { ok: true, detail: "Store and app state reset to the clean fixture" };
     case "stockout":

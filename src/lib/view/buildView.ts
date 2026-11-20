@@ -262,9 +262,7 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
 
 async function familiesView(store: Awaited<ReturnType<typeof ensureSeeded>>) {
   const active = activeHouseholdId();
-  const ids = [...PRESETS.map((p) => p.id)];
-  const n = readPointer().newFamilies;
-  for (let i = 1; i <= n; i++) ids.push(`fam-new-${i}`);
+  const ids = [...PRESETS.map((p) => p.id), ...readPointer().newFamilyIds];
   const out = [];
   for (const id of ids) {
     const h = await store.getHousehold(id);

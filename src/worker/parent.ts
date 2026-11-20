@@ -186,10 +186,10 @@ export async function switchFamily(householdId: string): Promise<{ ok: boolean; 
 
 export async function newFamily(): Promise<{ ok: boolean; householdId: string }> {
   const store = await ensureSeeded();
-  const n = readPointer().newFamilies + 1;
-  const h = blankFamily(n);
+  const p = readPointer();
+  const h = blankFamily(`fam-${Date.now().toString(36)}`);
   await store.saveHousehold(h);
-  writePointer({ householdId: h.id, newFamilies: n });
+  writePointer({ householdId: h.id, newFamilies: p.newFamilies + 1, newFamilyIds: [...p.newFamilyIds, h.id] });
   return { ok: true, householdId: h.id };
 }
 
