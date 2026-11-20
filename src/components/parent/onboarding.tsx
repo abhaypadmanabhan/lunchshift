@@ -64,7 +64,13 @@ export function Onboarding({ view, onDone, onRefresh }: { view: RunView; onDone:
   const finish = async () => {
     setSaving(true);
     setErr(null);
-    const body: HouseholdUpdate = { childName: name.trim(), allergies: picked.map((p) => ({ text: p.label, crossContact: p.crossContact })), budgetCents };
+    const body: HouseholdUpdate = {
+      childName: name.trim(),
+      allergies: picked.map((p) => ({ text: p.label, crossContact: p.crossContact })),
+      budgetCents,
+      // "Let LunchShift place my Sunday hold" is the parent's one-time standing approval for these rules.
+      approveStanding: { maxAutonomy: "auto_swap_and_hold" },
+    };
     const res = await postParent<HouseholdUpdateResult>("/api/parent/household", body);
     setSaving(false);
     if (!res.ok) {

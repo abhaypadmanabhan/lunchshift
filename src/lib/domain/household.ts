@@ -61,7 +61,9 @@ export function applyHouseholdUpdate(
       childName,
       policyRevision: revision,
       facts: [...others.filter((f) => f.kind === "member"), ...allergyFacts, ...others.filter((f) => f.kind !== "member")],
-      mandate: { ...h.mandate, budgetCents: budget },
+      mandate: u.approveStanding
+        ? { ...h.mandate, budgetCents: budget, maxAutonomy: u.approveStanding.maxAutonomy, policyRevision: revision, approvedAt: new Date().toISOString(), revoked: false }
+        : { ...h.mandate, budgetCents: budget },
     },
     normalized: normalized.map((n) => ({ input: n.input, id: n.id, label: n.label, custom: n.custom })),
   };

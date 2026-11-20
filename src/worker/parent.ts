@@ -141,9 +141,9 @@ export async function updateCart(skuId: string, packs: number): Promise<{ ok: bo
   return { ok: true, basket: next };
 }
 
-export async function placeOrderByParent(): Promise<{ ok: boolean; reason?: string }> {
+export async function placeOrderByParent(): Promise<{ ok: boolean; reason?: string; order?: import("../lib/domain/types").Order }> {
   const store = await ensureSeeded();
   const h = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
   const r = await placeOrderFor({ store, grocer: grocerClient(), analytics: getAnalytics() }, currentRunId(h), "parent");
-  return { ok: r.ok, reason: r.reason };
+  return { ok: r.ok, reason: r.reason, order: r.order };
 }

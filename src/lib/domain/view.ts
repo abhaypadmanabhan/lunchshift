@@ -101,6 +101,8 @@ export interface HouseholdUpdate {
   childName?: string;
   allergies: { text: string; crossContact: boolean }[]; // free text: "peanuts", "dairy", "sesame", "kiwi"
   budgetCents?: number;
+  /** Onboarding's "Let LunchShift place my Sunday hold": the parent's one-time standing approval at this revision. */
+  approveStanding?: { maxAutonomy: "suggest_only" | "auto_swap" | "auto_swap_and_hold" };
 }
 export interface HouseholdUpdateResult {
   ok: boolean;

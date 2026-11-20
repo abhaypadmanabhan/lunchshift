@@ -18,6 +18,10 @@ export async function POST(req: Request) {
         childName: typeof body.childName === "string" ? body.childName.slice(0, 40) : undefined,
         allergies,
         budgetCents: typeof body.budgetCents === "number" ? body.budgetCents : undefined,
+        approveStanding:
+          body.approveStanding && ["suggest_only", "auto_swap", "auto_swap_and_hold"].includes(body.approveStanding.maxAutonomy)
+            ? { maxAutonomy: body.approveStanding.maxAutonomy }
+            : undefined,
       }),
     );
   } catch (e) {
