@@ -14,6 +14,9 @@ import { checkBudget, routinesOf, withRoutines } from "../src/worker/routines";
 import { FixtureMemory, MemoryStore, RecordingAnalytics, StaticAutonomy, TemplateExplainer } from "../src/worker/testing";
 import { LocalVectorRanker } from "../src/lib/ranking/local";
 import { buildRankQuery } from "../src/lib/ranking/features";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { createCheckout } from "../src/lib/payments/stripe";
 
 type Scenario = { name: string; pass: boolean; detail: string; kpis?: KpiSet; auto?: boolean };
 
@@ -547,6 +550,69 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
       await w.grocer.close();
       const ok = pay.status === 403 && reuse.kind === "rejected" && reuse.status === 409;
       return { pass: ok, detail: `payment ${pay.status} ${pay.error}; key reuse ${reuse.kind === "rejected" ? reuse.status + " " + reuse.error : reuse.kind}` };
+    },
+  },
+  {
+    name: "Parent card payment (Stripe test): dropped reply + double tap = exactly 1 PaymentIntent per hold; live key refused",
+    auto: false,
+    fn: async () => {
+      // A fake Stripe that honours Idempotency-Key like the real one and drops its first reply after committing.
+      const sessions = new Map<string, { id: string; url: string; pi: string; body: string }>();
+      let intents = 0;
+      let requests = 0;
+      let dropNext = true;
+      const fake = createServer((req, res) => {
+        let body = "";
+        req.on("data", (c) => (body += c));
+        req.on("end", () => {
+          requests++;
+          const key = String(req.headers["idempotency-key"] ?? "");
+          let s = key ? sessions.get(key) : undefined;
+          if (!s) {
+            intents++;
+            s = { id: `cs_test_${intents}`, url: `https://checkout.stripe.test/${intents}`, pi: `pi_test_${intents}`, body };
+            if (key) sessions.set(key, s);
+          }
+          if (dropNext) {
+            dropNext = false;
+            req.socket.destroy();
+            return;
+          }
+          res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ id: s.id, url: s.url, payment_intent: s.pi }));
+        });
+      });
+      await new Promise<void>((r) => fake.listen(0, "127.0.0.1", r));
+      const saved = { key: process.env.STRIPE_SECRET_KEY, base: process.env.STRIPE_API_BASE };
+      process.env.STRIPE_API_BASE = `http://127.0.0.1:${(fake.address() as AddressInfo).port}`;
+      const req = {
+        runId: "kpi-pay",
+        holdRef: "H-KPI",
+        householdId: HOUSEHOLD.id,
+        orderId: "LS-KPI",
+        lines: [{ name: "Apples", unitCents: 349, qty: 2 }],
+        successUrl: "http://x/?paid={CHECKOUT_SESSION_ID}",
+        cancelUrl: "http://x/",
+      };
+      try {
+        process.env.STRIPE_SECRET_KEY = "sk_test_kpi_fake";
+        const first = await createCheckout(req); // reply dropped, retried once with the same key
+        const tap2 = await createCheckout(req); // the parent taps Pay again
+        const tagged = /metadata%5Bapp%5D=lunchshift/.test([...sessions.values()][0]?.body ?? "");
+        process.env.STRIPE_SECRET_KEY = "sk_live_kpi_fake";
+        const before = requests;
+        const live = await createCheckout(req);
+        const ok = first.ok && tap2.ok && first.sessionId === tap2.sessionId && intents === 1 && tagged && !live.ok && requests === before;
+        return {
+          pass: ok,
+          detail: `PaymentIntents ${intents} for 1 hold (same session on retry and double tap: ${first.ok && tap2.ok && first.sessionId === tap2.sessionId}); app metadata ${tagged}; live key ${live.ok ? "ACCEPTED" : "refused"}, ${requests - before} calls`,
+        };
+      } finally {
+        if (saved.key === undefined) delete process.env.STRIPE_SECRET_KEY;
+        else process.env.STRIPE_SECRET_KEY = saved.key;
+        if (saved.base === undefined) delete process.env.STRIPE_API_BASE;
+        else process.env.STRIPE_API_BASE = saved.base;
+        fake.close();
+      }
     },
   },
 ];

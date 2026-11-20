@@ -13,7 +13,8 @@ import { activeHousehold, ensureSeeded, grocerClient, grocerOperator } from "./d
 import { checkSku, hardRestrictions } from "../lib/domain/rules";
 import { allProposals, draftKey, placeOrderFor } from "./runWeekly";
 import { getAnalytics } from "../lib/autonomy";
-import type { Basket } from "../lib/domain/types";
+import type { Basket, Order } from "../lib/domain/types";
+import { createCheckout, retrieveSession, stripeStatus } from "../lib/payments/stripe";
 
 async function scheduleRun(store: AppStore, runId: string, trigger: Run["trigger"], householdId: string = HOUSEHOLD.id) {
   if (await store.getRun(runId)) return;
@@ -363,4 +364,63 @@ export async function runRoutine(id: string): Promise<{ ok: boolean; result: str
   }
   await markRun(store, h.id, id as RoutineId, result);
   return { ok: true, result };
+}
+
+/**
+ * The parent's own "Pay (test)" tap: a Stripe Checkout Session for this run's placed order, in test mode only.
+ * Never called by the worker; autonomy never covers payment. One session per hold (idempotency key from the run).
+ */
+export async function startPayment(origin: string): Promise<{ ok: boolean; url?: string; reason?: string }> {
+  const s = stripeStatus();
+  if (!s.enabled) return { ok: false, reason: s.reason };
+  const store = await ensureSeeded();
+  const h = await activeHousehold(store);
+  const runId = currentRunId(h, currentWeekOf());
+  const events = await store.listEvents(runId);
+  if (events.some((e) => e.type === "payment_confirmed")) return { ok: false, reason: "Already paid" };
+  const order = events.find((e) => e.type === "order_placed")?.data.order as Order | undefined;
+  if (!order) return { ok: false, reason: "Place the order first" };
+  const skus = new Map((await grocerClient().catalog()).skus.map((k) => [k.id, k.name]));
+  const r = await createCheckout({
+    runId,
+    holdRef: order.holdId,
+    householdId: h.id,
+    orderId: order.orderId,
+    lines: order.lines.map((l) => ({ name: skus.get(l.skuId) ?? l.skuId, unitCents: l.unitPriceCents, qty: l.packs })),
+    successUrl: `${origin}/?paid={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${origin}/`,
+  });
+  if (!r.ok) return { ok: false, reason: r.error };
+  if (!events.some((e) => e.type === "payment_started" && e.data.sessionId === r.sessionId)) {
+    await store.appendEvent({
+      runId,
+      actor: "parent",
+      type: "payment_started",
+      summary: `Parent opened Stripe Checkout (test mode) for order ${order.orderId}, $${(order.totalCents / 100).toFixed(2)}`,
+      data: { sessionId: r.sessionId, orderId: order.orderId, holdId: order.holdId, testMode: true },
+    });
+  }
+  return { ok: true, url: r.url };
+}
+
+/** Back from Checkout: confirm by retrieving the session from Stripe, never by trusting the redirect. */
+export async function confirmPayment(sessionId: string): Promise<{ ok: boolean; paid?: boolean; reason?: string }> {
+  const store = await ensureSeeded();
+  const h = await activeHousehold(store);
+  const runId = currentRunId(h, currentWeekOf());
+  const events = await store.listEvents(runId);
+  if (events.some((e) => e.type === "payment_confirmed")) return { ok: true, paid: true };
+  if (!events.some((e) => e.type === "payment_started" && e.data.sessionId === sessionId)) return { ok: false, reason: "Unknown payment session" };
+  const r = await retrieveSession(sessionId);
+  if (!r.ok) return { ok: false, reason: r.error };
+  if (r.runId !== runId) return { ok: false, reason: "Payment belongs to another week" };
+  if (!r.paid) return { ok: true, paid: false };
+  await store.appendEvent({
+    runId,
+    actor: "stripe",
+    type: "payment_confirmed",
+    summary: `Paid $${(r.amountCents / 100).toFixed(2)} by the parent · Stripe test mode · ${r.paymentIntentId ?? sessionId}`,
+    data: { sessionId, paymentIntentId: r.paymentIntentId, amountCents: r.amountCents, testMode: true },
+  });
+  return { ok: true, paid: true };
 }

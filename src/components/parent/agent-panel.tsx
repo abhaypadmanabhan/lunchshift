@@ -17,6 +17,7 @@ const MARK: Record<Sponsor, string> = {
   Store: "font-medium",
   LunchShift: "font-semibold tracking-[-0.01em] text-primary",
   You: "font-medium",
+  Stripe: "font-semibold tracking-[-0.02em]",
 };
 
 function Chip({ sponsor }: { sponsor: Sponsor }) {

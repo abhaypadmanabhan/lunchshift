@@ -3,7 +3,7 @@ import type { AuditEvent } from "@/lib/domain/types";
 import type { RunView } from "@/lib/domain/view";
 import { DAY_NAME, money } from "./copy";
 
-export type Sponsor = "Cognee" | "Superlinked SIE" | "SingleStore" | "Claude" | "Statsig" | "Store" | "LunchShift" | "You";
+export type Sponsor = "Cognee" | "Superlinked SIE" | "SingleStore" | "Claude" | "Statsig" | "Store" | "LunchShift" | "You" | "Stripe";
 
 export interface FeedLine {
   key: string;
@@ -134,6 +134,10 @@ function line(e: AuditEvent, view: RunView): Line | Line[] | null {
       return { sponsor: "LunchShift", text: "Stopped and asked you · nothing paid", tone: "refuse" };
     case "order_placed":
       return { sponsor: "Store", text: "Order placed · pay at pickup", tone: "done" };
+    case "payment_started":
+      return { sponsor: "You", text: "Opened Stripe checkout · test mode" };
+    case "payment_confirmed":
+      return { sponsor: "Stripe", text: "Paid by you · test mode", mono: str(d.paymentIntentId) ?? undefined, tone: "done" };
     case "order_response_lost":
       return { sponsor: "Store", text: "Order reply dropped · reading back by key" };
     case "item_added": {

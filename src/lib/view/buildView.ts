@@ -8,7 +8,8 @@ import type { CartView } from "../domain/view";
 import { checkSku, hardRestrictions } from "../domain/rules";
 import { cartBasket } from "../../worker/parent";
 import { describe, nextWeeklyRun, routinesOf } from "../../worker/routines";
-import type { IntegrationStatus, KpiSuiteResult, PlanRow, RunView } from "../domain/view";
+import type { IntegrationStatus, KpiSuiteResult, PaymentView, PlanRow, RunView } from "../domain/view";
+import { stripeStatus } from "../payments/stripe";
 import { storeStatus } from "../store";
 import { getAutonomy } from "../autonomy";
 import type { AutonomyReading } from "../domain/types";
@@ -141,6 +142,11 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
     orders = order ? [order] : [];
   }
   const liveOrder = order ? (orders.find((o) => o.orderId === order.orderId) ?? order) : null;
+  const paidEv = last("payment_confirmed");
+  const stripe = stripeStatus();
+  const payment: PaymentView = paidEv
+    ? { status: "paid", reason: null, paymentIntentId: (paidEv.data.paymentIntentId as string | null) ?? null, amountCents: Number(paidEv.data.amountCents ?? 0), testMode: true }
+    : { status: stripe.enabled ? (last("payment_started") ? "pending" : "ready") : "unavailable", reason: stripe.enabled ? null : stripe.reason, paymentIntentId: null, amountCents: null, testMode: true };
   const rationaleProvider = proposal?.rationaleProvider;
   const rankProvider = proposal?.ranking.provider;
   const integrations: IntegrationStatus[] = [
@@ -244,6 +250,7 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
     cart,
     order: liveOrder,
     orders,
+    payment,
     needsApproval:
       run?.status === "proposed"
         ? (([...events].reverse().find((e) => typeof e.data.approvalReason === "string")?.data.approvalReason as string | undefined) ??

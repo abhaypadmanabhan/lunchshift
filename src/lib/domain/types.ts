@@ -308,7 +308,7 @@ export interface Run {
   updatedAt: string;
 }
 
-export type AuditActor = "worker" | "grocer" | "parent" | "operator" | "statsig" | "cognee" | "ranker" | "llm" | "sie";
+export type AuditActor = "worker" | "grocer" | "parent" | "operator" | "statsig" | "cognee" | "ranker" | "llm" | "sie" | "stripe";
 
 export interface AuditEvent {
   runId: string;
@@ -333,6 +333,8 @@ export interface AuditEvent {
     | "hold_escalated"
     | "order_placed"
     | "order_response_lost"
+    | "payment_started" // the parent's own tap, Stripe test mode only; the agent never pays
+    | "payment_confirmed"
     | "cart_edited"
     | "item_added"
     | "metrics_computed"

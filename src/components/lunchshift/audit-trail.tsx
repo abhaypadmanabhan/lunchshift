@@ -16,6 +16,7 @@ const ACTOR_LABEL: Record<AuditActor, string> = {
   ranker: "Ranker",
   llm: "Claude",
   sie: "SIE",
+  stripe: "Stripe",
 };
 
 const DEFAULT_ROWS = 14;

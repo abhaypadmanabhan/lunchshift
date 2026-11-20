@@ -9,6 +9,41 @@ import { ORDER_STATUS, money, shortDate, skuName, slotLabel, timeOfDay } from ".
 import { AppButton, Notice } from "./ui";
 import { postParent } from "./use-run-view";
 
+/** Card payment for this week's order: only ever the parent's tap, Stripe test mode. Hidden without a test key. */
+export function PayButton({ view, order }: { view: RunView; order: Order }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const p = view.payment;
+  if (!p || p.status === "unavailable" || view.order?.orderId !== order.orderId || order.status === "cancelled") return null;
+  if (p.status === "paid") {
+    return (
+      <p className="mt-3 text-[0.9375rem] text-ok">
+        Paid by you · Stripe test mode · <span className="font-mono">{p.paymentIntentId}</span>
+      </p>
+    );
+  }
+  const pay = async () => {
+    setBusy(true);
+    setErr(null);
+    const res = await postParent<{ ok: boolean; url?: string }>("/api/parent/pay");
+    if (res.ok && res.data.url) {
+      window.location.assign(res.data.url);
+      return;
+    }
+    setBusy(false);
+    setErr(res.ok ? "Stripe didn't return a checkout page" : res.message);
+  };
+  return (
+    <div className="mt-3">
+      <AppButton className="w-full" busy={busy} onClick={() => void pay()}>
+        Pay {money(order.totalCents)} now (test card)
+      </AppButton>
+      <p className="mt-2 text-[0.9375rem] text-muted-foreground">Only you can pay. LunchShift never pays on its own, even in Swap and hold.</p>
+      {err ? <Notice tone="alert">{err}</Notice> : null}
+    </div>
+  );
+}
+
 /** This week's order on the This week tab: place it after a verified hold, or open the one already placed. */
 export function OrderCard({ view, onOpen, onRefresh }: { view: RunView; onOpen: (o: Order, justPlaced: boolean) => void; onRefresh: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
@@ -28,8 +63,9 @@ export function OrderCard({ view, onOpen, onRefresh }: { view: RunView; onOpen: 
           <span className="text-lg font-semibold tabular-nums">{money(order.totalCents)}</span>
         </div>
         <p className="mt-1 text-base text-muted-foreground">
-          {slotLabel(order.slot)} · pay at pickup
+          {slotLabel(order.slot)} · {view.payment?.status === "paid" ? "paid (test)" : "pay at pickup"}
         </p>
+        <PayButton view={view} order={order} />
         <AppButton variant="secondary" className="mt-4 w-full" onClick={() => onOpen(order, false)}>
           View order <ChevronRight className="size-4" aria-hidden />
         </AppButton>
@@ -159,7 +195,7 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
         {[
           ["Pickup", slotLabel(order.slot)],
           ["Total", money(order.totalCents)],
-          ["Payment", "Pay at pickup"],
+          ["Payment", view.payment?.status === "paid" && view.order?.orderId === order.orderId ? `Paid · test mode · ${view.payment.paymentIntentId ?? ""}` : "Pay at pickup"],
           ["Placed by", byAgent ? "LunchShift, within your rules" : "You"],
         ].map(([k, v]) => (
           <div key={k} className="flex items-baseline justify-between gap-4 px-5 py-3.5">

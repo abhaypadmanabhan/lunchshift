@@ -158,6 +158,7 @@ const ACTOR_PLAIN: Record<AuditEvent["actor"], string> = {
   ranker: "LunchShift",
   llm: "LunchShift",
   sie: "Label check",
+  stripe: "Stripe",
 };
 
 export const actorPlain = (e: AuditEvent) => ACTOR_PLAIN[e.actor] ?? "LunchShift";

@@ -232,6 +232,17 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
     setConsoleHref(`/console${window.location.search}`);
   }, []);
 
+  // Back from Stripe Checkout (test mode): the server confirms with Stripe; the redirect alone proves nothing.
+  useEffect(() => {
+    const sessionId = new URLSearchParams(window.location.search).get("paid");
+    if (!sessionId) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    void postParent<{ ok: boolean; paid?: boolean }>("/api/parent/pay/confirm", { sessionId }).then(async (r) => {
+      setNotice(!r.ok ? r.message : r.data.paid ? "Payment received · Stripe test mode" : "Stripe hasn't confirmed the payment yet");
+      await refresh();
+    });
+  }, [refresh]);
+
   // The story starts on the landing for a family that isn't set up yet (checked once per family).
   // `?onboarding=1` opens the form, `?onboarding=0` skips setup. /demo drives this itself.
   useEffect(() => {

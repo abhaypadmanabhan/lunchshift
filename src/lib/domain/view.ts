@@ -34,6 +34,15 @@ export interface KpiSuiteResult {
   kpis: KpiSet;
 }
 
+export interface PaymentView {
+  /** unavailable: no test key (pay at pickup); ready: the parent may pay; paid: confirmed by Stripe. */
+  status: "unavailable" | "ready" | "pending" | "paid";
+  reason: string | null;
+  paymentIntentId: string | null;
+  amountCents: number | null;
+  testMode: true;
+}
+
 export interface RunView {
   generatedAt: string;
   household: { id: string; childName: string; facts: HouseholdFact[]; mandate: Mandate; onboarded: boolean };
@@ -67,6 +76,8 @@ export interface RunView {
   /** This week's order (after a verified hold) and the household's order history, newest first. */
   order: Order | null;
   orders: Order[];
+  /** Card payment for this week's order: the parent's own tap, Stripe test mode only. Absent in samples. */
+  payment?: PaymentView;
   receipt: Receipt | null;
   kpis: KpiSet | null; // for this run
   kpiSuite: KpiSuiteResult | null; // latest `npm run kpi`
