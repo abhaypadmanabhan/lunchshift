@@ -2,6 +2,7 @@
 // anything else serves the hand-written fixture that the test suites and the hand oracle are built on.
 import { CATALOG, CATALOG_VERSION, DEMO_STOCKOUT_SKU, USUAL_SKU_BY_ROLE } from "./fixture";
 import type { Sku } from "./types";
+import { OFF_CATALOG, OFF_DEMO_STOCKOUT_SKU, OFF_USUAL_SKU_BY_ROLE } from "./catalog.off";
 
 export interface ActiveCatalog {
   source: "fixture" | "off";
@@ -19,7 +20,15 @@ const FIXTURE: ActiveCatalog = {
   stockoutSku: DEMO_STOCKOUT_SKU,
 };
 
-const sources: Record<string, ActiveCatalog> = { fixture: FIXTURE };
+const OFF: ActiveCatalog = {
+  source: "off",
+  version: "off-2026-11-20",
+  skus: OFF_CATALOG,
+  usualByRole: OFF_USUAL_SKU_BY_ROLE,
+  stockoutSku: OFF_DEMO_STOCKOUT_SKU,
+};
+
+const sources: Record<string, ActiveCatalog> = { fixture: FIXTURE, off: OFF };
 
 /** Register another catalog (the OFF snapshot registers itself as "off"). */
 export function registerCatalog(name: string, c: ActiveCatalog) {

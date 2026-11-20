@@ -10,7 +10,8 @@ const procs = [
   const delay = i === 1 ? 1500 : 0; // worker waits for the grocer
   const p = { name, child: null };
   setTimeout(() => {
-    p.child = spawn("npm", args, { stdio: ["ignore", "pipe", "pipe"], env: process.env });
+    // The demo serves real Open Food Facts products unless LUNCHSHIFT_CATALOG says otherwise.
+    p.child = spawn("npm", args, { stdio: ["ignore", "pipe", "pipe"], env: { LUNCHSHIFT_CATALOG: "off", ...process.env } });
     const tag = (d) =>
       String(d)
         .split("\n")
