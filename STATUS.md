@@ -18,7 +18,8 @@
 - `cognee-activity.png`: Cognee activity log with today's remember and recall operations, the newest at 3:25 PM from that run.
 - `statsig-autonomy-mode.png`: the `autonomy_mode` dynamic config, enabled, value `{"mode": "auto_swap_and_hold"}` (the ceiling the app reads live).
 - `superlinked-usage.png`: Superlinked SIE spend chart with today's spike (Score and Extract calls from the reranker and classifier).
-- Skipped: SingleStore (the open tab is the generic cluster list; row counts would need the SQL editor), Firedrill (the open tab is the other workspace's billing page; results are in this file above).
+- `firedrill-lunchshift.png`: Firedrill agent page for LunchShift (registered, runs locally, 1 world), latest simulation 1 of 2 passed, 1 needs attention (the stale-state setup drill explained above).
+- Skipped: SingleStore (the open tab is the generic cluster list; row counts would need the SQL editor).
 
 **Railway incident (15:15-):** two builds failed at the final image push because Railway's registry certificate expired at 15:15:17 PT (Railway-side). The live site serves the last good build (the security merge 4b8d3dc). The logo and the Paper design pass are merged locally and redeploy as soon as a build succeeds.
 
