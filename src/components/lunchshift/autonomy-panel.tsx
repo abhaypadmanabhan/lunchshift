@@ -6,11 +6,13 @@ import { Code, Panel } from "./primitives";
 const LADDER: AutonomyMode[] = ["suggest_only", "auto_swap", "auto_swap_and_hold"];
 const SHORT: Record<AutonomyMode, string> = { suggest_only: "Suggest", auto_swap: "Swap", auto_swap_and_hold: "Swap + hold" };
 
-function ModeLadder({ effective, parentMax }: { effective: AutonomyMode; parentMax: AutonomyMode }) {
+/** Filled segment: what the agent may do now. Outlined segment: what Statsig says, shown only when the two differ. */
+function ModeLadder({ observed, effective, parentMax }: { observed: AutonomyMode; effective: AutonomyMode; parentMax: AutonomyMode }) {
   return (
     <ol className="grid grid-cols-3 gap-1 rounded-lg bg-sunken p-1" aria-label="Autonomy levels">
       {LADDER.map((m) => {
         const active = m === effective;
+        const statsigOnly = m === observed && !active;
         const allowed = MODE_RANK[m] <= MODE_RANK[parentMax];
         return (
           <li
@@ -19,17 +21,35 @@ function ModeLadder({ effective, parentMax }: { effective: AutonomyMode; parentM
             className={
               active
                 ? "rounded-md bg-primary px-2 py-2 text-center text-sm font-medium text-primary-foreground transition-colors duration-300"
-                : allowed
-                  ? "rounded-md px-2 py-2 text-center text-sm text-muted-foreground transition-colors duration-300"
-                  : "rounded-md px-2 py-2 text-center text-sm text-muted-foreground/60 line-through"
+                : statsigOnly
+                  ? "rounded-md px-2 py-2 text-center text-sm text-foreground shadow-[inset_0_0_0_1.5px_var(--primary)] transition-colors duration-300"
+                  : allowed
+                    ? "rounded-md px-2 py-2 text-center text-sm text-muted-foreground transition-colors duration-300"
+                    : "rounded-md px-2 py-2 text-center text-sm text-muted-foreground/60 line-through"
             }
           >
             {SHORT[m]}
+            {statsigOnly ? <span className="sr-only"> (Statsig says)</span> : null}
           </li>
         );
       })}
     </ol>
   );
+}
+
+/** One short line on why the effective mode is not what Statsig says, or null when they agree. */
+function whyDifferent(view: RunView): string | null {
+  const { observed, effective, parentMax } = view.mode;
+  const m = view.household.mandate;
+  if (observed === effective) return null;
+  if (MODE_RANK[effective] > MODE_RANK[observed]) {
+    const approved = view.events.some((e) => e.actor === "parent" && e.data.approved === true);
+    return approved ? "Parent approved this order" : "Raised for this run";
+  }
+  if (m.revoked) return "Capped: standing approval revoked";
+  if (Date.parse(m.expiresAt) <= Date.parse(view.mode.fetchedAt)) return "Capped: standing approval expired";
+  if (MODE_RANK[observed] > MODE_RANK[parentMax]) return "Capped by parent";
+  return "Capped for this run";
 }
 
 function Row({ k, children }: { k: string; children: React.ReactNode }) {
@@ -44,30 +64,32 @@ function Row({ k, children }: { k: string; children: React.ReactNode }) {
 export function AutonomyPanel({ view }: { view: RunView }) {
   const { mode } = view;
   const m = view.household.mandate;
-  const capped = MODE_RANK[mode.observed] > MODE_RANK[mode.parentMax];
-  const approved = view.events.some((e) => e.actor === "parent" && e.data.approved === true);
+  const why = whyDifferent(view);
 
   return (
     <Panel title="Autonomy" aside={mode.source === "statsig" ? "Statsig live" : "Default (config unavailable)"}>
-      <ModeLadder effective={mode.effective} parentMax={mode.parentMax} />
-      <dl className="mt-4">
-        <Row k="Statsig says">
-          <Code className="text-foreground">{mode.observed}</Code>
+      <div key={`${mode.observed}-${mode.effective}`} className="ls-enter">
+        <ModeLadder observed={mode.observed} effective={mode.effective} parentMax={mode.parentMax} />
+        <p className="mt-2 text-sm text-muted-foreground">
+          {why ? "Filled: what the agent may do. Outlined: what Statsig says now." : "Statsig and the agent agree."}
+        </p>
+      </div>
+      <dl className="mt-3">
+        <Row k="Statsig says now">
+          <span className="font-medium">{MODE_LABEL[mode.observed]}</span>{" "}
+          <Code>{mode.observed}</Code>
+        </Row>
+        <Row k="Effective">
+          <span className="font-medium">{MODE_LABEL[mode.effective]}</span>
+          {why ? <span className="block text-sm text-muted-foreground">{why}</span> : null}
         </Row>
         <Row k="Parent allows up to">
           <Code className="text-foreground">{mode.parentMax}</Code>
         </Row>
-        <Row k="Effective">
-          <span className="font-medium">{MODE_LABEL[mode.effective]}</span>
-          {capped ? <span className="text-muted-foreground"> (capped by parent)</span> : null}
-          {approved && MODE_RANK[mode.effective] > MODE_RANK[mode.observed] ? (
-            <span className="text-muted-foreground"> (parent approved this order)</span>
-          ) : null}
-        </Row>
         <Row k="Source">
           {mode.source === "statsig" ? "Statsig" : "Safe default"}
-          {mode.ruleId ? <> · <Code>{mode.ruleId}</Code></> : null}
-          <span className="text-muted-foreground"> · read {clock(mode.fetchedAt)}</span>
+          <span className="text-muted-foreground">, read {clock(mode.fetchedAt)}</span>
+          {mode.ruleId ? <Code className="block">{mode.ruleId}</Code> : null}
         </Row>
       </dl>
 

@@ -38,19 +38,28 @@ const TONE = { ok: "text-ok", wait: "text-wait", refuse: "text-refuse", plain: "
 function IntegrationsRow({ items }: { items: IntegrationStatus[] }) {
   return (
     <ul className="flex flex-wrap gap-x-6 gap-y-1 text-sm" aria-label="Integrations">
-      {items.map((i) => (
-        <li key={i.name} title={i.detail} className="flex items-baseline gap-1.5">
-          <span>{i.name}</span>
-          <span
-            className={
-              i.status === "live" ? "text-muted-foreground" : i.status === "fallback" ? "font-medium text-wait" : "font-medium text-wait"
-            }
-          >
-            {i.status === "live" ? "live" : i.status === "fallback" ? "fallback" : "missing"}
-          </span>
-          {i.status !== "live" ? <span className="text-muted-foreground">({i.detail})</span> : null}
-        </li>
-      ))}
+      {items.map((i) =>
+        i.status === "live" ? (
+          // Live sponsors show their role on hover or keyboard focus only, so the row keeps its one-line layout.
+          <li key={i.name} tabIndex={0} aria-describedby={`role-${i.name}`} className="group relative flex items-baseline gap-1.5 rounded-sm">
+            <span className="underline decoration-border decoration-dotted underline-offset-4">{i.name}</span>
+            <span className="text-muted-foreground">live</span>
+            <span
+              id={`role-${i.name}`}
+              role="tooltip"
+              className="pointer-events-none absolute top-full left-0 z-20 mt-1.5 w-max max-w-[22rem] rounded-md border bg-popover px-3 py-2 text-sm text-popover-foreground opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+            >
+              {i.detail}
+            </span>
+          </li>
+        ) : (
+          <li key={i.name} className="flex items-baseline gap-1.5">
+            <span>{i.name}</span>
+            <span className="font-medium text-wait">{i.status === "fallback" ? "fallback" : "missing"}</span>
+            <span className="text-muted-foreground">({i.detail})</span>
+          </li>
+        ),
+      )}
     </ul>
   );
 }
@@ -102,7 +111,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b bg-background/80 backdrop-blur-sm">
+      <header className="relative z-10 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-[86rem] items-center justify-between gap-6 px-4 md:px-10 py-4">
           <div className="flex items-baseline gap-4">
             <span className="text-xl font-semibold tracking-[-0.02em]">LunchShift</span>
@@ -113,7 +122,7 @@ export default function Home() {
             </span>
           </div>
           {headline ? (
-            <p key={view?.run?.status} className={`text-[1.0625rem] font-semibold animate-in fade-in-0 duration-300 ${TONE[headline.tone]}`}>
+            <p key={view?.run?.status} className={`ls-enter text-[1.0625rem] font-semibold ${TONE[headline.tone]}`}>
               {headline.text}
               {view?.run ? <span className="ml-2 text-sm font-normal text-muted-foreground">updated {clock(view.run.updatedAt)}</span> : null}
             </p>

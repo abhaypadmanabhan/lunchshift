@@ -129,7 +129,7 @@ export function WeekPlan({ view, onApprove }: { view: RunView; onApprove?: () =>
                         : PROVIDER_LABEL[proposal.ranking.provider]}
                     </p>
                     {inSingleStore ? (
-                      <Code className="mt-1 block text-[0.8125rem] leading-snug text-muted-foreground">
+                      <Code className="mt-1 block text-[0.875rem] leading-snug text-muted-foreground">
                         SELECT recipe_id, vec &lt;*&gt; :query AS score FROM ls_rank_vec ORDER BY score DESC
                         {sl?.ranked ? `  ->  ${sl.ranked.map((r) => `${r.id.replace(/^r-/, "")} ${r.score.toFixed(3)}`).join(", ")}` : ""}
                       </Code>
