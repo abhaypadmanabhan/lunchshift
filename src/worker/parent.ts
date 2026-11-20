@@ -1,23 +1,24 @@
 // Parent actions from the app. Each one is a recorded parent event; the background worker stays the only writer
 // of plans and holds (these functions only record intent, supersede a stale run, or release a hold).
-import { applyHouseholdUpdate, currentRunId, WEEK_OF } from "../lib/domain/household";
+import { applyHouseholdUpdate, currentRunId } from "../lib/domain/household";
+import { currentWeekOf } from "../lib/domain/families";
 import { HOUSEHOLD } from "../lib/domain/fixture";
 import type { AppStore, Run } from "../lib/domain/types";
 import type { HouseholdUpdate, HouseholdUpdateResult } from "../lib/domain/view";
 import { getMemory } from "../lib/memory";
-import { ensureSeeded, grocerClient } from "./deps";
+import { activeHousehold, ensureSeeded, grocerClient } from "./deps";
 import { checkSku, hardRestrictions } from "../lib/domain/rules";
 import { allProposals, draftKey, placeOrderFor } from "./runWeekly";
 import { getAnalytics } from "../lib/autonomy";
 import type { Basket } from "../lib/domain/types";
 
-async function scheduleRun(store: AppStore, runId: string, trigger: Run["trigger"]) {
+async function scheduleRun(store: AppStore, runId: string, trigger: Run["trigger"], householdId: string = HOUSEHOLD.id) {
   if (await store.getRun(runId)) return;
   const now = new Date().toISOString();
   await store.upsertRun({
     id: runId,
-    householdId: HOUSEHOLD.id,
-    weekOf: WEEK_OF,
+    householdId,
+    weekOf: currentWeekOf(),
     trigger,
     status: "scheduled",
     observedMode: "suggest_only",
@@ -48,13 +49,13 @@ async function supersede(store: AppStore, run: Run, reason: string) {
 
 export async function updateHousehold(u: HouseholdUpdate): Promise<HouseholdUpdateResult> {
   const store = await ensureSeeded();
-  const before = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
+  const before = await activeHousehold(store);
   const { household, normalized } = applyHouseholdUpdate(before, u);
-  const oldRun = await store.getRun(currentRunId(before));
+  const oldRun = await store.getRun(currentRunId(before, currentWeekOf()));
   if (oldRun) await supersede(store, oldRun, `Parent changed ${household.childName}'s rules (revision ${household.policyRevision}); this plan is replaced`);
   await store.saveHousehold(household);
-  const runId = currentRunId(household);
-  await scheduleRun(store, runId, "manual");
+  const runId = currentRunId(household, currentWeekOf());
+  await scheduleRun(store, runId, "manual", household.id);
   // Memory: re-seed Cognee with the new confirmed facts in the background (cognify takes ~30 s).
   void getMemory()
     .seed(household)
@@ -64,16 +65,16 @@ export async function updateHousehold(u: HouseholdUpdate): Promise<HouseholdUpda
 
 export async function planNow(): Promise<{ ok: boolean; runId: string }> {
   const store = await ensureSeeded();
-  const h = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
-  const runId = currentRunId(h);
-  await scheduleRun(store, runId, "manual");
+  const h = await activeHousehold(store);
+  const runId = currentRunId(h, currentWeekOf());
+  await scheduleRun(store, runId, "manual", h.id);
   return { ok: true, runId };
 }
 
 export async function cancelHold(): Promise<{ ok: boolean; reason?: string }> {
   const store = await ensureSeeded();
-  const h = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
-  const run = await store.getRun(currentRunId(h));
+  const h = await activeHousehold(store);
+  const run = await store.getRun(currentRunId(h, currentWeekOf()));
   if (!run?.operationKey) return { ok: false, reason: "No store hold this week" };
   await supersede(store, run, "Parent cancelled this week's pickup");
   return { ok: true };
@@ -93,8 +94,8 @@ export async function cartBasket(store: AppStore, run: Run): Promise<{ basket: B
 /** Set a cart line to `packs` (0 removes). Unsafe, out-of-stock or over-budget changes are refused with the reason. */
 export async function updateCart(skuId: string, packs: number): Promise<{ ok: boolean; reason?: string; basket?: Basket }> {
   const store = await ensureSeeded();
-  const h = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
-  const run = await store.getRun(currentRunId(h));
+  const h = await activeHousehold(store);
+  const run = await store.getRun(currentRunId(h, currentWeekOf()));
   if (!run) return { ok: false, reason: "No plan this week yet. Tap Plan my week first." };
   if (!EDITABLE.has(run.status)) {
     return { ok: false, reason: run.operationKey ? "Your pickup is held. Cancel the hold to edit the cart." : "The cart can't be edited right now." };
@@ -143,7 +144,7 @@ export async function updateCart(skuId: string, packs: number): Promise<{ ok: bo
 
 export async function placeOrderByParent(): Promise<{ ok: boolean; reason?: string; order?: import("../lib/domain/types").Order }> {
   const store = await ensureSeeded();
-  const h = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
-  const r = await placeOrderFor({ store, grocer: grocerClient(), analytics: getAnalytics() }, currentRunId(h), "parent");
+  const h = await activeHousehold(store);
+  const r = await placeOrderFor({ store, grocer: grocerClient(), analytics: getAnalytics() }, currentRunId(h, currentWeekOf()), "parent");
   return { ok: r.ok, reason: r.reason, order: r.order };
 }

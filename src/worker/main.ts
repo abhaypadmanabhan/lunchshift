@@ -3,7 +3,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { HOUSEHOLD } from "../lib/domain/fixture";
 import { activeCatalog } from "../lib/domain/catalog";
-import { DEMO_WEEK, liveDeps, runIdNow } from "./deps";
+import { activeHousehold, liveDeps, runIdNow } from "./deps";
+import { currentWeekOf } from "../lib/domain/families";
 import { processRun } from "./runWeekly";
 
 const TICK_MS = Number(process.env.WORKER_TICK_MS ?? 3000);
@@ -59,8 +60,8 @@ async function main() {
       if (trigger || (run && WAITING.has(run.status))) {
         const r = await processRun(deps, {
           runId,
-          householdId: HOUSEHOLD.id,
-          weekOf: DEMO_WEEK,
+          householdId: (await activeHousehold(deps.store)).id,
+          weekOf: currentWeekOf(),
           trigger: trigger ?? run?.trigger ?? "schedule",
         });
         if (!run || r.run.status !== run.status) console.log(`[worker] ${r.run.id} -> ${r.run.status} (${r.run.effectiveMode})`);

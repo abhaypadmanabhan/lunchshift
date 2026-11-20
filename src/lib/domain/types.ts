@@ -124,6 +124,8 @@ export interface Household {
   facts: HouseholdFact[];
   mandate: Mandate;
   policyRevision: number;
+  /** False for a brand-new family until the parent finishes onboarding. */
+  onboarded?: boolean;
 }
 
 // ---------- Basket ----------
@@ -223,7 +225,8 @@ export interface AutonomyReading {
 }
 
 export interface AutonomyProvider {
-  read(userId: string): Promise<AutonomyReading>;
+  /** `custom` is sent as Statsig user custom fields (e.g. autonomy_pref) so console rules can target them. */
+  read(userId: string, custom?: Record<string, string>): Promise<AutonomyReading>;
 }
 
 export interface MemoryRecall {

@@ -1,6 +1,8 @@
 // Live wiring: every sponsor adapter behind its interface, each with a labelled fallback.
 import { HOUSEHOLD, RECIPES } from "../lib/domain/fixture";
-import { currentRunId, WEEK_OF } from "../lib/domain/household";
+import { currentRunId } from "../lib/domain/household";
+import { activeHouseholdId, currentWeekOf, PRESETS } from "../lib/domain/families";
+import type { Household } from "../lib/domain/types";
 import type { AppStore } from "../lib/domain/types";
 import { getAnalytics, getAutonomy } from "../lib/autonomy";
 import { getExplainer } from "../lib/llm";
@@ -13,12 +15,16 @@ import { GrocerClient, GrocerOperator } from "../grocer/client";
 import type { WorkerDeps } from "./runWeekly";
 
 export const GROCER_URL = process.env.GROCER_URL ?? "http://127.0.0.1:4100";
-export const DEMO_WEEK = WEEK_OF;
+/** The family the parent app is showing (Maya, Leo, Ava or a new one). */
+export async function activeHousehold(store: AppStore): Promise<Household> {
+  const id = activeHouseholdId();
+  return (await store.getHousehold(id)) ?? PRESETS.find((p) => p.id === id) ?? HOUSEHOLD;
+}
 
 /** This week's run id for the household as it is now (a rules change starts a fresh run). */
 export async function runIdNow(store: AppStore): Promise<string> {
-  const h = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
-  return currentRunId(h);
+  const h = await activeHousehold(store);
+  return currentRunId(h, currentWeekOf());
 }
 
 export function grocerClient() {
@@ -34,7 +40,7 @@ export async function ensureSeeded() {
   const store = await getStore();
   if (!seeded) {
     await store.init();
-    if (!(await store.getHousehold(HOUSEHOLD.id))) await store.saveHousehold(HOUSEHOLD);
+    for (const p of PRESETS) if (!(await store.getHousehold(p.id))) await store.saveHousehold(p);
     await store.saveRecipes(RECIPES);
     seeded = true;
   }

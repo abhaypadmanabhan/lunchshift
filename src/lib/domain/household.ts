@@ -6,9 +6,9 @@ import type { HouseholdUpdate } from "./view";
 
 export const WEEK_OF = "2026-11-22";
 
-/** One run per week per policy revision: rules changed mid-week means a fresh plan (the old run is superseded). */
-export function currentRunId(h: Pick<Household, "policyRevision" | "mandate">): string {
-  const base = `run-${WEEK_OF}`;
+/** One run per family per week per policy revision: rules changed mid-week means a fresh plan (the old run is superseded). */
+export function currentRunId(h: Pick<Household, "id" | "policyRevision" | "mandate">, weekOf: string = WEEK_OF): string {
+  const base = h.id === "lunchshift-demo" || !h.id ? `run-${weekOf}` : `run-${h.id}-${weekOf}`;
   const approved = h.mandate.policyRevision ?? h.policyRevision;
   return h.policyRevision <= 3 && approved <= 3 ? base : `${base}-r${h.policyRevision}`;
 }

@@ -20,7 +20,8 @@ async function liveMode(userId: string): Promise<AutonomyReading> {
   liveRead = { at: Date.now(), reading };
   return reading;
 }
-import { ensureSeeded, grocerClient, runIdNow } from "../../worker/deps";
+import { activeHousehold, ensureSeeded, grocerClient, runIdNow } from "../../worker/deps";
+import { PRESETS, activeHouseholdId, readPointer, WEEKS } from "../domain/families";
 
 const recipeName = (id: string) => RECIPES.find((r) => r.id === id)?.name ?? id;
 
@@ -35,7 +36,7 @@ async function kpiSuite(): Promise<KpiSuiteResult | null> {
 export async function buildView(runIdArg?: string): Promise<RunView> {
   const store = await ensureSeeded();
   const runId = runIdArg ?? (await runIdNow(store));
-  const household = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
+  const household = await activeHousehold(store);
   const run = await store.getRun(runId);
   const events: AuditEvent[] = run ? await store.listEvents(runId) : [];
   const last = (type: AuditEvent["type"]) => [...events].reverse().find((e) => e.type === type);
@@ -182,9 +183,9 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
 
   return {
     generatedAt: new Date().toISOString(),
-    household: { id: household.id, childName: household.childName, facts: household.facts, mandate: household.mandate, onboarded: true },
-    families: [],
-    week: { weekOf: "2026-11-22", label: "This Sunday · Nov 22", index: 0 },
+    household: { id: household.id, childName: household.childName, facts: household.facts, mandate: household.mandate, onboarded: household.onboarded !== false },
+    families: await familiesView(store),
+    week: weekView(),
     run,
     mode: run
       ? {
@@ -234,4 +235,31 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
     events,
     integrations,
   };
+}
+
+async function familiesView(store: Awaited<ReturnType<typeof ensureSeeded>>) {
+  const active = activeHouseholdId();
+  const ids = [...PRESETS.map((p) => p.id)];
+  const n = readPointer().newFamilies;
+  for (let i = 1; i <= n; i++) ids.push(`fam-new-${i}`);
+  const out = [];
+  for (const id of ids) {
+    const h = await store.getHousehold(id);
+    if (!h) continue;
+    out.push({
+      id,
+      childName: h.childName || "New family",
+      allergies: h.facts.filter((f) => f.kind === "hard_restriction" && f.allergen).map((f) => f.allergen!.label),
+      active: id === active,
+      onboarded: h.onboarded !== false,
+    });
+  }
+  return out;
+}
+
+function weekView() {
+  const i = Math.min(readPointer().weekIndex, WEEKS.length - 1);
+  const weekOf = WEEKS[i];
+  const d = new Date(`${weekOf}T12:00:00-08:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Los_Angeles" });
+  return { weekOf, label: `${i === 0 ? "This Sunday" : "Next Sunday"} · ${d}`, index: i };
 }

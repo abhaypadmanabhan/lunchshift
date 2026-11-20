@@ -1,7 +1,7 @@
 // The weekly run state machine. Resumable: every step is persisted, and a replayed or repeated
 // event re-enters at the persisted state. The merchant hold uses a stable operation key and is
 // only marked confirmed after an independent read-back.
-import { ALTERNATIVE_RECIPE_IDS, PICKUP_SLOT } from "../lib/domain/fixture";
+import { ALTERNATIVE_RECIPE_IDS } from "../lib/domain/fixture";
 import { activeCatalog } from "../lib/domain/catalog";
 import {
   buildBasket,
@@ -115,15 +115,22 @@ async function save(ctx: Ctx, patch: Partial<Run>) {
 }
 
 async function readMode(ctx: Ctx, why: string, logUnchanged = true): Promise<{ reading: AutonomyReading; effective: AutonomyMode }> {
-  let reading: AutonomyReading;
-  try {
-    reading = await ctx.deps.autonomy.read(ctx.analyticsUser);
-  } catch (e) {
-    reading = { mode: "suggest_only", source: "default", fetchedAt: new Date().toISOString(), error: String(e) };
-  }
   // Re-read the authoritative household so a revocation or budget change made mid-run is seen before any write.
   const fresh = await ctx.deps.store.getHousehold(ctx.household.id);
   if (fresh) ctx.household = fresh;
+  let reading: AutonomyReading;
+  try {
+    // The parent's in-app setting travels to Statsig as a custom field; Statsig's answer is the operator ceiling.
+    reading = await ctx.deps.autonomy.read(ctx.analyticsUser, {
+      autonomy_pref: ctx.household.mandate.maxAutonomy,
+      household: ctx.household.id,
+    });
+  } catch (e) {
+    reading = { mode: "suggest_only", source: "default", fetchedAt: new Date().toISOString(), error: String(e) };
+  }
+  // ...and again after the (slow) Statsig read, so a revocation that landed meanwhile is seen before any write.
+  const latest = await ctx.deps.store.getHousehold(ctx.household.id);
+  if (latest) ctx.household = latest;
   const m = ctx.household.mandate;
   const mandateLive = !m.revoked && new Date(m.expiresAt).getTime() > Date.now();
   // Household rules newer than the standing approval: nothing autonomous until the parent approves again.
@@ -625,7 +632,7 @@ function holdRequestFor(run: Run, basket: Basket, catalogVersion: string): HoldR
     runId: run.id,
     lines: basket.lines.map((l) => ({ skuId: l.skuId, packs: l.packs, unitPriceCents: l.unitPriceCents })),
     totalCents: basket.totalCents,
-    slot: PICKUP_SLOT,
+    slot: `Sun ${run.weekOf} 16:00-18:00`,
     catalogVersion,
   };
 }
@@ -814,6 +821,8 @@ async function computeKpis(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fin
           budget_cents: String(k.budgetKept.budgetCents),
           swaps_traced_pct: String(k.swapsTracedPct),
           effective_mode: ctx.run.effectiveMode,
+          parent_setting: ctx.household.mandate.maxAutonomy,
+          statsig_mode: ctx.run.observedMode,
         },
       },
     ])

@@ -9,13 +9,13 @@ const TIMEOUT_MS = 3_000;
 export class StatsigAutonomy implements AutonomyProvider {
   constructor(private readonly serverSecret: string) {}
 
-  async read(userId: string): Promise<AutonomyReading> {
+  async read(userId: string, custom?: Record<string, string>): Promise<AutonomyReading> {
     const fetchedAt = new Date().toISOString();
     try {
       const r = await fetch(GET_CONFIG_URL, {
         method: "POST",
         headers: { "statsig-api-key": this.serverSecret, "Content-Type": "application/json" },
-        body: JSON.stringify({ configName: AUTONOMY_CONFIG, user: { userID: userId } }),
+        body: JSON.stringify({ configName: AUTONOMY_CONFIG, user: { userID: userId, ...(custom ? { custom } : {}) } }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (!r.ok) return defaultReading(fetchedAt, `statsig get_config HTTP ${r.status}`);

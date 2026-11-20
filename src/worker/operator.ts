@@ -1,7 +1,8 @@
 // Demo operator actions (fixture and gate controls). Never counted as shopper clicks; each is audited as actor "operator".
 import { activeCatalog } from "../lib/domain/catalog";
 import { HOUSEHOLD } from "../lib/domain/fixture";
-import { DEMO_WEEK, ensureSeeded, grocerOperator, runIdNow } from "./deps";
+import { activeHousehold, ensureSeeded, grocerOperator, runIdNow } from "./deps";
+import { currentWeekOf, PRESETS, writePointer } from "../lib/domain/families";
 
 export type OperatorAction = "reset" | "stockout" | "drop" | "run";
 
@@ -17,7 +18,8 @@ export async function operatorAction(action: OperatorAction): Promise<{ ok: true
   switch (action) {
     case "reset":
       await store.reset();
-      await store.saveHousehold(HOUSEHOLD); // back to the fixture household (peanut allergy, revision 3)
+      for (const p of PRESETS) await store.saveHousehold(p); // back to the preset families (Maya: peanut, revision 3)
+      writePointer({ householdId: HOUSEHOLD.id, weekIndex: 0 });
       await op.reset();
       return { ok: true, detail: "Store and app state reset to the clean fixture" };
     case "stockout":
@@ -33,8 +35,8 @@ export async function operatorAction(action: OperatorAction): Promise<{ ok: true
       if (!(await store.getRun(DEMO_RUN_ID))) {
         await store.upsertRun({
           id: DEMO_RUN_ID,
-          householdId: "lunchshift-demo",
-          weekOf: DEMO_WEEK,
+          householdId: (await activeHousehold(store)).id,
+          weekOf: currentWeekOf(),
           trigger: "schedule",
           status: "scheduled",
           observedMode: "suggest_only",
