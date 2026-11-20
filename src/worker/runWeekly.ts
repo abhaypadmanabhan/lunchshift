@@ -123,7 +123,9 @@ async function readMode(ctx: Ctx, why: string, logUnchanged = true): Promise<{ r
   if (fresh) ctx.household = fresh;
   const m = ctx.household.mandate;
   const mandateLive = !m.revoked && new Date(m.expiresAt).getTime() > Date.now();
-  const cap = mandateLive ? m.maxAutonomy : "suggest_only";
+  // Household rules newer than the standing approval: nothing autonomous until the parent approves again.
+  const policyOk = (m.policyRevision ?? ctx.household.policyRevision) === ctx.household.policyRevision;
+  const cap = mandateLive && policyOk ? m.maxAutonomy : "suggest_only";
   // A failed or defaulted read never authorizes anything. A parent's approval of this run's proposal requests
   // a hold for this one order, but the parent's own maximum still caps it.
   const readOk = reading.source === "statsig" && !reading.error;
@@ -265,6 +267,11 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
 
   // 2. Autonomy at execution time.
   let { effective } = await readMode(ctx, "Run start");
+  const approvedRev = household.mandate.policyRevision ?? household.policyRevision;
+  if (household.policyRevision !== approvedRev && !ctx.parentApproved) {
+    const approvalReason = `${household.childName}'s rules changed since you last approved (revision ${approvedRev} -> ${household.policyRevision}). Approve this week's plan to let LunchShift act on the new rules.`;
+    await ev(ctx, { runId, actor: "worker", type: "note", summary: `Needs parent approval: ${approvalReason}`, data: { approvalReason } });
+  }
 
   // 3. Live catalog + label snapshot.
   const cat = await deps.grocer.catalog();
@@ -506,10 +513,8 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
   proposals[proposals.length - 1].after = finalBasket;
 
   // 8. More swaps than the standing approval covers, or household rules changed since it: ask the parent first.
-  const approvedRev = household.mandate.policyRevision ?? household.policyRevision;
   const reasons: string[] = [];
   if (proposals.length > household.mandate.maxSwapsPerWeek) reasons.push(`${proposals.length} lunches need changing and your standing approval covers ${household.mandate.maxSwapsPerWeek}`);
-  if (household.policyRevision !== approvedRev) reasons.push(`${household.childName}'s rules changed since you last approved`);
   effective = ctx.run.effectiveMode;
   if (reasons.length && !ctx.parentApproved && effective !== "suggest_only") {
     effective = "suggest_only";
