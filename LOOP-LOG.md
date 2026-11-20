@@ -63,3 +63,9 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - Rehearsal on real products with Abhay's live Statsig flip: the parent-edited cart ($31.55) was held; the store reply was dropped; read-back verified H-AFFE14B2 (1 active); the agent placed order LS-5425D4 (pay at pickup). During propagation the pre-hold re-read saw `auto_swap` twice and correctly waited; the hold was placed once both reads agreed.
 - Fixes: the clicks KPI counts only clicks the order needed (approvals), not voluntary cart edits; the feed collapses flapping mode reads; the status total follows the parent's cart.
 - Backup video: `docs/proof/backup-fullauto.mp4`, 50 s, recorded by `scripts/record.mjs` (CDP screencast + ffmpeg) of the unattended run. Audit actors: worker, cognee, statsig, sie, ranker, llm, grocer; zero parent or operator events.
+
+## Loop 13 · any-family product · 13:20-13:55 PT
+- Chat agent (Claude extracts typed facts, code validates, the parent confirms); several kids (shared menu, union safety gate); skip days; per-family memory fallback; live shopping narration; routines; inbox; fact history; allergy-driven swaps remembered as the family's plan.
+- New scenarios: a family from scratch via chat (2 kids, 3 allergies); a mid-week allergy change via chat; routines (school skip, budget alert once); two weeks for a chat-built family (week 2 zero clicks). 25/25.
+- Two bugs found by the new scenarios and fixed: a preset family with no `onboarded` flag was treated as brand new (skipped re-approval); "Ask me" families could never get a hold even after approval (explicit approval now authorizes that order, with a good config read and a live mandate).
+- Live proof: a brand-new family (Noah 7: tree nuts + eggs; Ivy 5: sesame) built from one chat message -> plan -> 5 refusals -> approve -> held -> order LS-2D621E -> next Sunday stockout.
