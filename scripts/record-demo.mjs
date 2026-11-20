@@ -27,7 +27,7 @@ for (let i = 0; i < 40 && !ws; i++) {
   } catch { /* not up yet */ }
   await sleep(250);
 }
-await new Promise((r) => ws.addEventListener("open", r, { once: true }));
+if (ws.readyState !== 1) await new Promise((r) => ws.addEventListener("open", r, { once: true })); // may already be open
 let id = 0;
 const pending = new Map();
 // Every CDP call resolves within 5 s even if the page hangs, so the recording always finishes.

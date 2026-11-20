@@ -25,7 +25,7 @@ for (let i = 0; i < 40; i++) {
   } catch { /* not up yet */ }
   await sleep(250);
 }
-await new Promise((r) => ws.addEventListener("open", r, { once: true }));
+if (ws.readyState !== 1) await new Promise((r) => ws.addEventListener("open", r, { once: true })); // may already be open
 let id = 0;
 const pending = new Map();
 const send = (method, params = {}) => new Promise((res) => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })); });
