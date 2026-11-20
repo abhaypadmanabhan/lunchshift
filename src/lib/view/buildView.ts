@@ -185,6 +185,9 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
     generatedAt: new Date().toISOString(),
     household: { id: household.id, childName: household.childName, facts: household.facts, mandate: household.mandate, onboarded: household.onboarded !== false },
     families: await familiesView(store),
+    routines: [],
+    inbox: [],
+    factHistory: [],
     week: weekView(),
     run,
     mode: run

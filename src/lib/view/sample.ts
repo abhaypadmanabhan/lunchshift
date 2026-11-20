@@ -365,6 +365,17 @@ const base = (): Omit<RunView, "run" | "mode" | "plan" | "basket" | "receipt" | 
     { id: "fam-ava", childName: "Ava", allergies: ["Wheat / gluten"], active: false, onboarded: true },
   ],
   week: { weekOf: "2026-11-22", label: "This Sunday · Nov 22", index: 0 },
+  routines: [
+    { id: "weekly_plan", title: "Weekly plan", description: "Plans lunches and holds pickup every Sunday at 4:00 pm", enabled: true, config: { day: "Sun", time: "16:00" }, lastRun: { at: "2026-11-22T16:00:04-08:00", result: "Held pickup · $26.97" }, nextRun: "2026-11-29T16:00:00-08:00" },
+    { id: "stock_watch", title: "Stock and label watch", description: "Re-checks the cart when an item sells out or a label changes", enabled: true, config: {}, lastRun: { at: "2026-11-22T16:00:03-08:00", result: "Bread sold out · Monday swapped" }, nextRun: null },
+    { id: "school_skips", title: "School calendar", description: "Skips lunches on days with no school", enabled: true, config: { days: ["Fri"] }, lastRun: null, nextRun: null },
+    { id: "budget_alert", title: "Budget alert", description: "Tells you when the week gets within $3 of your budget", enabled: true, config: { withinCents: 300 }, lastRun: { at: "2026-11-22T16:00:09-08:00", result: "$26.97 of $35 · fine" }, nextRun: null },
+  ],
+  inbox: [
+    { id: "i1", at: "2026-11-22T16:00:09-08:00", kind: "done", title: "Pickup held", body: "Sun 4-6 pm · $26.97 · pay at pickup" },
+    { id: "i2", at: "2026-11-22T16:00:04-08:00", kind: "done", title: "Kept Maya safe", body: "Refused Value Wheat Bread: may contain peanuts" },
+  ],
+  factHistory: HOUSEHOLD.facts.map((f) => ({ id: f.id, text: f.text, kind: f.kind, revision: f.revision, confirmedAt: f.confirmedAt, active: f.active })),
   stockout: { skuId: "bread-harvest-ww", name: "Harvest Whole Wheat Bread" },
   refusals: REFUSALS,
   memory: MEMORY,

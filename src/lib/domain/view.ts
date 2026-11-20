@@ -39,6 +39,9 @@ export interface RunView {
   household: { id: string; childName: string; facts: HouseholdFact[]; mandate: Mandate; onboarded: boolean };
   families: FamilySummary[];
   week: WeekInfo;
+  routines: RoutineView[];
+  inbox: InboxItem[];
+  factHistory: FactHistoryItem[];
   run: Run | null;
   mode: {
     observed: AutonomyMode;
@@ -151,3 +154,34 @@ export interface WeekInfo {
 //   "How much can LunchShift do?" Saved per household (mandate.maxAutonomy, no re-plan). It is sent to Statsig as
 //   custom.autonomy_pref on every evaluation; effective = the lower of Statsig's autonomy_mode (the operator ceiling)
 //   and this setting. RunView.mode: observed = Statsig, parentMax = this setting, effective = what the agent does.
+
+// ---------- Routines and inbox ----------
+export interface RoutineView {
+  id: "weekly_plan" | "stock_watch" | "school_skips" | "budget_alert";
+  title: string; // "Weekly plan"
+  description: string; // one line: "Plans lunches and holds pickup every Sunday at 4:00 pm"
+  enabled: boolean;
+  config: Record<string, unknown>; // weekly_plan: {day, time}; school_skips: {days: string[]}; budget_alert: {withinCents}
+  lastRun: { at: string; result: string } | null;
+  nextRun: string | null; // ISO time, or null when event-driven / off
+}
+export interface InboxItem {
+  id: string;
+  at: string;
+  kind: "needs_you" | "done" | "alert";
+  title: string; // "Approve 2 lunch changes"
+  body: string; // one line
+  action?: { label: string; endpoint: string; body?: Record<string, unknown> }; // e.g. { label: "Approve", endpoint: "/api/parent/approve" }
+}
+export interface FactHistoryItem {
+  id: string;
+  text: string;
+  kind: string;
+  revision: number;
+  confirmedAt: string;
+  child?: string;
+  active: boolean;
+}
+// RunView.routines, RunView.inbox and RunView.factHistory are filled by /api/state.
+// POST /api/routines      body: { id, enabled?, config? } -> { ok }   toggle or edit a routine (saved per family)
+// POST /api/routines/run  body: { id }                    -> { ok, result }   run a routine now
