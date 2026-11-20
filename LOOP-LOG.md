@@ -41,3 +41,9 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - `npm run smoke:store` on SingleStore: TLS verified (system), household/run/events/receipt/KPIs read back, 7 concurrent appends gap-free.
 - Ranking made two-stage, per the PRD: SingleStore vector SQL shortlist (0.945 / 0.499) -> SIE Qwen3 rerank (0.989 / 0.001). Previously SIE replaced the SingleStore stage outright.
 - Live run on the SingleStore-backed stack in `auto_swap`: refusal, swap, waiting for hold authority. All six integration chips show live. Suite 19/19, KPIs green.
+
+## Loop 9 · product expansion · 12:15-12:31 PT
+- Any allergy: canonical 9 + synonyms + custom free text; label parser; multi-lunch repair; a rules change caps autonomy until the parent re-approves. `npm run test:allergens` caught that bug first: a rules change with no affected lunch placed a hold without approval.
+- Allergen v2 (captain steer): fixed the false positives; OFF tags as primary evidence, and OFF-vs-text disagreement blocks the item; 32 edge-case labels.
+- Cart and orders: draft cart with deterministic checks; pay-at-pickup orders keyed by `order:<runId>`; the agent auto-orders in full auto. KPI scenario: a dropped order reply still gives exactly 1 order.
+- Suite 21/21, allergen matrix all pass, live API path proven.
