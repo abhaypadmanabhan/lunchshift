@@ -30,3 +30,8 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - Live flip proven: the run waited in `auto_swap` (cart repaired, no hold). Abhay set `auto_swap_and_hold` in the Statsig console. Over 3 consecutive worker ticks (6 s) the reads went suggest_only -> auto_swap -> auto_swap_and_hold (Statsig propagation is eventually consistent). The pre-hold re-read agreed, so one hold was placed; the store dropped the reply; read-back by key verified H-F86DD81A, $26.97, 1 active hold. About 15 s from Abhay's message to a verified hold.
 - Miss found on screen: the hold expired 48 h after creation (Nov 22 11:49), before the 4-6 pm pickup. Change: the store sets expiry to the end of the pickup slot, and read-back now requires the expiry to cover pickup.
 - Suite 18/18, all six KPIs green.
+
+## Loop 7 · unattended full-auto proof · 11:52 PT
+- `npm run demo:fullauto`: clean state, the store boots with the usual bread sold out, and the Sunday schedule is due 20 s after launch. No inputs after launch.
+- 11:52:04 schedule fired -> Cognee recall -> Statsig `auto_swap_and_hold` -> SIE classifier -> refusals -> SIE rerank -> Claude -> swap -> pre-hold re-read -> hold -> read-back -> verified at 11:52:12. Audit actors: worker, cognee, statsig, sie, grocer, ranker, llm. Zero parent or operator events. KPIs: unsafe 0, complete 100%, clicks 0, duplicate holds 0, $26.97/$35, traced 100%.
+- Saved: docs/proof/fullauto-run.txt, docs/proof/fullauto-screen.png.

@@ -2,7 +2,7 @@
 import { startGrocer } from "./server";
 
 const port = Number(process.env.GROCER_PORT ?? 4100);
-startGrocer({ port, dbPath: process.env.GROCER_DB ?? ".data/grocer.db" }).then((g) => {
+startGrocer({ port, dbPath: process.env.GROCER_DB ?? ".data/grocer.db", reseed: process.env.GROCER_RESET_ON_START === "1" }).then((g) => {
   console.log(`[grocer] sandbox store listening on ${g.url}`);
   const stop = () => g.close().then(() => process.exit(0));
   process.on("SIGINT", stop);

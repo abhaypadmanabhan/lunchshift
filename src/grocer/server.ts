@@ -52,7 +52,9 @@ export function openGrocerDb(path: string): DatabaseSync {
 function seed(db: DatabaseSync) {
   db.exec("DELETE FROM products; DELETE FROM holds; DELETE FROM faults; DELETE FROM stock_events;");
   const ins = db.prepare("INSERT INTO products (id, sku, stock, price_cents) VALUES (?, ?, ?, ?)");
-  for (const s of CATALOG) ins.run(s.id, JSON.stringify(s), s.stock, s.priceCents);
+  // Fixture state for the unattended full-auto proof: a SKU can start the day sold out (no stock event emitted).
+  const presetOut = process.env.GROCER_PRESET_STOCKOUT;
+  for (const s of CATALOG) ins.run(s.id, JSON.stringify(s), s.id === presetOut ? 0 : s.stock, s.priceCents);
 }
 
 function readSkus(db: DatabaseSync): Sku[] {
@@ -241,8 +243,9 @@ function handle(db: DatabaseSync, method: string, url: URL, auth: string, key: s
   return { status: 404, body: { error: "not_found" } };
 }
 
-export function startGrocer(opts: { port?: number; dbPath?: string } = {}): Promise<GrocerHandle> {
+export function startGrocer(opts: { port?: number; dbPath?: string; reseed?: boolean } = {}): Promise<GrocerHandle> {
   const db = openGrocerDb(opts.dbPath ?? ".data/grocer.db");
+  if (opts.reseed) seed(db);
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", "http://grocer.local");

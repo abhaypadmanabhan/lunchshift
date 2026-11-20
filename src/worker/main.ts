@@ -27,6 +27,10 @@ const persist = (s: State) => {
 
 async function main() {
   const deps = await liveDeps();
+  if (process.env.WORKER_RESET_ON_START === "1") {
+    await deps.store.reset(); // clean app state for the unattended full-auto proof
+    persist({ lastStockEventSeq: 0 });
+  }
   const state = load();
   const dueAt = SCHEDULE_AT === "now" ? Date.now() : SCHEDULE_AT ? Date.parse(SCHEDULE_AT) : Number.POSITIVE_INFINITY;
   console.log(`[worker] up; tick ${TICK_MS} ms; schedule ${SCHEDULE_AT || "manual/stockout only"}`);

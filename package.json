@@ -17,7 +17,8 @@
     "audit": "tsx --env-file-if-exists=.env scripts/audit.ts",
     "stack": "node scripts/stack.mjs",
     "smoke:sie": "tsx --env-file-if-exists=.env scripts/smoke-sie.ts",
-    "smoke:statsig-env": "tsx --env-file-if-exists=.env scripts/smoke-statsig-env.ts"
+    "smoke:statsig-env": "tsx --env-file-if-exists=.env scripts/smoke-statsig-env.ts",
+    "demo:fullauto": "node scripts/fullauto.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",
