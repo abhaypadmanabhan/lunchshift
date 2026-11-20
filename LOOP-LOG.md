@@ -35,3 +35,9 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - `npm run demo:fullauto`: clean state, the store boots with the usual bread sold out, and the Sunday schedule is due 20 s after launch. No inputs after launch.
 - 11:52:04 schedule fired -> Cognee recall -> Statsig `auto_swap_and_hold` -> SIE classifier -> refusals -> SIE rerank -> Claude -> swap -> pre-hold re-read -> hold -> read-back -> verified at 11:52:12. Audit actors: worker, cognee, statsig, sie, grocer, ranker, llm. Zero parent or operator events. KPIs: unsafe 0, complete 100%, clicks 0, duplicate holds 0, $26.97/$35, traced 100%.
 - Saved: docs/proof/fullauto-run.txt, docs/proof/fullauto-screen.png.
+
+## Loop 8 · SingleStore live · 11:58 PT
+- Diagnosis (`npm run diag:singlestore`): DNS ok, TCP 3306 ok, SQL `SELECT 1` 184 ms. The earlier "timeout" was the 5 s probe covering the first `CREATE DATABASE`; raised to 15 s.
+- `npm run smoke:store` on SingleStore: TLS verified (system), household/run/events/receipt/KPIs read back, 7 concurrent appends gap-free.
+- Ranking made two-stage, per the PRD: SingleStore vector SQL shortlist (0.945 / 0.499) -> SIE Qwen3 rerank (0.989 / 0.001). Previously SIE replaced the SingleStore stage outright.
+- Live run on the SingleStore-backed stack in `auto_swap`: refusal, swap, waiting for hold authority. All six integration chips show live. Suite 19/19, KPIs green.
