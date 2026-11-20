@@ -10,7 +10,7 @@ import { Code, Panel, recipeInfo, recipeName, skuInfo } from "./primitives";
 const DAY_NAME: Record<string, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday" };
 
 const PROVIDER_LABEL = {
-  sie: "Superlinked SIE ranking",
+  sie: "Reranked by Superlinked SIE (Qwen3-Reranker-0.6B) after the hard checks",
   singlestore_vector: "Ranked in SingleStore by vector dot product (SIE key pending)",
   local_vector: "Local vector ranking (fallback)",
 } as const;

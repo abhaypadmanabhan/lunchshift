@@ -83,6 +83,13 @@ export function RefusalHero({ view, onOpenEvent }: { view: RunView; onOpenEvent:
             {hero.priceCents != null ? ` · ${money(hero.priceCents)}, cheapest in stock` : ""}
           </p>
           {hero.labelText ? <LabelQuote text={hero.labelText} /> : <p className="text-muted-foreground">No label text recorded.</p>}
+          {hero.screen ? (
+            <p className="mt-3 text-[0.9375rem]">
+              <span className="text-muted-foreground">Superlinked SIE classifier agrees: </span>
+              <span className="font-medium">{hero.screen.label}</span>{" "}
+              <span className="font-mono text-sm text-muted-foreground">{hero.screen.score.toFixed(2)}</span>
+            </p>
+          ) : null}
           <p className="mt-4 flex flex-wrap gap-x-3 gap-y-1">
             <Code>{hero.candidateId}</Code>
             {hero.labelVersion ? <Code>{hero.labelVersion}</Code> : null}

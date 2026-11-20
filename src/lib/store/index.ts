@@ -14,8 +14,17 @@ const g = globalThis as { __lunchshiftStore?: Promise<Resolved> };
 const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
   Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 
-const reason = (e: unknown) =>
-  (e as { code?: string })?.code ?? (e instanceof Error && e.message === "timeout" ? "timeout" : "error");
+/** Error class only (never a host, user or value): DNS, auth, TLS, network, timeout. */
+export function errorClass(e: unknown): string {
+  const code = (e as { code?: string })?.code ?? "";
+  if (/ENOTFOUND|EAI_AGAIN/.test(code)) return `DNS: host does not resolve (${code})`;
+  if (/ACCESS_DENIED|ER_DBACCESS|ER_BAD_DB/.test(code)) return `auth/database (${code})`;
+  if (/CERT|SSL|TLS|SELF_SIGNED|UNABLE_TO_VERIFY/i.test(code)) return `TLS (${code})`;
+  if (/ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|ETIMEDOUT/.test(code)) return `network (${code})`;
+  if (e instanceof Error && e.message === "timeout") return "timeout";
+  return code || "error";
+}
+const reason = errorClass;
 
 async function resolve(): Promise<Resolved> {
   let fallbackWhy = "SingleStore not configured";

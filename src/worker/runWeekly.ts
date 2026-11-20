@@ -38,6 +38,7 @@ import {
 } from "../lib/domain/types";
 import { hashFingerprint } from "../grocer/server";
 import type { GrocerClient } from "../grocer/client";
+import type { AllergenScreen, ScreenResult } from "../lib/allergen";
 
 export interface WorkerDeps {
   store: AppStore;
@@ -47,6 +48,8 @@ export interface WorkerDeps {
   analytics: Analytics;
   ranker: Ranker;
   explainer: SwapExplainer;
+  /** Optional task model (SIE classifier) that can only add refusals. */
+  allergenScreen?: AllergenScreen;
   buildRankQuery?: (h: Household, keptPlan: PlannedLunch[], basketRoles: string[]) => RankQuery;
 }
 
@@ -277,6 +280,39 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
     return applyAndMaybeHold(ctx, effective, original, null, byId, planRecipes);
   }
 
+  // 4b. Second opinion: the SIE allergen classifier reads every exact-SKU label line once per run.
+  let screen = new Map<string, ScreenResult>();
+  if (deps.allergenScreen && deps.allergenScreen.provider !== "none") {
+    try {
+      screen = await deps.allergenScreen.screen(cat.skus.map((s) => ({ id: s.id, text: s.label.sourceText })));
+      const flagged = [...screen.values()].filter((r) => r.risk);
+      await ev(ctx, {
+        runId,
+        actor: "sie",
+        type: "allergen_screened",
+        summary: `SIE classifier screened ${screen.size} labels: ${flagged.length} peanut-risk (${flagged.map((f) => `${f.skuId} ${f.score.toFixed(2)}`).join(", ")})`,
+        data: { model: [...screen.values()][0]?.model ?? null, results: Object.fromEntries([...screen].map(([k, v]) => [k, { label: v.label, score: v.score, risk: v.risk }])) },
+      });
+    } catch (e) {
+      await ev(ctx, { runId, actor: "sie", type: "allergen_screened", summary: `SIE classifier unavailable; structured rules alone decide (${e instanceof Error ? e.message : String(e)})`, data: { error: String(e) } });
+    }
+  }
+  /** Structured rules decide; the classifier can only add a refusal on top. */
+  const check = (s: Sku, packs: number): CandidateDecision => {
+    const d = checkSku(household, s, packs);
+    const r = screen.get(s.id);
+    if (r) d.screen = { label: r.label, score: r.score, risk: r.risk, model: r.model };
+    if (r?.risk && d.eligible) {
+      d.eligible = false;
+      d.reasons.push("classifier_flag");
+      const f = hardRestrictions(household)[0];
+      d.factId = f?.id;
+      d.factText = f?.text;
+      d.factRevision = f?.revision;
+    }
+    return d;
+  };
+
   const chosen = new Map(usual);
   const refusals: CandidateDecision[] = [];
   let brokenRole: string | null = null;
@@ -293,7 +329,7 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
     let replacement: Sku | null = null;
     for (const s of subs) {
       const packs = Math.ceil((needs.get(role)?.qty ?? 1) / s.packQty);
-      const d = checkSku(household, s, packs);
+      const d = check(s, packs);
       if (d.eligible) {
         replacement = s;
         break;
@@ -331,11 +367,11 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
 
   const skuForRole = (role: string): Sku | undefined => {
     const u = usual.get(role) ?? byId.get(USUAL_SKU_BY_ROLE[role]);
-    if (u && u.stock > 0 && checkSku(household, u, 1).eligible) return u;
+    if (u && u.stock > 0 && check(u, 1).eligible) return u;
     return cat.skus
       .filter((s) => s.role === role)
       .sort((a, b) => a.priceCents - b.priceCents)
-      .find((s) => checkSku(household, s, 1).eligible);
+      .find((s) => check(s, 1).eligible);
   };
 
   const eligible: Recipe[] = [];

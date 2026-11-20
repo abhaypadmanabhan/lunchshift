@@ -143,6 +143,34 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
     },
   },
   {
+    name: "Allergen classifier can only add refusals: flags a clean-looking bread, never clears the peanut one",
+    auto: false,
+    fn: async () => {
+      const w = await world("auto_swap_and_hold");
+      // Fake task model: says the peanut-warning bread is "peanut-free" (must NOT clear it) and flags the usual SunButter.
+      w.deps.allergenScreen = {
+        provider: "sie",
+        screen: async (items) =>
+          new Map(
+            items.map((i) => [
+              i.id,
+              i.id === "bread-value-wheat"
+                ? { skuId: i.id, label: "peanut-free", score: 0.99, risk: false, model: "fake" }
+                : { skuId: i.id, label: "peanut-free", score: 0.9, risk: i.id === "beans-black", model: "fake" },
+            ]),
+          ),
+      };
+      await w.op.setStock(DEMO_STOCKOUT_SKU, 0);
+      const r = await w.run();
+      const ev = await w.store.listEvents(w.runId);
+      const valueRefused = ev.some((e) => e.type === "candidate_rejected" && e.data.candidateId === "bread-value-wheat");
+      const holds = await w.client.listHolds(w.runId);
+      const beansHeld = holds.some((h) => h.lines.some((l) => l.skuId === "beans-black"));
+      await w.grocer.close();
+      return { pass: valueRefused && !beansHeld, detail: `peanut bread refused ${valueRefused}; flagged beans held ${beansHeld}; status ${r.run.status}` };
+    },
+  },
+  {
     name: "Human sign-off: suggest_only proposal + one parent approval places one verified hold",
     auto: false,
     fn: async () => {

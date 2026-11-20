@@ -27,6 +27,7 @@ export const REASON_LABEL: Record<RejectReason, string> = {
   missing_label_evidence: "No allergen statement on file for this exact SKU",
   conflicting_label_evidence: "Label evidence conflicts between sources",
   out_of_stock: "Out of stock",
+  classifier_flag: "SIE allergen classifier flagged the label",
   over_budget: "Would exceed the budget",
   mandate_limit: "Outside the parent's standing approval",
 };

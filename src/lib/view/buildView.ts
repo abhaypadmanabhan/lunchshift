@@ -79,11 +79,21 @@ export async function buildView(runId = DEMO_RUN_ID): Promise<RunView> {
           : "Safe default suggest_only (config not readable)"
         : "autonomy_mode dynamic config",
     },
-    {
-      name: "Superlinked SIE",
-      status: process.env.SIE_API_KEY ? (rankProvider === "sie" ? "live" : "fallback") : "missing",
-      detail: process.env.SIE_API_KEY ? "Reranker" : `Key pending · ${rankProvider === "singlestore_vector" ? "SingleStore vector" : "local vector"} fallback`,
-    },
+    (() => {
+      const screened = last("allergen_screened");
+      const screenOk = Boolean(screened && !screened.data.error);
+      const live = Boolean(process.env.SIE_API_KEY) && (rankProvider === "sie" || screenOk || !run);
+      const parts = [screenOk ? "allergen classifier" : null, rankProvider === "sie" ? "reranker" : null].filter(Boolean);
+      return {
+        name: "Superlinked SIE" as const,
+        status: process.env.SIE_API_KEY ? (live ? ("live" as const) : ("fallback" as const)) : ("missing" as const),
+        detail: process.env.SIE_API_KEY
+          ? parts.length
+            ? parts.join(" + ")
+            : `SIE unavailable this run · ${rankProvider === "singlestore_vector" ? "SingleStore vector" : "local vector"} fallback`
+          : `Key pending · ${rankProvider === "singlestore_vector" ? "SingleStore vector" : "local vector"} fallback`,
+      };
+    })(),
     {
       name: "Anthropic",
       status: rationaleProvider === "template" ? "fallback" : process.env.ANTHROPIC_API_KEY ? "live" : "missing",

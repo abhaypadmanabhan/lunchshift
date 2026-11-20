@@ -5,6 +5,7 @@ import { getExplainer } from "../lib/llm";
 import { getMemory } from "../lib/memory";
 import { buildRankQuery, getRanker } from "../lib/ranking";
 import { getStore } from "../lib/store";
+import { getAllergenScreen } from "../lib/allergen";
 import { AGENT_TOKEN, OPERATOR_TOKEN } from "../grocer/server";
 import { GrocerClient, GrocerOperator } from "../grocer/client";
 import type { WorkerDeps } from "./runWeekly";
@@ -39,6 +40,7 @@ export async function liveDeps(): Promise<WorkerDeps> {
     analytics: getAnalytics(),
     ranker: await getRanker(),
     explainer: getExplainer(),
+    allergenScreen: getAllergenScreen(),
     buildRankQuery: (h, keptPlan, roles) => buildRankQuery(h, keptPlan, roles, RECIPES),
   };
 }

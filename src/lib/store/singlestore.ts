@@ -9,22 +9,32 @@ const CA_URL = "https://portal.singlestore.com/static/ca/singlestore_bundle.pem"
 const CA_PATH = ".data/singlestore_bundle.pem";
 
 export function isSingleStoreConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(env.SINGLESTORE_URL || env.SINGLESTORE_HOST);
+  return Boolean(env.SINGLESTORE_URL || env.SINGLESTORE_HOST || looksLikeUrl(env.SINGLESTORE_DATABASE));
 }
+
+const DEFAULT_DB = "lunchshift";
 
 interface Conn { host: string; port: number; user: string; password: string; database?: string }
 
-function readConn(env: NodeJS.ProcessEnv): Conn {
-  if (env.SINGLESTORE_URL) {
-    const u = new URL(env.SINGLESTORE_URL);
-    return {
-      host: u.hostname,
-      port: u.port ? Number(u.port) : 3306,
-      user: decodeURIComponent(u.username),
-      password: decodeURIComponent(u.password),
-      database: u.pathname.length > 1 ? decodeURIComponent(u.pathname.slice(1)) : env.SINGLESTORE_DATABASE,
-    };
-  }
+const looksLikeUrl = (v: string | undefined): v is string => Boolean(v && /^[a-z][a-z0-9+.-]*:\/\//i.test(v));
+
+/** mysql://user:pass@host:port/dbname (or singlestore://...). The DB name is the last path segment. */
+export function parseConnUrl(url: string, fallbackDb?: string): Conn {
+  const u = new URL(url);
+  const last = u.pathname.split("/").filter(Boolean).pop();
+  return {
+    host: u.hostname,
+    port: u.port ? Number(u.port) : 3306,
+    user: decodeURIComponent(u.username),
+    password: decodeURIComponent(u.password),
+    database: last ? decodeURIComponent(last) : fallbackDb && !looksLikeUrl(fallbackDb) ? fallbackDb : undefined,
+  };
+}
+
+export function readConn(env: NodeJS.ProcessEnv): Conn {
+  if (env.SINGLESTORE_URL) return parseConnUrl(env.SINGLESTORE_URL, env.SINGLESTORE_DATABASE);
+  // Tolerate a full connection URL pasted into SINGLESTORE_DATABASE.
+  if (looksLikeUrl(env.SINGLESTORE_DATABASE)) return parseConnUrl(env.SINGLESTORE_DATABASE);
   return {
     host: env.SINGLESTORE_HOST ?? "",
     port: Number(env.SINGLESTORE_PORT ?? 3306),
@@ -68,7 +78,7 @@ async function ensureCaBundle(): Promise<string> {
 export class SingleStoreStore extends BaseStore {
   readonly provider = "singlestore" as const;
   private pool: Pool | null = null;
-  private readonly conn: Conn;
+  private conn: Conn;
   /** "system" when the platform trust store accepted the server, "singlestore_bundle" otherwise. */
   tlsTrust: "system" | "singlestore_bundle" | "unconnected" = "unconnected";
 
@@ -91,6 +101,21 @@ export class SingleStoreStore extends BaseStore {
   /** Connected pool, shared with the SingleStore vector ranker. */
   async getPool(): Promise<Pool> {
     if (this.pool) return this.pool;
+    if (!this.conn.database) {
+      // No database in the connection string: create ours, then use it.
+      const boot = this.make();
+      try {
+        await boot.query(`CREATE DATABASE IF NOT EXISTS ${DEFAULT_DB}`);
+      } catch (e) {
+        if (!isCertError(e)) throw e;
+        await boot.end().catch(() => undefined);
+        const boot2 = this.make(await ensureCaBundle());
+        await boot2.query(`CREATE DATABASE IF NOT EXISTS ${DEFAULT_DB}`).finally(() => boot2.end().catch(() => undefined));
+      } finally {
+        await boot.end().catch(() => undefined);
+      }
+      this.conn = { ...this.conn, database: DEFAULT_DB };
+    }
     let pool = this.make();
     try {
       await pool.query("SELECT 1");

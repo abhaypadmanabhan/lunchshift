@@ -126,6 +126,7 @@ export type RejectReason =
   | "missing_label_evidence"
   | "conflicting_label_evidence"
   | "out_of_stock"
+  | "classifier_flag" // SIE allergen classifier flagged the label line; can only add a refusal
   | "over_budget"
   | "mandate_limit";
 
@@ -141,6 +142,8 @@ export interface CandidateDecision {
   labelVersion?: string;
   labelText?: string;
   priceCents?: number;
+  /** Second opinion from the SIE allergen classifier on the exact label line, when available. */
+  screen?: { label: string; score: number; risk: boolean; model: string };
 }
 
 export interface RankedCandidate {
@@ -266,7 +269,7 @@ export interface Run {
   updatedAt: string;
 }
 
-export type AuditActor = "worker" | "grocer" | "parent" | "operator" | "statsig" | "cognee" | "ranker" | "llm";
+export type AuditActor = "worker" | "grocer" | "parent" | "operator" | "statsig" | "cognee" | "ranker" | "llm" | "sie";
 
 export interface AuditEvent {
   runId: string;
@@ -276,6 +279,7 @@ export interface AuditEvent {
   type:
     | "run_started"
     | "memory_recalled"
+    | "allergen_screened"
     | "mode_observed"
     | "autonomy_changed"
     | "stockout_detected"

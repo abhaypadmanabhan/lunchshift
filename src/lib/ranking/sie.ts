@@ -1,5 +1,5 @@
 // Superlinked SIE reranker. Used only when SIE_API_KEY is set; any failure throws so the chain falls back.
-// Request shape per the SIE docs given to this lane; untested against the live API (no key yet).
+// Verified live 2026-11-20: POST /v1/score/{model} -> {model, scores:[{item_id, score, rank}], usage}.
 import type { RankQuery, RankResult, Ranker, Recipe } from "../domain/types";
 import { toRanked } from "./features";
 
@@ -14,8 +14,10 @@ function parseScores(body: unknown, ids: string[]): Array<{ id: string; score: n
   const list = b && [b.items, b.results, b.scores, b.data].find(Array.isArray);
   if (!Array.isArray(list)) throw new Error("SIE response has no scores array");
   const out = list.map((x: unknown, i) => {
-    const o = x as { id?: unknown; score?: unknown };
-    return { id: typeof o.id === "string" ? o.id : (ids[i] ?? ""), score: Number(o.score) };
+    // Live SIE returns {item_id, score, rank} sorted by rank; never map by position when an id is present.
+    const o = x as { id?: unknown; item_id?: unknown; score?: unknown };
+    const id = typeof o.item_id === "string" ? o.item_id : typeof o.id === "string" ? o.id : (ids[i] ?? "");
+    return { id, score: Number(o.score) };
   });
   if (out.length !== ids.length || out.some((s) => !ids.includes(s.id) || Number.isNaN(s.score))) {
     throw new Error("SIE response does not match the candidates");
