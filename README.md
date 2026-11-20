@@ -34,9 +34,9 @@ Every Sunday a background worker (running with the browser closed) builds the we
 | Tool | Role |
 | --- | --- |
 | **Cognee Cloud** | Household and allergy memory, recalled in each fresh worker session (graph completion + chunk search). Every fact carries a stable marker and revision (`[fact-allergy-peanut r3]`), so a refusal cites the exact fact. Recalled IDs are resolved against the authoritative household record. Hard restrictions always load from that record, even if retrieval misses one. |
-| **SingleStore** | System of record: household, recipe vectors, label snapshots, runs, the append-only audit trail, baskets, receipts and KPIs. Ranks alternatives with `VECTOR(n,F32)` dot product (`<*>`) SQL. Falls back to SQLite (labelled) when unreachable. |
-| **Statsig** | `autonomy_mode` dynamic config read at run start, on every waiting-run tick and right before the hold. Backend events: `candidate_rejected`, `autonomy_changed`, `meal_swapped`, `hold_verified`, `weekly_run_metrics` (synthetic IDs and numbers only). |
-| **Superlinked SIE** | Reranker behind the `Ranker` interface (`Qwen3-Reranker-0.6B`). The key was unavailable during the event, so ranking ran on the labelled vector fallback. |
+| **SingleStore** | System of record: household, recipes, label snapshots, runs, the append-only audit trail (gap-free per-run sequence), baskets, receipts and KPIs. Stage 1 of ranking: alternatives are shortlisted with `VECTOR(n,F32)` dot-product SQL (`vec <*> query`) over labelled feature vectors. `npm run audit` replays any run's full decision from SingleStore. Falls back to SQLite (labelled on screen) when unreachable. |
+| **Statsig** | `autonomy_mode` dynamic config read at run start, on every waiting-run tick and right before the hold; a failed or defaulted read never authorizes anything. Agent analytics: one `agent_step` event per audit event (a trace), plus `candidate_rejected`, `autonomy_changed`, `meal_swapped`, `hold_verified` and `weekly_run_metrics` carrying the six KPIs (synthetic IDs and numbers only). |
+| **Superlinked SIE** | Small task-specific models used as tools. (1) Allergen screen: the `deberta-v3-large-zeroshot-v2.0` classifier reads every exact-SKU label line (Value Wheat "may contain peanuts" 0.97). It can only *add* a refusal on top of the structured rules, never clear one. (2) Stage 2 of ranking: `Qwen3-Reranker-0.6B` reranks the SingleStore shortlist against the household's preferences. |
 | **Anthropic Claude** | Explains, and may choose, among the eligible alternatives only (`LLM_PROVIDER`, `LLM_MODEL`). It never sees or decides allergen, budget or stock rules. |
 
 ## Run it
@@ -50,7 +50,15 @@ npm run worker              # background agent; WORKER_SCHEDULE_AT=now makes the
 npm run dev                 # UI on :3000
 npm run demo -- stockout    # operator fixture action: sell out the usual bread (also: reset, drop, run)
 npm run audit               # replay the run's full decision from the store
+npm run stack               # grocer + worker + built UI in one process (run `npm run build` first)
+npm run demo:fullauto       # unattended proof: clean state, bread pre-sold-out, Sunday schedule fires, zero inputs
 ```
+
+Proof of an unattended full-auto run (schedule fired, verified hold 8 s later, no parent or operator events): `docs/proof/fullauto-run.txt`.
+
+## How we built and measured it
+
+Base, measure, improve. A thin end-to-end slice came first, then `npm run kpi` and its scenarios. Each loop fixed the worst miss and reran the suite (`LOOP-LOG.md`). A cross-model review (Grok 4.7) found five guarantee gaps that the green suite had missed. Each finding became a scenario that failed on the old code before it was fixed.
 
 ## Layout
 
