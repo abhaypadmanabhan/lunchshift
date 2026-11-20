@@ -11,7 +11,7 @@ const DAY_NAME: Record<string, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "
 
 const PROVIDER_LABEL = {
   sie: "Superlinked SIE ranking",
-  singlestore_vector: "SingleStore vector ranking - SIE pending",
+  singlestore_vector: "Ranked in SingleStore by vector dot product (SIE key pending)",
   local_vector: "Local vector ranking (fallback)",
 } as const;
 
@@ -117,6 +117,11 @@ export function WeekPlan({ view, onApprove }: { view: RunView; onApprove?: () =>
           <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-[1.15fr_1fr] border-t pt-5">
             <div>
               <p className="text-sm text-muted-foreground">{PROVIDER_LABEL[proposal.ranking.provider]}</p>
+              {proposal.ranking.provider === "singlestore_vector" ? (
+                <Code className="mt-1 block text-[0.8125rem] leading-snug text-muted-foreground">
+                  SELECT recipe_id, vec &lt;*&gt; :query AS score FROM ls_rank_vec ORDER BY score DESC
+                </Code>
+              ) : null}
               <ul className="mt-3 space-y-3">
                 {proposal.ranking.ranked.map((r) => {
                   const chosen = r.id === proposal.toRecipeId;

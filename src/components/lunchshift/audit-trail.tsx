@@ -4,13 +4,21 @@ import type { AuditEvent } from "@/lib/domain/types";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { clock } from "./format";
 
-export function AuditTrail({ events, onOpenEvent }: { events: AuditEvent[]; onOpenEvent: (e: AuditEvent) => void }) {
+export function AuditTrail({
+  events,
+  onOpenEvent,
+  storedIn = "the app store",
+}: {
+  events: AuditEvent[];
+  onOpenEvent: (e: AuditEvent) => void;
+  storedIn?: string;
+}) {
   return (
     <section className="rounded-xl border bg-card">
       <header className="flex items-baseline justify-between gap-4 px-6 pt-5 pb-3">
         <h2 className="text-lg font-semibold tracking-[-0.01em]">Audit trail</h2>
         <span className="text-sm text-muted-foreground">
-          {events.length > 0 ? `${events.length} events, append-only · select a row for its evidence` : "Append-only"}
+          {events.length > 0 ? `${events.length} events, append-only in ${storedIn} · select a row for its evidence` : `Append-only in ${storedIn}`}
         </span>
       </header>
       {events.length === 0 ? (

@@ -26,6 +26,13 @@ const RUN_HEADLINE: Record<RunStatus, { text: string; tone: "ok" | "wait" | "ref
   failed: { text: "Run failed", tone: "refuse" },
 };
 
+const TRIGGER_LABEL: Record<string, string> = {
+  schedule: "the Sunday schedule",
+  stockout_event: "a store stockout event",
+  manual: "a manual run",
+  replay: "a replayed event",
+};
+
 const TONE = { ok: "text-ok", wait: "text-wait", refuse: "text-refuse", plain: "text-foreground" } as const;
 
 function IntegrationsRow({ items }: { items: IntegrationStatus[] }) {
@@ -102,6 +109,7 @@ export default function Home() {
             <span className="text-[0.9375rem] text-muted-foreground">
               {view ? `${view.household.childName}'s school lunches` : "School lunches"}
               {view?.run ? ` · Sunday order, ${shortDate(view.run.weekOf).replace(/, \d{4}$/, "")}` : ""}
+              {view?.run ? ` · started by ${TRIGGER_LABEL[view.run.trigger] ?? view.run.trigger}` : " · Sunday 4:00 pm schedule armed"}
             </span>
           </div>
           {headline ? (
@@ -161,7 +169,11 @@ export default function Home() {
             </div>
 
             <div className="col-span-12 mt-4 lg:col-span-8">
-              <AuditTrail events={view.events} onOpenEvent={openEvent} />
+              <AuditTrail
+                events={view.events}
+                onOpenEvent={openEvent}
+                storedIn={view.integrations.find((i) => i.name === "SingleStore")?.status === "live" ? "SingleStore" : "SQLite (SingleStore stand-in)"}
+              />
             </div>
             <div className="col-span-12 mt-4 lg:col-span-4">
               <OperatorControls onDone={() => void load()} />

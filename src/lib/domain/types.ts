@@ -218,7 +218,8 @@ export interface AnalyticsEvent {
     | "autonomy_changed"
     | "meal_swapped"
     | "hold_verified"
-    | "weekly_run_metrics";
+    | "weekly_run_metrics"
+    | "agent_step"; // one per audit event: the run's trace (type, actor, seq, mode)
   value?: string | number;
   metadata: Record<string, string>; // synthetic ids and numbers only. No allergy text, names, secrets.
 }

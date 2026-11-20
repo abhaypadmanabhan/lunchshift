@@ -82,7 +82,16 @@ type Ctx = {
 };
 
 async function ev(ctx: Ctx, e: Parameters<AppStore["appendEvent"]>[0]) {
-  return ctx.deps.store.appendEvent(e);
+  const saved = await ctx.deps.store.appendEvent(e);
+  // Agent trace in Statsig: one event per persisted decision. Ids and types only; no summaries or allergy text.
+  void track(ctx, [
+    {
+      eventName: "agent_step",
+      value: saved.type,
+      metadata: { runId: saved.runId, seq: String(saved.seq), actor: saved.actor, type: saved.type, effectiveMode: ctx.run.effectiveMode },
+    },
+  ]);
+  return saved;
 }
 
 async function track(ctx: Ctx, events: AnalyticsEvent[]) {
@@ -665,8 +674,7 @@ async function computeKpis(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fin
     swapsTracedPct: swaps.length === 0 && proposals.length === 0 ? 100 : Math.round((traced / Math.max(1, proposals.length)) * 100),
   };
   await ctx.deps.store.saveKpis(ctx.run.id, k);
-  await ev(ctx, { runId: ctx.run.id, actor: "worker", type: "metrics_computed", summary: `KPIs: unsafe ${k.unsafeItemsInCart}, complete ${k.mealCompletenessPct}%, clicks ${k.humanClicksPerOrder}, dup holds ${k.duplicateHolds}, budget ${k.budgetKept.kept ? "kept" : "MISSED"}, traced ${k.swapsTracedPct}%`, data: { ...k } });
-  await ctx.deps.analytics
+  const delivery = await ctx.deps.analytics
     .log(ctx.analyticsUser, [
       {
         eventName: "weekly_run_metrics",
@@ -684,7 +692,14 @@ async function computeKpis(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fin
         },
       },
     ])
-    .catch(() => undefined);
+    .catch((e: unknown) => ({ ok: false, error: String(e) }));
+  await ev(ctx, {
+    runId: ctx.run.id,
+    actor: "worker",
+    type: "metrics_computed",
+    summary: `KPIs: unsafe ${k.unsafeItemsInCart}, complete ${k.mealCompletenessPct}%, clicks ${k.humanClicksPerOrder}, dup holds ${k.duplicateHolds}, budget ${k.budgetKept.kept ? "kept" : "MISSED"}, traced ${k.swapsTracedPct}%; Statsig weekly_run_metrics ${delivery.ok ? "sent" : "not sent"}`,
+    data: { ...k, statsigDelivered: delivery.ok, statsigError: delivery.error ?? null },
+  });
   return k;
 }
 
