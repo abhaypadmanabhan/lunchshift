@@ -9,7 +9,7 @@
     "lint": "eslint",
     "grocer": "tsx --env-file-if-exists=.env src/grocer/main.ts",
     "worker": "tsx --env-file-if-exists=.env src/worker/main.ts",
-    "kpi": "tsx --env-file-if-exists=.env scripts/kpi.ts",
+    "kpi": "LUNCHSHIFT_SHOP_PACE_MS=0 tsx --env-file-if-exists=.env scripts/kpi.ts",
     "smoke:store": "tsx --env-file-if-exists=.env scripts/smoke-store.ts",
     "smoke:vendors": "tsx --env-file-if-exists=.env scripts/smoke-vendors.ts",
     "typecheck": "tsc --noEmit -p .",
@@ -20,9 +20,8 @@
     "smoke:statsig-env": "tsx --env-file-if-exists=.env scripts/smoke-statsig-env.ts",
     "demo:fullauto": "node scripts/fullauto.mjs",
     "diag:singlestore": "tsx --env-file-if-exists=.env scripts/diag-singlestore.ts",
-    "test:allergens": "tsx scripts/test-allergens.ts",
-    "smoke:sie-screen": "tsx --env-file-if-exists=.env scripts/smoke-sie-screen.ts",
-    "try:chat": "tsx --env-file-if-exists=.env /private/tmp/claude-501/-Users-abhayp-hackathon-lunchshift/4a18632b-979c-439b-8280-cf878d653f9d/scratchpad/chat-try.mts"
+    "test:allergens": "LUNCHSHIFT_SHOP_PACE_MS=0 tsx scripts/test-allergens.ts",
+    "smoke:sie-screen": "tsx --env-file-if-exists=.env scripts/smoke-sie-screen.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",

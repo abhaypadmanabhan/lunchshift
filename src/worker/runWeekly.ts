@@ -350,7 +350,10 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
     }
     return d;
   };
+  const refusedIds = new Set<string>();
   const refuse = async (d: CandidateDecision, name: string, extra: Record<string, unknown>) => {
+    if (refusedIds.has(d.candidateId)) return;
+    refusedIds.add(d.candidateId);
     refusals.push(d);
     await ev(ctx, {
       runId,
@@ -362,6 +365,40 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
     await track(ctx, [{ eventName: "candidate_rejected", value: d.reasons[0], metadata: { runId, candidateId: d.candidateId, reason: d.reasons.join("|") } }]);
   };
   const refusals: CandidateDecision[] = [];
+
+  // 4c. Shopping, shown live: for each item the week needs, compare the store's options, skip cheaper unsafe ones
+  // (with the reason), and add the pick. The cart fills as the parent watches. Not repeated on stockout re-checks.
+  if (ctx.run.trigger !== "stockout_event") {
+    const paced = ctx.run.trigger === "manual" && process.env.LUNCHSHIFT_SHOP_PACE_MS !== "0";
+    const pace = Number(process.env.LUNCHSHIFT_SHOP_PACE_MS ?? 450);
+    const partial: Basket = { version: 0, lines: [], totalCents: 0 };
+    for (const line of original.lines) {
+      const pick = byId.get(line.skuId)!;
+      const options = cat.skus.filter((s) => s.role === pick.role).sort((a, b) => a.priceCents - b.priceCents);
+      const skipped: string[] = [];
+      for (const o of options) {
+        if (o.id === pick.id || o.priceCents > pick.priceCents) continue;
+        const d = check(o, line.packs);
+        if (!d.eligible && d.reasons.some((r) => r !== "out_of_stock")) {
+          await refuse(d, o.name, { skuName: o.name, role: o.role, shopping: true });
+          skipped.push(o.name);
+        }
+      }
+      const ok = check(pick, line.packs).eligible;
+      if (!ok) continue; // the usual pick itself is unsafe or sold out: the repair below handles it
+      partial.lines.push(line);
+      partial.totalCents += line.lineCents;
+      await ev(ctx, {
+        runId,
+        actor: "worker",
+        type: "item_added",
+        summary: `Added ${pick.name} (${line.packs} × $${(pick.priceCents / 100).toFixed(2)}) for ${pick.role.replace(/_/g, " ")}; compared ${options.length} option${options.length === 1 ? "" : "s"}${skipped.length ? `, skipped ${skipped.length} unsafe` : ""}`,
+        data: { skuId: pick.id, skuName: pick.name, brand: pick.brand, role: pick.role, packs: line.packs, lineCents: line.lineCents, options: options.length, skipped, imageUrl: pick.imageUrl ?? null },
+      });
+      await deps.store.saveBasket(runId, { ...partial, lines: [...partial.lines] });
+      if (paced) await new Promise((r) => setTimeout(r, pace));
+    }
+  }
 
   // 5. Which usual products can't be used: sold out, or no longer safe under the household's current rules.
   const brokenUsual: string[] = [];

@@ -136,6 +136,15 @@ function line(e: AuditEvent, view: RunView): Line | Line[] | null {
       return { sponsor: "Store", text: "Order placed · pay at pickup", tone: "done" };
     case "order_response_lost":
       return { sponsor: "Store", text: "Order reply dropped · reading back by key" };
+    case "item_added": {
+      const skipped = Array.isArray(d.skipped) ? (d.skipped as string[]) : [];
+      const n = num(d.options);
+      return {
+        sponsor: "LunchShift",
+        text: `Added ${str(d.skuName) ?? "an item"}${n && n > 1 ? ` · best of ${n}` : ""}${skipped.length ? ` · skipped ${skipped.length} unsafe` : ""}`,
+        mono: num(d.lineCents) === null ? undefined : money(num(d.lineCents)!),
+      };
+    }
     case "cart_edited":
       return { sponsor: "You", text: "You edited the cart" };
     case "metrics_computed": {

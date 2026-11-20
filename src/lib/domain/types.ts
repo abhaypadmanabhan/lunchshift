@@ -332,6 +332,7 @@ export interface AuditEvent {
     | "order_placed"
     | "order_response_lost"
     | "cart_edited"
+    | "item_added"
     | "metrics_computed"
     | "note";
   summary: string; // one human line
