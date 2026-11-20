@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { cn } from "cn";
 import { ChevronRight } from "lucide-react";
-import type { SwapProposal } from "@/lib/domain/types";
+import type { Order, SwapProposal } from "@/lib/domain/types";
 import type { PlanRow, RunView } from "@/lib/domain/view";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DAY_NAME, firstSentence, money, refusalName, refusalReason, statusHeadline, swapCause, timeOfDay } from "./copy";
+import { OrderCard } from "./order-view";
 import { AppButton, Notice, SectionTitle } from "./ui";
 import { postParent } from "./use-run-view";
 
@@ -218,7 +219,17 @@ function WhySheet({ view, proposal, row, open, onOpenChange }: { view: RunView; 
   );
 }
 
-export function WeekTab({ view, onRefresh }: { view: RunView; onRefresh: () => Promise<void> }) {
+export function WeekTab({
+  view,
+  onRefresh,
+  onOpenOrder,
+  onOpenActivity,
+}: {
+  view: RunView;
+  onRefresh: () => Promise<void>;
+  onOpenOrder: (o: Order) => void;
+  onOpenActivity: () => void;
+}) {
   const [whyDay, setWhyDay] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const proposalFor = (day: string) => view.proposals.find((p) => p.affectedDay === day);
@@ -226,6 +237,8 @@ export function WeekTab({ view, onRefresh }: { view: RunView; onRefresh: () => P
   return (
     <div className="space-y-8">
       <StatusCard view={view} onRefresh={onRefresh} />
+
+      <OrderCard view={view} onOpen={(o) => onOpenOrder(o)} onRefresh={onRefresh} />
 
       <section aria-labelledby="lunches-title" className="space-y-3">
         <SectionTitle aside="Monday to Friday">
@@ -256,6 +269,20 @@ export function WeekTab({ view, onRefresh }: { view: RunView; onRefresh: () => P
           <p className="px-1 text-[0.9375rem] text-muted-foreground">Updated {timeOfDay(view.run.updatedAt)}</p>
         ) : null}
       </section>
+
+      <button
+        type="button"
+        onClick={onOpenActivity}
+        className="flex w-full items-center gap-4 rounded-xl bg-card px-5 py-4 text-left shadow-[0_1px_0_var(--border)] hover:bg-secondary/60"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-medium">What LunchShift did</span>
+          <span className="block text-[0.9375rem] text-muted-foreground tabular-nums">
+            {view.events.length ? `${view.events.length} steps this week, each one recorded` : "Nothing yet this week"}
+          </span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      </button>
 
       <WhySheet view={view} proposal={whyDay ? proposalFor(whyDay) : undefined} row={whyRow} open={open} onOpenChange={setOpen} />
     </div>
