@@ -425,6 +425,33 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
     },
   },
   {
+    name: "Two weeks for a chat-built family: week 1 approved swaps are remembered; week 2 stockout is fixed and held with zero clicks",
+    auto: true,
+    fn: async () => {
+      const facts = toFacts({ kids: [{ name: "Ivy", age: 5 }], allergies: [{ child: "Ivy", allergen: "sesame" }, { child: "Ivy", allergen: "peanuts" }], budgetDollars: 40 });
+      const fam0 = applyFacts(blankFamily(2), facts);
+      const fam = { ...fam0, mandate: { ...fam0.mandate, maxAutonomy: "auto_swap_and_hold" as const } };
+      const w = await world("auto_swap_and_hold", fam);
+      const week1 = currentRunId(fam, "2026-11-22");
+      const r1 = await processRun(w.deps, { runId: week1, householdId: fam.id, weekOf: "2026-11-22", trigger: "manual" });
+      // Week 1 swaps the sesame hummus lunch; whether it needed approval depends on the 1-swap mandate.
+      const r1b = r1.run.status === "proposed" ? await approveProposal(w.deps, week1) : r1;
+      const remembered = (await w.store.getHousehold(fam.id))!.plan.find((p) => p.day === "Thu")?.recipeId;
+      // Week 2: the usual bread sells out. Only that lunch should change, autonomously.
+      await w.op.setStock(DEMO_STOCKOUT_SKU, 0);
+      const week2 = currentRunId(fam, "2026-11-29");
+      const r2 = await processRun(w.deps, { runId: week2, householdId: fam.id, weekOf: "2026-11-29", trigger: "stockout_event" });
+      const swaps2 = (await allProposals(w.store, week2)).map((p) => p.affectedDay);
+      const k = (await w.store.getKpis(week2))!;
+      await w.grocer.close();
+      return {
+        pass: r1b.run.status === "hold_verified" && remembered !== "r-hummus-box" && r2.run.status === "hold_verified" && swaps2.join() === "Mon" && k.humanClicksPerOrder === 0,
+        detail: `week 1 ${r1.run.status} -> ${r1b.run.status}, Thursday now ${remembered}; week 2 ${r2.run.status}, swaps ${swaps2.join(",")}, clicks ${k.humanClicksPerOrder}`,
+        kpis: k,
+      };
+    },
+  },
+  {
     name: "Human sign-off: suggest_only proposal + one parent approval places one verified hold",
     auto: false,
     fn: async () => {

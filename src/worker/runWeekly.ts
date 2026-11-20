@@ -643,6 +643,7 @@ async function applyAndMaybeHold(
         proposals.map((p) => ({ eventName: "meal_swapped" as const, value: 1, metadata: { runId, from: p.fromRecipeId, to: p.toRecipeId } })),
       )
       .catch(() => undefined);
+    await rememberSafeSwaps(ctx.deps.store, runId, ctx.household.id);
   }
   if (effective !== "auto_swap_and_hold") {
     await ev(ctx, { runId, actor: "worker", type: "note", summary: `${effective}: cart ready, waiting for hold authority`, data: { effective } });
@@ -954,3 +955,32 @@ export async function placeOrderFor(
 
 /** Where the parent's edited cart for a run is kept (same basket table). */
 export const draftKey = (runId: string) => `${runId}#draft`;
+
+/**
+ * Lunches swapped because they are unsafe for the kids (not because something sold out) become the family's plan,
+ * so next week starts safe instead of re-swapping. Stockout swaps stay one-off. Runs when swaps are applied.
+ */
+async function rememberSafeSwaps(store: AppStore, runId: string, householdId: string) {
+  const h = await store.getHousehold(householdId);
+  if (!h) return;
+  const evs = await store.listEvents(runId);
+  const unsafeRoles = new Set(
+    evs.filter((e) => e.type === "candidate_rejected" && e.data.usual === true && typeof e.data.role === "string").map((e) => String(e.data.role)),
+  );
+  const recipes = new Map((await store.getRecipes()).map((r) => [r.id, r]));
+  const swaps = evs.filter((e) => e.type === "swap_proposed").map((e) => e.data.proposal as SwapProposal);
+  const keep = swaps.filter((p) => recipes.get(p.fromRecipeId)?.lines.some((l) => unsafeRoles.has(l.role)));
+  if (!keep.length) return;
+  const plan = h.plan.map((p) => {
+    const sw = keep.find((x) => x.affectedDay === p.day);
+    return sw ? { ...p, recipeId: sw.toRecipeId } : p;
+  });
+  await store.saveHousehold({ ...h, plan });
+  await store.appendEvent({
+    runId,
+    actor: "worker",
+    type: "note",
+    summary: `Remembered for next weeks: ${keep.map((p) => `${p.affectedDay} -> ${recipes.get(p.toRecipeId)?.name ?? p.toRecipeId}`).join(", ")}`,
+    data: { planUpdated: keep.map((p) => ({ day: p.affectedDay, to: p.toRecipeId })) },
+  });
+}
