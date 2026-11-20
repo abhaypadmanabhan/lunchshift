@@ -1,8 +1,8 @@
 # LunchShift status
 
-**Updated 11:20 PT. Milestone:** thin end-to-end slice works headless: sandbox grocer + background worker + audit trail + KPI harness. UI lane is building the screen (merge next).
+**Updated 11:31 PT. Milestone:** slice 1 done early. The live UI (grocer, worker, Next) has been driven end to end: refusal, whole-lunch swap, parent approval, dropped response, read-back, and one verified hold. Next: the live Statsig flip (blocked on the config), then polish and rehearsal.
 
-**Latest KPIs (`npm run kpi`, loop 2, 10/10 scenarios):** unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept ($29.48 max / $35) · swaps traced 100%.
+**Latest KPIs (`npm run kpi`, loop 3, 11/11 scenarios):** unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept ($29.48 max / $35) · swaps traced 100%.
 
 **Live sponsors:** Cognee recall live (cites fact-allergy-peanut r3). Anthropic explainer live. Statsig reads live but return the default (config missing). SingleStore down (see blockers); SQLite fallback in use. SIE key missing; local vector ranking fallback.
 
