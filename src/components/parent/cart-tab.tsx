@@ -6,6 +6,7 @@ import { Ban, Lock, Minus, Plus, Search, ShieldCheck, Trash2 } from "lucide-reac
 import type { Order } from "@/lib/domain/types";
 import type { CartLineView, CartView, RunView } from "@/lib/domain/view";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { money, refusalName, refusalReason } from "./copy";
 import { AppButton, EmptyCard, Notice, ProductTile, SectionTitle, useTween } from "./ui";
 import { postParent } from "./use-run-view";
@@ -19,7 +20,7 @@ function BudgetMeter({ totalCents, budgetCents }: { totalCents: number; budgetCe
   const over = totalCents > budgetCents;
   const left = budgetCents - totalCents;
   return (
-    <section aria-label="Budget" className="rounded-xl bg-card p-5 shadow-[0_1px_0_var(--border)]">
+    <section aria-label="Budget" className="rounded-lg bg-card p-5 border">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <p className="text-[2rem] font-semibold leading-none tracking-[-0.02em] tabular-nums">
           {money(Math.round(shown))}
@@ -53,7 +54,7 @@ function Stepper({ line, packs, disabled, onChange }: { line: CartLineView; pack
   const btn =
     "inline-flex size-11 items-center justify-center rounded-lg text-foreground transition-colors duration-[var(--dur-fast)] hover:bg-secondary active:bg-muted disabled:cursor-not-allowed disabled:opacity-40";
   return (
-    <div className="inline-flex items-center rounded-xl border border-input/30 bg-background" role="group" aria-label={`Quantity of ${line.name}`}>
+    <div className="inline-flex items-center rounded-lg border border-input/30 bg-background" role="group" aria-label={`Quantity of ${line.name}`}>
       <button
         type="button"
         className={btn}
@@ -116,7 +117,7 @@ function AddItemSheet({
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search bread, fruit, snacks…"
               autoComplete="off"
-              className="h-12 w-full rounded-xl border border-input/40 bg-background pr-3 pl-10 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring"
+              className="h-12 w-full rounded-lg border border-input/40 bg-background pr-3 pl-10 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring"
             />
           </div>
         </div>
@@ -175,10 +176,23 @@ function AddItemSheet({
 
 const shopping = (view: RunView) => view.run?.status === "running" || view.run?.status === "scheduled";
 
+/** A placeholder cart line while LunchShift is still picking: same height and photo size as a real line. */
+function PendingLine() {
+  return (
+    <li className="flex gap-3 px-4 py-4" aria-hidden>
+      <Skeleton className="size-12 shrink-0 rounded-lg" />
+      <div className="flex-1 space-y-2 pt-1">
+        <Skeleton className="h-4 w-2/3 rounded-md" />
+        <Skeleton className="h-4 w-1/3 rounded-md" />
+      </div>
+    </li>
+  );
+}
+
 /** "Shopping for Maya's week": shown while the agent fills the cart, live. */
 function ShoppingNow({ view, count }: { view: RunView; count: number }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-ok-soft px-5 py-4" role="status" aria-live="polite">
+    <div className="flex items-center gap-3 rounded-lg bg-ok-soft px-5 py-4" role="status" aria-live="polite">
       <span className="relative flex size-3 shrink-0" aria-hidden>
         <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/50 motion-reduce:animate-none" />
         <span className="relative inline-flex size-3 rounded-full bg-primary" />
@@ -249,7 +263,7 @@ function ReviewBar({ view, onRefresh, onOpenOrder }: { view: RunView; onRefresh:
     return null;
   }
   return (
-    <section aria-label="Review" className="ls-enter space-y-3 rounded-xl bg-card p-4 shadow-[0_1px_0_var(--border)]">
+    <section aria-label="Review" className="ls-enter space-y-3 rounded-lg bg-card p-4 border">
       {body}
       {err ? <Notice tone="alert">{err}</Notice> : null}
     </section>
@@ -298,6 +312,11 @@ export function CartTab({
       <div className="space-y-6">
         <ShoppingNow view={view} count={0} />
         <EmptyCard title="Starting at the store" body="Items appear here as LunchShift picks them." />
+        <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+          <PendingLine />
+          <PendingLine />
+          <PendingLine />
+        </ul>
       </div>
     );
   }
@@ -413,11 +432,11 @@ export function CartTab({
             <span id="cart-title">{cart.source === "parent_draft" ? "Your cart" : "Picked by LunchShift"}</span>
           </SectionTitle>
           {lines.length ? (
-            <ul className={cn("divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]", firstPaint && "ls-stagger")}>
+            <ul className={cn("divide-y overflow-hidden rounded-lg bg-card border", firstPaint && "ls-stagger")}>
               {lines.map((l) => (
                 <li key={l.skuId} className={cn("px-4 py-4", arrived.has(l.skuId) && "ls-arrive-in")}>
                   <div className="flex gap-3">
-                    <ProductTile src={l.imageUrl} name={l.name} brand={l.brand} />
+                    <ProductTile src={l.imageUrl} name={l.name} brand={l.brand} size="sm" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="min-w-0 text-base font-medium leading-snug">{l.name}</p>
@@ -427,7 +446,7 @@ export function CartTab({
                       {l.usedBy.length ? <p className="mt-0.5 text-[0.9375rem] leading-snug text-muted-foreground">For {l.usedBy.join(", ")}</p> : null}
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-3 pl-[4.75rem]">
+                  <div className="mt-2 flex items-center justify-between gap-3 pl-[3.75rem]">
                     <p className="text-[0.9375rem] text-muted-foreground tabular-nums">{money(l.unitPriceCents)} each</p>
                     {locked ? (
                       l.packs > 1 ? (
@@ -444,6 +463,7 @@ export function CartTab({
                   ) : null}
                 </li>
               ))}
+              {live ? <PendingLine /> : null}
               {refused.map((r) => (
                 <li key={r.candidateId} className="flex items-center gap-3 bg-refuse-soft/60 px-4 py-3.5">
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-card text-refuse" aria-hidden>

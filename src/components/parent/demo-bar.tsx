@@ -49,7 +49,7 @@ export function DemoBar({
 
   const s = DEMO_STEPS[step];
   return (
-    <div className="fixed inset-x-0 top-0 z-40 border-b bg-background/90 backdrop-blur-md">
+    <div className="fixed inset-x-0 top-0 z-40 border-b bg-background ">
       <div className="mx-auto flex min-h-16 max-w-[1320px] items-center gap-5 px-5 py-2">
         <p className="shrink-0 text-[0.9375rem] text-muted-foreground tabular-nums">
           {step + 1} / {total}

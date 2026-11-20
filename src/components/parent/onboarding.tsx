@@ -129,7 +129,7 @@ export function Onboarding({ view, onDone, onRefresh }: { view: RunView; onDone:
               placeholder="Maya"
               autoComplete="off"
               autoFocus
-              className="mt-1 h-12 w-full rounded-xl border border-input/40 bg-card px-4 text-lg outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring"
+              className="mt-1 h-12 w-full rounded-lg border border-input/40 bg-card px-4 text-lg outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring"
             />
           </div>
         ) : null}
@@ -188,7 +188,7 @@ export function Onboarding({ view, onDone, onRefresh }: { view: RunView; onDone:
                   onChange={(e) => setEntry(e.target.value)}
                   placeholder="kiwi, mustard, coconut…"
                   autoComplete="off"
-                  className="h-12 min-w-0 flex-1 rounded-xl border border-input/40 bg-card px-4 text-base outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring"
+                  className="h-12 min-w-0 flex-1 rounded-lg border border-input/40 bg-card px-4 text-base outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring"
                 />
                 <AppButton type="submit" variant="secondary" className="min-h-12" disabled={!entry.trim()}>
                   Add
@@ -201,7 +201,7 @@ export function Onboarding({ view, onDone, onRefresh }: { view: RunView; onDone:
 
         {step === 2 ? (
           <div className="mt-6 space-y-5">
-            <div className="divide-y rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+            <div className="divide-y rounded-lg bg-card border">
               <div className="flex items-center justify-between gap-4 px-5 py-4">
                 <label htmlFor={ids.budget} className="text-base">
                   Weekly budget
@@ -224,7 +224,7 @@ export function Onboarding({ view, onDone, onRefresh }: { view: RunView; onDone:
                 <span className="text-base text-muted-foreground">{pickupWindow(view.household.mandate.window)}, every week</span>
               </div>
             </div>
-            <div className="rounded-xl bg-sunken px-5 py-4">
+            <div className="rounded-lg bg-sunken px-5 py-4">
               <p className="text-base font-medium">What happens next</p>
               <p className="mt-1 text-base text-muted-foreground">
                 Every Sunday LunchShift plans {child === "your child" ? "the" : `${child}'s`} lunches, refuses anything unsafe and holds the groceries for pickup. The agent never pays. You approve payment.
@@ -234,7 +234,7 @@ export function Onboarding({ view, onDone, onRefresh }: { view: RunView; onDone:
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 mt-8 pb-4 space-y-3 bg-background/90 py-2 backdrop-blur-sm">
+      <div className="sticky bottom-0 mt-8 pb-4 space-y-3 bg-background py-2 ">
         {err ? <Notice tone="alert">{err}</Notice> : null}
         {step < 2 ? (
           <AppButton className="min-h-12 w-full text-[1.0625rem]" disabled={!canNext} onClick={() => setStep(step + 1)}>

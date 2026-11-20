@@ -30,7 +30,7 @@ function FactRow({ f }: { f: FactHistoryItem }) {
       <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-[0.9375rem] text-muted-foreground">
         {f.child ? <span>{f.child}</span> : <span>Whole family</span>}
         <span aria-hidden>·</span>
-        <span className="font-mono text-[0.875rem]">rev {f.revision}</span>
+        <span className="font-mono text-[0.9375rem]">rev {f.revision}</span>
         <span aria-hidden>·</span>
         <span className="tabular-nums">{dateLabel(f.confirmedAt)}</span>
         {!f.active ? (
@@ -70,7 +70,7 @@ export function FactHistory({ view }: { view: RunView }) {
             <SectionTitle aside={<span className="tabular-nums">{active} active</span>}>
               <span id={`facts-${kind}`}>{titleFor(kind)}</span>
             </SectionTitle>
-            <ul className="ls-stagger divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+            <ul className="ls-stagger divide-y overflow-hidden rounded-lg bg-card border">
               {list.map((f) => (
                 <FactRow key={`${f.id}:${f.revision}`} f={f} />
               ))}

@@ -233,7 +233,7 @@ export function RoutinesView({ view, onRefresh }: { view: RunView; onRefresh: ()
   return (
     <div className="space-y-4 pb-4">
       <p className="px-1 text-base text-muted-foreground">LunchShift runs these on its own. Turn off any you&apos;d rather do yourself.</p>
-      <ul className="ls-stagger divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+      <ul className="ls-stagger divide-y overflow-hidden rounded-lg bg-card border">
         {routines.map((r) => (
           <RoutineRow key={r.id} r={r} onPatch={patchRoutine(r.id)} />
         ))}
@@ -252,7 +252,7 @@ export function FamilyEntries({ view, onOpen }: { view: RunView; onOpen: (s: "ro
     { id: "memory" as const, title: "What LunchShift remembers", detail: facts ? `${facts} confirmed fact${facts === 1 ? "" : "s"}` : "Nothing yet" },
   ];
   return (
-    <div className="divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+    <div className="divide-y overflow-hidden rounded-lg bg-card border">
       {rows.map((row) => (
         <button key={row.id} type="button" onClick={() => onOpen(row.id)} className="flex w-full items-center gap-4 px-5 py-4 text-left hover:bg-secondary/60">
           <span className="min-w-0 flex-1">

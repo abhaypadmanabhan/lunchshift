@@ -59,10 +59,10 @@ const TAB_TITLE: Record<Tab, string> = {
 function Loading() {
   return (
     <div className="space-y-8" aria-busy="true" aria-label="Loading your week">
-      <Skeleton className="h-44 rounded-xl" />
+      <Skeleton className="h-44 rounded-lg" />
       <div className="space-y-3">
         <Skeleton className="h-6 w-40 rounded-md" />
-        <Skeleton className="h-80 rounded-xl" />
+        <Skeleton className="h-80 rounded-lg" />
       </div>
     </div>
   );
@@ -71,7 +71,7 @@ function Loading() {
 function Unreachable({ since, onRetry }: { since: string; onRetry: () => void }) {
   const [busy, setBusy] = useState(false);
   return (
-    <div className="rounded-xl bg-card px-6 py-10 text-center shadow-[0_1px_0_var(--border)]">
+    <div className="rounded-lg bg-card px-6 py-10 text-center border">
       <p className="text-xl font-semibold tracking-[-0.01em]">Can&apos;t reach LunchShift</p>
       <p className="mx-auto mt-2 max-w-[20rem] text-base text-muted-foreground">
         Your plan and any store hold are safe. We&apos;ve been retrying every {POLL_MS / 1000} seconds since {timeOfDay(since)}.
@@ -96,7 +96,7 @@ function Unreachable({ since, onRetry }: { since: string; onRetry: () => void })
 function NextSunday({ onGo }: { onGo: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   return (
-    <div className="mt-8 flex items-center gap-4 rounded-xl bg-card px-5 py-4 shadow-[0_1px_0_var(--border)]">
+    <div className="mt-8 flex items-center gap-4 rounded-lg bg-card px-5 py-4 border">
       <div className="min-w-0 flex-1">
         <p className="text-base font-medium">Next Sunday</p>
         <p className="text-[0.9375rem] text-muted-foreground">See what LunchShift does when the store runs out.</p>
@@ -169,8 +169,8 @@ function Sidebar({
                     aria-current={on ? "page" : undefined}
                     onClick={() => onNav(id)}
                     className={cn(
-                      "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-base transition-colors duration-[var(--dur-fast)]",
-                      on ? "bg-card font-medium text-foreground shadow-[0_1px_0_var(--border)]" : "text-foreground/75 hover:bg-secondary hover:text-foreground",
+                      "flex min-h-11 w-full items-center gap-3 rounded-lg border border-transparent px-3 text-left text-base transition-colors duration-[var(--dur-fast)]",
+                      on ? "border-border bg-card font-medium text-foreground" : "text-foreground/75 hover:bg-secondary hover:text-foreground",
                     )}
                   >
                     <Icon className={cn("size-[1.125rem] shrink-0", on ? "text-primary" : "text-muted-foreground")} strokeWidth={on ? 2.1 : 1.8} aria-hidden />
@@ -178,7 +178,7 @@ function Sidebar({
                     {n ? (
                       <span
                         className={cn(
-                          "min-w-6 rounded-full px-1.5 text-center text-[0.875rem] leading-6 font-medium tabular-nums",
+                          "min-w-6 rounded-full px-1.5 text-center text-[0.9375rem] leading-6 font-medium tabular-nums",
                           needsYou(id) ? "bg-wait-soft text-wait" : "text-muted-foreground",
                         )}
                       >
@@ -197,7 +197,7 @@ function Sidebar({
         <button
           type="button"
           onClick={() => onNav("family")}
-          className="mx-3 mt-3 rounded-xl bg-card px-4 py-3 text-left shadow-[0_1px_0_var(--border)] transition-colors duration-[var(--dur-fast)] hover:bg-secondary/60"
+          className="mx-3 mt-3 rounded-lg bg-card px-4 py-3 text-left border transition-colors duration-[var(--dur-fast)] hover:bg-secondary/60"
         >
           <span className="block text-[0.9375rem] text-muted-foreground">LunchShift may</span>
           <span className="block text-base font-medium">{modeLabel(view.mode.effective)}</span>
@@ -535,7 +535,7 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
                     >
                       <Inbox className="size-[1.375rem]" strokeWidth={1.8} aria-hidden />
                       {inboxCount(view) ? (
-                        <span className="absolute top-0.5 right-0 min-w-5 rounded-full bg-wait px-1.5 text-center text-[0.8125rem] font-semibold leading-5 text-primary-foreground tabular-nums">
+                        <span className="absolute top-0.5 right-0 min-w-5 rounded-full bg-wait px-1.5 text-center text-[0.9375rem] font-semibold leading-5 text-primary-foreground tabular-nums">
                           {inboxCount(view)}
                         </span>
                       ) : null}
@@ -559,7 +559,7 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
 
             <nav
               aria-label="Sections"
-              className="sticky bottom-0 z-20 w-full border-t bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+              className="sticky bottom-0 z-20 w-full border-t bg-background pb-[env(safe-area-inset-bottom)]  lg:hidden"
             >
               <ul className="grid grid-cols-4">
                 {TABS.map(({ id, label, Icon }) => {
@@ -602,7 +602,7 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
           </div>
 
           {/* Right rail (1280 px and wider): the agent's own feed on top, the conversation with it below. */}
-          <div className="sticky top-[var(--ls-top)] hidden h-[calc(100dvh-var(--ls-top))] min-h-0 flex-col border-l border-border/70 bg-card/60 backdrop-blur-sm xl:flex">
+          <div className="sticky top-[var(--ls-top)] hidden h-[calc(100dvh-var(--ls-top))] min-h-0 flex-col border-l border-border/70 bg-card xl:flex">
             <AgentPanel view={view} offlineSince={failingSince} className="flex-1" />
             {view ? (
               <section aria-label="Ask LunchShift" className="flex max-h-[62%] min-h-0 shrink-0 flex-col border-t border-border/70 bg-background/70 p-4">

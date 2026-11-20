@@ -92,7 +92,7 @@ export function SavedSteps({ saved }: { saved: Saved }) {
   return (
     <ol className="ls-stagger space-y-2" aria-label="Saved to memory">
       {saved.map((s) => (
-        <li key={s.label} className="flex items-center gap-3 rounded-xl bg-card px-4 py-3 shadow-[0_1px_0_var(--border)]">
+        <li key={s.label} className="flex items-center gap-3 rounded-lg bg-card px-4 py-3 border">
           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden>
             <Check className="size-3.5" strokeWidth={3} />
           </span>
@@ -133,7 +133,7 @@ function Composer({
   return (
     <form
       onSubmit={submit}
-      className="flex items-end gap-2 rounded-[1.5rem] border border-input/40 bg-card p-1.5 pl-4 shadow-[0_1px_2px_oklch(0.27_0.015_60/0.06)] focus-within:border-ring"
+      className="flex items-end gap-2 rounded-lg border border-input/40 bg-card p-1.5 pl-4 focus-within:border-ring"
     >
       <label htmlFor={id} className="sr-only">
         {label}
@@ -306,7 +306,7 @@ export function ChatSetup({
         {busy === "send" ? <Typing /> : null}
 
         {facts.length && !saved ? (
-          <section className="ls-enter space-y-4 rounded-2xl bg-sunken p-4" aria-label="Facts to confirm">
+          <section className="ls-enter space-y-4 rounded-lg bg-sunken p-4" aria-label="Facts to confirm">
             <FactChips
               facts={facts}
               on={on}
@@ -327,7 +327,7 @@ export function ChatSetup({
         <div ref={end} />
       </div>
 
-      <div className="sticky bottom-0 mt-6 bg-background/92 pt-2 pb-4 backdrop-blur-sm">
+      <div className="sticky bottom-0 mt-6 bg-background pt-2 pb-4 ">
         {saved ? (
           <AppButton className="ls-enter min-h-12 w-full text-[1.0625rem]" onClick={onPlan}>
             Plan this week
@@ -415,17 +415,17 @@ export function AskBar({
       className={cn(
         docked
           ? "flex min-h-0 flex-col gap-2"
-          : "sticky bottom-[4.1rem] z-10 -mx-1 mt-8 space-y-2 bg-gradient-to-t from-background via-background/95 to-transparent px-1 pt-4 pb-3",
+          : "sticky bottom-[4.1rem] z-10 -mx-1 mt-8 space-y-2 bg-background px-1 pt-4 pb-3",
         className,
       )}
     >
       {open ? (
         <section
           className={cn(
-            "ls-enter relative space-y-3 rounded-2xl bg-card p-4 pr-12",
+            "ls-enter relative space-y-3 rounded-lg bg-card p-4 pr-12",
             docked
-              ? "min-h-0 overflow-y-auto overscroll-contain shadow-[0_1px_0_var(--border)] [scrollbar-width:thin]"
-              : "shadow-[0_1px_2px_oklch(0.27_0.015_60/0.06),0_12px_32px_-12px_oklch(0.27_0.015_60/0.22)]",
+              ? "min-h-0 overflow-y-auto overscroll-contain border [scrollbar-width:thin]"
+              : "border",
           )}
           aria-label="LunchShift's reply"
         >

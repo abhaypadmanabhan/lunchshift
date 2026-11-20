@@ -58,7 +58,7 @@ export function SafetyHero({ view, onWhy }: { view: RunView; onWhy: () => void }
   const allergyLabel = chip ? `${chip.label.replace(/s$/, "")} allergy` : "Allergy rule";
 
   return (
-    <section aria-labelledby="safe-title" className="ls-enter overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+    <section aria-labelledby="safe-title" className="ls-enter overflow-hidden rounded-lg bg-card border">
       <div className="flex items-center gap-2.5 px-5 pt-5">
         <ShieldCheck className="size-6 shrink-0 text-ok" strokeWidth={2} aria-hidden />
         <h2 id="safe-title" className="text-[1.375rem] font-semibold leading-tight tracking-[-0.015em]">

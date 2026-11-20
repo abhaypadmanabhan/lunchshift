@@ -79,13 +79,13 @@ export function InboxView({ view, onRefresh }: { view: RunView; onRefresh: () =>
           <span id="needs-title">Needs you</span>
         </SectionTitle>
         {open.length ? (
-          <ul className="ls-stagger divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+          <ul className="ls-stagger divide-y overflow-hidden rounded-lg bg-card border">
             {open.map((i) => (
               <NeedsYouRow key={i.id} item={i} onRefresh={onRefresh} />
             ))}
           </ul>
         ) : (
-          <div className="ls-enter flex items-center gap-4 rounded-xl bg-card px-5 py-5 shadow-[0_1px_0_var(--border)]">
+          <div className="ls-enter flex items-center gap-4 rounded-lg bg-card px-5 py-5 border">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ok-soft text-ok" aria-hidden>
               <Check className="size-5" strokeWidth={2.2} />
             </span>
@@ -102,7 +102,7 @@ export function InboxView({ view, onRefresh }: { view: RunView; onRefresh: () =>
           <span id="done-title">Done</span>
         </SectionTitle>
         {done.length ? (
-          <ul className="ls-stagger divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+          <ul className="ls-stagger divide-y overflow-hidden rounded-lg bg-card border">
             {done.map((i) => (
               <li key={i.id} className="px-5 py-4">
                 <div className="flex items-baseline justify-between gap-3">

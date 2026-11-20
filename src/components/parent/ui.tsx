@@ -111,7 +111,7 @@ export function useTween(value: number, ms = 420): number {
 /** A plain empty or error state inside a card: what this is, and the next step. */
 export function EmptyCard({ title, body, children }: { title: string; body: string; children?: ReactNode }) {
   return (
-    <div className="rounded-xl bg-card px-6 py-10 text-center shadow-[0_1px_0_var(--border)]">
+    <div className="rounded-lg bg-card px-6 py-10 text-center border">
       <p className="text-lg font-semibold tracking-[-0.01em]">{title}</p>
       <p className="mx-auto mt-1.5 max-w-[22rem] text-base text-muted-foreground">{body}</p>
       {children ? <div className="mt-6 flex justify-center gap-3">{children}</div> : null}

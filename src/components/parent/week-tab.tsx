@@ -77,8 +77,8 @@ function StatusCard({ view, onRefresh }: { view: RunView; onRefresh: () => Promi
     <section
       aria-labelledby="status-title"
       className={cn(
-        "rounded-xl p-5",
-        head.tone === "wait" ? "bg-wait-soft" : head.tone === "alert" ? "bg-refuse-soft" : "bg-card shadow-[0_1px_0_var(--border)]",
+        "rounded-lg p-5",
+        head.tone === "wait" ? "bg-wait-soft" : head.tone === "alert" ? "bg-refuse-soft" : "bg-card border",
       )}
     >
       <div key={run?.status ?? "none"} className="ls-enter">
@@ -297,7 +297,7 @@ export function WeekTab({
           <span id="lunches-title">{view.household.childName}&apos;s lunches</span>
         </SectionTitle>
         {view.plan.length ? (
-          <ul className="ls-stagger divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+          <ul className="ls-stagger divide-y overflow-hidden rounded-lg bg-card border">
             {view.plan.map((row) => (
               <LunchRow
                 key={row.day}
@@ -311,7 +311,7 @@ export function WeekTab({
             ))}
           </ul>
         ) : (
-          <div className="rounded-xl bg-card px-5 py-8 text-center shadow-[0_1px_0_var(--border)]">
+          <div className="rounded-lg bg-card px-5 py-8 text-center border">
             <p className="text-base font-medium">No lunches yet</p>
             <p className="mt-1 text-[0.9375rem] text-muted-foreground">Monday to Friday appear once the week is planned</p>
           </div>
@@ -322,7 +322,7 @@ export function WeekTab({
       <button
         type="button"
         onClick={onOpenActivity}
-        className="flex w-full items-center gap-4 rounded-xl bg-card px-5 py-4 text-left shadow-[0_1px_0_var(--border)] hover:bg-secondary/60 xl:hidden"
+        className="flex w-full items-center gap-4 rounded-lg bg-card px-5 py-4 text-left border hover:bg-secondary/60 xl:hidden"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-base font-medium">What LunchShift did</span>
