@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>LunchShift proof numbers</title>
+<style>
+:root{--bg:#f6f2ea;--card:#fffdf8;--line:#d6cfbf;--ink:#26302a;--mute:#5e655f;--green:#2f6b4f}
+*{box-sizing:border-box;margin:0}
+html,body{width:1440px;height:900px;background:var(--bg);color:var(--ink);font-family:Switzer,"Helvetica Neue",Helvetica,Arial,sans-serif}
+body{padding:48px 60px}
+h1{font-size:30px;font-weight:600}
+.sub{font-size:16px;color:var(--mute);margin-top:6px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:30px}
+.sec{font-size:16px;font-weight:600;margin:30px 0 -6px;color:var(--ink)}
+.c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px 22px;height:128px}
+.n{font-size:50px;font-weight:600;color:var(--green);line-height:1}
+.l{font-size:15px;color:var(--mute);margin-top:12px;line-height:1.35}
+.src{font-size:13px;color:var(--mute);margin-top:22px;font-family:"DM Mono",ui-monospace,Menlo,monospace}
+</style></head><body>
+<h1>The numbers, from the real runs</h1>
+<div class="sub">Final evaluation, 20 Nov 2026. Safety rules are code, so these counts are exact.</div>
+<div class="grid">
+<div class="c"><div class="n">26/26</div><div class="l">scenarios pass</div></div>
+<div class="c"><div class="n">0</div><div class="l">unsafe items reach the cart</div></div>
+<div class="c"><div class="n">100%</div><div class="l">of lunches complete after a stockout</div></div>
+<div class="c"><div class="n">0</div><div class="l">clicks per automatic weekly order</div></div>
+<div class="c"><div class="n">0</div><div class="l">duplicate holds when a reply is dropped</div></div>
+<div class="c"><div class="n">$29.48</div><div class="l">highest basket, against a $35.00 budget</div></div>
+<div class="c"><div class="n">100%</div><div class="l">of swaps traced to evidence</div></div>
+<div class="c"><div class="n">1</div><div class="l">payment per hold, even on a double tap</div></div>
+</div>
+<div class="sec">Allergen suite: all pass</div>
+<div class="grid" style="margin-top:14px">
+<div class="c" style="height:108px"><div class="n" style="font-size:40px">34</div><div class="l">parent inputs read correctly</div></div>
+<div class="c" style="height:108px"><div class="n" style="font-size:40px">20 + 32</div><div class="l">labels and edge cases parsed</div></div>
+<div class="c" style="height:108px"><div class="n" style="font-size:40px">5</div><div class="l">label versus tag conflicts caught</div></div>
+<div class="c" style="height:108px"><div class="n" style="font-size:40px">18</div><div class="l">allergy sets, one verified hold each</div></div>
+</div>
+<div class="sec">Reranker top score, live Superlinked SIE</div>
+<div class="grid" style="margin-top:14px;grid-template-columns:repeat(3,1fr)">
+<div class="c" style="height:108px"><div class="n" style="font-size:40px">0.989</div><div class="l">sample family, rice-and-bean bowl</div></div>
+<div class="c" style="height:108px"><div class="n" style="font-size:40px">0.934</div><div class="l">chat-made family, recorded story</div></div>
+<div class="c" style="height:108px"><div class="n" style="font-size:40px">0.83</div><div class="l">chat-style family query, direct SIE check</div></div>
+</div>
+<div class="src">npm run kpi, npm run test:allergens (20 Nov 2026); rerank scores from STATUS.md</div>
+</body></html>

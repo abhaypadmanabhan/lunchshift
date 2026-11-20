@@ -1,0 +1,35 @@
+{
+  "generated": "2026-11-20",
+  "sources": {
+    "kpi": "npm run kpi (scripts/kpi.ts), run 2026-11-20 15:04 PT, also written to .data/kpi-latest.json",
+    "allergens": "npm run test:allergens (scripts/test-allergens.ts), run 2026-11-20 15:05 PT",
+    "sie_rerank": "STATUS.md in this repo (live public site runs recorded by the team)"
+  },
+  "scenarios": { "passed": 26, "total": 26 },
+  "kpis": {
+    "unsafe_items_in_cart": { "value": 0, "target": 0 },
+    "meal_completeness_after_stockout": { "value": "100%", "target": "100%" },
+    "human_clicks_per_auto_order": { "value": 0, "target": 0 },
+    "duplicate_holds_under_dropped_response": { "value": 0, "target": 0 },
+    "budget_kept": { "value": "yes", "detail": "max $29.48 / $35.00" },
+    "swaps_traced_to_evidence": { "value": "100%", "target": "100%" }
+  },
+  "allergen_suite": {
+    "parent_inputs_normalized": { "passed": 34, "total": 34 },
+    "labels_parsed": { "passed": 20, "total": 20 },
+    "label_edge_cases": { "passed": 32, "total": 32 },
+    "off_tag_vs_ingredient_conflict_checks": { "passed": 5, "total": 5 },
+    "allergy_sets_full_weekly_plan": { "passed": 18, "total": 18 },
+    "result": "ALL PASS"
+  },
+  "payments": {
+    "payment_intents_per_hold": 1,
+    "detail": "PaymentIntents 1 for 1 hold, same session on retry and double tap; live key refused, 0 calls (kpi Stripe scenario)"
+  },
+  "sie_rerank_top_scores": {
+    "source": "STATUS.md",
+    "sample_family_rice_and_bean_bowl": 0.989,
+    "chat_made_family_recorded_story": 0.934,
+    "chat_style_family_query_direct_sie_check": 0.83
+  }
+}

@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<defs>
+<style>
+text{font-family:Switzer,"Helvetica Neue",Helvetica,Arial,sans-serif}
+.mono{font-family:"DM Mono",ui-monospace,Menlo,monospace}
+</style>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1,1 L9,5 L1,9 z" fill="#2f6b4f"/></marker>
+<marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1,1 L9,5 L1,9 z" fill="#b3382c"/></marker>
+<marker id="arrowM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1,1 L9,5 L1,9 z" fill="#5e655f"/></marker>
+</defs>
+<rect width="1440" height="900" fill="#f6f2ea"/>
+<text x="60" y="52" font-size="28" font-weight="600" fill="#26302a">How LunchShift keeps a lunch safe</text>
+<text x="60" y="80" font-size="16" fill="#5e655f">Deterministic code decides what is eligible. The models only explain or choose among eligible options.</text>
+<path d="M345,190 L395,190" fill="none" stroke="#2f6b4f" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M680,190 L730,190" fill="none" stroke="#2f6b4f" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M800,265 L800,350" fill="none" stroke="#2f6b4f" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M1105,265 V299 H962 Q954,299 954,307 V350" fill="none" stroke="#5e655f" stroke-width="1.4" stroke-dasharray="5,4" marker-end="url(#arrowM)"/>
+<path d="M1065,425 L1015,425" fill="none" stroke="#b3382c" stroke-width="1.6" marker-end="url(#arrowR)"/>
+<path d="M730,425 L680,425" fill="none" stroke="#2f6b4f" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M395,425 L345,425" fill="none" stroke="#2f6b4f" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M202,500 L202,585" fill="none" stroke="#2f6b4f" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M345,660 L395,660" fill="none" stroke="#2f6b4f" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M680,660 L730,660" fill="none" stroke="#2f6b4f" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M1015,660 L1065,660" fill="none" stroke="#2f6b4f" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+<rect x="60" y="115" width="285" height="150" rx="10" fill="#fffdf8" stroke="#d6cfbf" stroke-width="1.3"/>
+<text x="78" y="145" font-size="17" font-weight="600" fill="#26302a">Parent web app</text>
+<text x="78" y="171" font-size="15" fill="#5e655f">Chat, cart and orders.</text>
+<text x="78" y="192" font-size="15" fill="#5e655f">The parent confirms facts and</text>
+<text x="78" y="213" font-size="15" fill="#5e655f">approves each hold.</text>
+<text x="78" y="251" font-size="12.5" class="mono" fill="#2f6b4f">src/app</text>
+<rect x="395" y="115" width="285" height="150" rx="10" fill="#fffdf8" stroke="#d6cfbf" stroke-width="1.3"/>
+<text x="413" y="145" font-size="17" font-weight="600" fill="#26302a">Claude chat extraction</text>
+<text x="413" y="171" font-size="15" fill="#5e655f">Reads the chat and shows facts</text>
+<text x="413" y="192" font-size="15" fill="#5e655f">as chips. Nothing is saved until</text>
+<text x="413" y="213" font-size="15" fill="#5e655f">the parent confirms.</text>
+<text x="413" y="251" font-size="12.5" class="mono" fill="#2f6b4f">src/lib/llm/chat.ts</text>
+<rect x="730" y="115" width="285" height="150" rx="10" fill="#fffdf8" stroke="#d6cfbf" stroke-width="1.3"/>
+<text x="748" y="145" font-size="17" font-weight="600" fill="#26302a">Household record + Cognee</text>
+<text x="748" y="171" font-size="15" fill="#5e655f">Kids, allergies, dislikes, budget.</text>
+<text x="748" y="192" font-size="15" fill="#5e655f">Cognee memory recalls them</text>
+<text x="748" y="213" font-size="15" fill="#5e655f">next week.</text>
+<text x="748" y="251" font-size="12.5" class="mono" fill="#2f6b4f">src/lib/memory</text>
+<rect x="1065" y="115" width="285" height="150" rx="10" fill="#f6f2ea" stroke="#5e655f" stroke-width="1.3" stroke-dasharray="6,4"/>
+<text x="1083" y="145" font-size="17" font-weight="600" fill="#26302a">Background worker routines</text>
+<text x="1083" y="171" font-size="15" fill="#5e655f">Weekly plan, stock and label</text>
+<text x="1083" y="192" font-size="15" fill="#5e655f">watch, school calendar,</text>
+<text x="1083" y="213" font-size="15" fill="#5e655f">budget alert.</text>
+<text x="1083" y="251" font-size="12.5" class="mono" fill="#2f6b4f">src/worker/routines.ts</text>
+<rect x="730" y="350" width="285" height="150" rx="10" fill="#e6efe7" stroke="#2f6b4f" stroke-width="2"/>
+<text x="748" y="380" font-size="17" font-weight="600" fill="#26302a">Safety gate</text>
+<text x="748" y="406" font-size="15" fill="#5e655f">Deterministic code: labels, Open</text>
+<text x="748" y="427" font-size="15" fill="#5e655f">Food Facts tags, may-contain.</text>
+<text x="748" y="448" font-size="15" fill="#5e655f">Unlabeled products are blocked.</text>
+<text x="748" y="486" font-size="12.5" class="mono" fill="#2f6b4f">src/lib/domain/rules.ts</text>
+<rect x="1065" y="350" width="285" height="150" rx="10" fill="#fffdf8" stroke="#b3382c" stroke-width="1.5"/>
+<text x="1083" y="380" font-size="17" font-weight="600" fill="#26302a">SIE allergen classifier</text>
+<text x="1083" y="406" font-size="15" fill="#5e655f">Superlinked zero-shot model.</text>
+<text x="1083" y="427" font-size="15" fill="#5e655f">It can only add refusals,</text>
+<text x="1083" y="448" font-size="15" fill="#5e655f">never remove one.</text>
+<text x="1083" y="486" font-size="12.5" class="mono" fill="#b3382c">src/lib/allergen</text>
+<rect x="395" y="350" width="285" height="150" rx="10" fill="#fffdf8" stroke="#d6cfbf" stroke-width="1.3"/>
+<text x="413" y="380" font-size="17" font-weight="600" fill="#26302a">SingleStore vector shortlist</text>
+<text x="413" y="406" font-size="15" fill="#5e655f">Vector search over recipes and</text>
+<text x="413" y="427" font-size="15" fill="#5e655f">products that passed the gate.</text>
+<text x="413" y="486" font-size="12.5" class="mono" fill="#2f6b4f">src/lib/store/singlestore.ts</text>
+<rect x="60" y="350" width="285" height="150" rx="10" fill="#fffdf8" stroke="#d6cfbf" stroke-width="1.3"/>
+<text x="78" y="380" font-size="17" font-weight="600" fill="#26302a">SIE rerank</text>
+<text x="78" y="406" font-size="15" fill="#5e655f">Qwen3 reranker orders the</text>
+<text x="78" y="427" font-size="15" fill="#5e655f">shortlist for this family.</text>
+<text x="78" y="486" font-size="12.5" class="mono" fill="#2f6b4f">src/lib/ranking/sie.ts</text>
+<rect x="60" y="585" width="285" height="150" rx="10" fill="#fffdf8" stroke="#d6cfbf" stroke-width="1.3"/>
+<text x="78" y="615" font-size="17" font-weight="600" fill="#26302a">Claude explains the pick</text>
+<text x="78" y="641" font-size="15" fill="#5e655f">Writes the reason. It only sees</text>
+<text x="78" y="662" font-size="15" fill="#5e655f">eligible options, so it cannot</text>
+<text x="78" y="683" font-size="15" fill="#5e655f">pick an unsafe one.</text>
+<text x="78" y="721" font-size="12.5" class="mono" fill="#2f6b4f">src/lib/llm</text>
+<rect x="395" y="585" width="285" height="150" rx="10" fill="#fffdf8" stroke="#d6cfbf" stroke-width="1.3"/>
+<text x="413" y="615" font-size="17" font-weight="600" fill="#26302a">Statsig autonomy ceiling</text>
+<text x="413" y="641" font-size="15" fill="#5e655f">autonomy_mode caps what the</text>
+<text x="413" y="662" font-size="15" fill="#5e655f">agent may do alone. Every step</text>
+<text x="413" y="683" font-size="15" fill="#5e655f">is logged as an agent event.</text>
+<text x="413" y="721" font-size="12.5" class="mono" fill="#2f6b4f">src/lib/autonomy</text>
+<rect x="730" y="585" width="285" height="150" rx="10" fill="#fffdf8" stroke="#d6cfbf" stroke-width="1.3"/>
+<text x="748" y="615" font-size="17" font-weight="600" fill="#26302a">Sandbox store</text>
+<text x="748" y="641" font-size="15" fill="#5e655f">Hold with an idempotent key and</text>
+<text x="748" y="662" font-size="15" fill="#5e655f">read-back, then a pay-at-pickup</text>
+<text x="748" y="683" font-size="15" fill="#5e655f">order.</text>
+<text x="748" y="721" font-size="12.5" class="mono" fill="#2f6b4f">src/grocer</text>
+<rect x="1065" y="585" width="285" height="150" rx="10" fill="#fffdf8" stroke="#d6cfbf" stroke-width="1.3"/>
+<text x="1083" y="615" font-size="17" font-weight="600" fill="#26302a">Stripe test checkout</text>
+<text x="1083" y="641" font-size="15" fill="#5e655f">The parent taps to pay.</text>
+<text x="1083" y="662" font-size="15" fill="#5e655f">The agent never pays.</text>
+<text x="1083" y="721" font-size="12.5" class="mono" fill="#2f6b4f">src/lib/payments/stripe.ts</text>
+
+<line x1="60" y1="775" x2="1380" y2="775" stroke="#d6cfbf" stroke-width="1"/>
+<g font-size="15" fill="#5e655f">
+<rect x="60" y="800" width="26" height="16" rx="4" fill="#e6efe7" stroke="#2f6b4f" stroke-width="2"/>
+<text x="96" y="813">Safety gate: the one step that decides what is eligible</text>
+<rect x="470" y="800" width="26" height="16" rx="4" fill="#fffdf8" stroke="#b3382c" stroke-width="1.5"/>
+<text x="506" y="813">Refusal path: only adds refusals</text>
+<rect x="780" y="800" width="26" height="16" rx="4" fill="#f6f2ea" stroke="#5e655f" stroke-width="1.3" stroke-dasharray="4,3"/>
+<text x="816" y="813">Runs in the background, feeds the weekly plan</text>
+<text x="60" y="852">Flow reads left to right on the top row, right to left on the middle row, then left to right on the bottom row.</text>
+</g>
+</svg>
