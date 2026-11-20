@@ -121,7 +121,7 @@ export function allergyChips(facts: HouseholdFact[]): AllergyChip[] {
 export function statusHeadline(view: RunView): { title: string; tone: "ok" | "wait" | "plain" | "alert"; body?: string } {
   const run = view.run;
   const m = view.household.mandate;
-  const total = view.receipt?.hold.totalCents ?? view.basket?.totalCents ?? null;
+  const total = view.receipt?.hold.totalCents ?? view.cart?.totalCents ?? view.basket?.totalCents ?? null;
   const spend = total === null ? "" : `${money(total)} of ${money(m.budgetCents)}`;
   if (!run) return { title: "Nothing planned yet", tone: "plain", body: "LunchShift plans every Sunday" };
   const n = Math.max(view.proposals.length, 1);
