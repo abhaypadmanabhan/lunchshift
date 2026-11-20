@@ -36,7 +36,8 @@ export class SieRanker implements Ranker {
     const res = await fetch(`${this.baseUrl.replace(/\/$/, "")}/v1/score/${encodeURIComponent(MODEL)}`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${this.apiKey}` },
-      body: JSON.stringify({ query: { text: query.text }, items }),
+      // A family with no preferences yet still gets a meaningful query (SIE rejects an empty one with HTTP 400).
+      body: JSON.stringify({ query: { text: query.text.trim() || "A complete, kid-friendly school lunch that is quick to pack" }, items }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`SIE HTTP ${res.status}`);

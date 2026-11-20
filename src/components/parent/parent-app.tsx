@@ -24,6 +24,8 @@ import { AppButton } from "./ui";
 import { POLL_MS, postParent, useRunView } from "./use-run-view";
 import { WeekTab } from "./week-tab";
 
+const MODE_ORDER = { suggest_only: 0, auto_swap: 1, auto_swap_and_hold: 2 } as const;
+
 type Tab = "week" | "cart" | "orders" | "family";
 type Sub = "activity" | "routines" | "memory" | "inbox";
 type Screen =
@@ -200,7 +202,11 @@ function Sidebar({
           <span className="block text-[0.9375rem] text-muted-foreground">LunchShift may</span>
           <span className="block text-base font-medium">{modeLabel(view.mode.effective)}</span>
           {view.mode.effective !== view.mode.parentMax ? (
-            <span className="block text-[0.9375rem] leading-snug text-wait">You chose {modeLabel(view.mode.parentMax)}; Statsig caps it for now</span>
+            <span className="block text-[0.9375rem] leading-snug text-wait">
+              {MODE_ORDER[view.mode.effective] > MODE_ORDER[view.mode.parentMax]
+                ? "You approved this week's order"
+                : `You chose ${modeLabel(view.mode.parentMax)}; Statsig allows up to ${modeLabel(view.mode.observed)}`}
+            </span>
           ) : null}
         </button>
       ) : null}
