@@ -253,7 +253,8 @@ export function startGrocer(opts: { port?: number; dbPath?: string; reseed?: boo
       const key = (req.headers["idempotency-key"] as string | undefined) ?? undefined;
       const r = handle(db, req.method ?? "GET", url, String(req.headers.authorization ?? ""), key, body);
       if (r.dropResponse) {
-        req.socket.destroy(); // committed, but the client never hears back
+        // Committed, but the client never hears back: the connection stalls, then dies (like a real lost reply).
+        setTimeout(() => req.socket.destroy(), Number(process.env.GROCER_DROP_STALL_MS ?? 3000));
         return;
       }
       res.writeHead(r.status, { "content-type": "application/json" });
