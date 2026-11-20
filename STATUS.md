@@ -1,5 +1,36 @@
 # LunchShift status
 
+## Demo video v2 (re-cut 15:46-15:58 PT, ready)
+
+**File:** `docs/proof/final-demo-v2.mp4` (copy: `~/Downloads/LunchShift-final-demo-v2.mp4`), **2:24** (144.5 s), 1920x1080, 30 fps, H.264 + AAC. v1 (`docs/proof/final-demo.mp4`, `~/Downloads/LunchShift-final-demo.mp4`) is untouched as the fallback.
+
+**What changed from v1:** captions are short phrases in a band below the footage, never over the UI; the real recordings sit in a framed window with eased camera pushes and pans onto the action (chat chips, the refusal log, the label line, the evidence chain, the pickup hold); narration is Abhay's voice clone (`~/voice/oss/say`, checkpoint 150, 16 short lines); the system-design slide is replaced by one KPI card (0 clicks, stockout to re-hold in 4 s, 27/27, Firedrill 95/100, SIE 0.71, the peanut-risk bread refused, 5 sponsors live); the aha beat runs tease, then the $2.99 12-grain substitute, a zoom onto "May contain: peanuts" boxed in red with "Most shopping agents would add this.", "Blocked by code, not the model", then the Monday swap and re-hold with a "0 clicks" counter and the "Maya's lunches are fixed and held." notification.
+
+**Skills and engine:** `motion-film` (front door: real UI capture, style, QA gates) and `video-remotion`: a Remotion 4.0.535 composition from the motion-film starter, project at `~/Downloads/Projects/films/2026-11-20-lunchshift-v2/` (`src/Film.tsx` holds the shot list and camera keys). No stageshow, no faux UI.
+
+**Footage, all real:** `docs/proof/backup-story.mp4` (CDP recording of the live /demo at 15:29, order LS-820567); the public `/console` evidence screenshots; Safari window recordings of the Statsig and Cognee dashboards (15:46, cropped; Cognee's USER column with the email is cropped out); Superlinked and Firedrill as the 15:25 dashboard stills with camera motion (the Superlinked clip was only 1 s).
+
+**Sponsor signals shown** (picked from each vendor's docs):
+
+| Sponsor | Signal in the video | Why it matters (vendor docs) | Doc |
+|---|---|---|---|
+| Statsig | Dynamic Config `autonomy_mode` = `auto_swap_and_hold` (zoom + callout) | A Dynamic Config is a server-held JSON value that changes app behaviour without a deploy: the autonomy ceiling. | https://docs.statsig.com/dynamic-config |
+| Cognee | Cloud Activity table: remember and recall calls from this run, with timestamps and status | Rows are real `remember()`/`recall()` calls against the Cloud tenant: the family's memory. | https://docs.cognee.ai/cognee-cloud/cognee-cloud-sdk |
+| Superlinked SIE | Usage panel: today's score (rerank) and extract (classifier) calls; plus the 0.71 classifier score on the bread label in the evidence chain | `score()` reranks with a cross-encoder; usage counts show live inference. | https://superlinked.com/docs/score |
+| SingleStore | Console: the vector SQL shortlist (`DOT_PRODUCT` over `VECTOR`) and the 18-event append-only audit | `DOT_PRODUCT` over the native VECTOR type is the documented similarity shortlist. | https://docs.singlestore.com/cloud/vectors/working-with-vector-data/ |
+| Firedrill | LunchShift agent page, 1 of 2 drills passed; the "ignore allergies" injection drill met at 95/100 | Each drill is scored by a rubric judge from the conversation, actions and state. | https://docs.firedrill.run/build/evaluations.md |
+
+**Checks run (15:57):** 1920x1080 30 fps H.264, AAC 48 kHz, 2:24; loudness -15.9 LUFS integrated, -2.2 dBFS peak; voice present on all 16 lines (silencedetect); two contact sheets (every 3 s) read by eye: no keys, no email, captions always in the band below the window, never over the UI. Secscan on the repo: PASS (one high npm advisory, postcss, already on the base).
+
+**Caveats:**
+- Nobody has listened to it end to end; the voice-clone lines were not transcribed back (levels and placement were checked, not the words).
+- 2:24, a little under the 2:30 target: picture holds where the voice pauses (the longest gap is about 7 s over the payoff and notification).
+- No cursor in the /demo take (headless CDP recording), so the camera follows the action with eased pushes instead of following a cursor.
+- Superlinked and Firedrill are the 15:25 dashboard stills with camera motion, not live recordings (the Superlinked clip was 1 s). The Firedrill callout says what is on screen, "1 of 2 passed · injection drill met, 95/100"; the 95/100 score itself is from the campaign record below, not from that page.
+- "Stockout to re-hold in 4 s" comes from this run's audit (detected 15:29:01, hold verified 15:29:05; the console shows both times), not from the KPI suite.
+- The sponsor doc links came from a quick docs pass (about 4 minutes); they were not re-opened one by one.
+- The v2 file is 41 MB and not committed; it waits on your call.
+
 ## Submission fields (paste-ready; Abhay submits and makes the repo public)
 
 **Title:** LunchShift
