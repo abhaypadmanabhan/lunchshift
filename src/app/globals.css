@@ -50,6 +50,16 @@
   --color-wait-soft: var(--wait-soft);
   --color-sunken: var(--sunken);
   --ease-out-soft: var(--ease-out);
+  --color-meal-wheat: var(--meal-wheat);
+  --color-meal-wheat-ink: var(--meal-wheat-ink);
+  --color-meal-leaf: var(--meal-leaf);
+  --color-meal-leaf-ink: var(--meal-leaf-ink);
+  --color-meal-tomato: var(--meal-tomato);
+  --color-meal-tomato-ink: var(--meal-tomato-ink);
+  --color-meal-bean: var(--meal-bean);
+  --color-meal-bean-ink: var(--meal-bean-ink);
+  /* Desktop stage: the phone app plus the "LunchShift at work" panel. */
+  --breakpoint-stage: 75rem;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -96,6 +106,16 @@
   --sunken: oklch(0.945 0.009 80);
   --bloom: oklch(0.93 0.035 150 / 0.55);
 
+  /* Lunch tiles: four warm food fields, each with its own ink. */
+  --meal-wheat: oklch(0.93 0.045 85);
+  --meal-wheat-ink: oklch(0.45 0.08 70);
+  --meal-leaf: oklch(0.93 0.04 145);
+  --meal-leaf-ink: oklch(0.42 0.08 150);
+  --meal-tomato: oklch(0.93 0.035 35);
+  --meal-tomato-ink: oklch(0.47 0.11 32);
+  --meal-bean: oklch(0.915 0.03 55);
+  --meal-bean-ink: oklch(0.42 0.06 50);
+
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 300ms;
@@ -138,6 +158,14 @@
   --wait-soft: oklch(0.33 0.03 80);
   --sunken: oklch(0.21 0.01 70);
   --bloom: oklch(0.32 0.03 150 / 0.4);
+  --meal-wheat: oklch(0.34 0.04 85);
+  --meal-wheat-ink: oklch(0.85 0.08 85);
+  --meal-leaf: oklch(0.33 0.04 145);
+  --meal-leaf-ink: oklch(0.84 0.08 145);
+  --meal-tomato: oklch(0.33 0.04 35);
+  --meal-tomato-ink: oklch(0.84 0.08 35);
+  --meal-bean: oklch(0.33 0.03 55);
+  --meal-bean-ink: oklch(0.84 0.06 55);
 }
 
 @layer base {

@@ -6,6 +6,7 @@ import { CalendarDays, ChevronLeft, Receipt, ShoppingBasket, Users } from "lucid
 import type { Order } from "@/lib/domain/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ActivityTab } from "./activity-tab";
+import { AgentPanel } from "./agent-panel";
 import { CartTab } from "./cart-tab";
 import { timeOfDay } from "./copy";
 import { FamilyTab } from "./family-tab";
@@ -118,15 +119,15 @@ export function ParentApp() {
   };
 
   return (
-    <div className="ls-parent min-h-dvh bg-sunken/70 md:py-8">
+    <div className="ls-parent min-h-dvh overflow-x-clip bg-sunken/70 md:py-8 stage:flex stage:items-start stage:justify-center stage:gap-14">
       <a
         href={consoleHref}
-        className="fixed top-5 right-6 z-30 hidden rounded-md px-2 py-1 text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground lg:block"
+        className="fixed top-5 right-6 z-30 hidden rounded-md px-2 py-1 text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground lg:block stage:hidden"
       >
         Open console
       </a>
 
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col bg-background md:min-h-[calc(100dvh-4rem)] md:rounded-[1.75rem] md:shadow-[0_1px_2px_oklch(0.27_0.015_60/0.06),0_12px_40px_-12px_oklch(0.27_0.015_60/0.18)]">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col stage:mx-0 stage:shrink-0 bg-background md:min-h-[calc(100dvh-4rem)] md:rounded-[1.75rem] md:shadow-[0_1px_2px_oklch(0.27_0.015_60/0.06),0_12px_40px_-12px_oklch(0.27_0.015_60/0.18)]">
         <header className="flex items-end justify-between gap-4 px-5 pt-8 pb-5">
           <div>
             <p className="text-[0.9375rem] font-medium text-primary">LunchShift</p>
@@ -206,13 +207,13 @@ export function ParentApp() {
                       <span className="relative">
                         <Icon className="size-[1.375rem]" strokeWidth={active ? 2.2 : 1.8} aria-hidden />
                         {badge ? (
-                          <span className="absolute -top-1 -right-2.5 rounded-full bg-wait px-1.5 text-[0.75rem] font-semibold leading-[1.1rem] text-primary-foreground">
+                          <span className="absolute -top-1 -right-2.5 rounded-full bg-wait px-1.5 text-[0.9375rem] font-semibold leading-[1.25rem] text-primary-foreground">
                             {view?.proposals.length || 1}
                             <span className="sr-only"> waiting for you</span>
                           </span>
                         ) : null}
                         {count ? (
-                          <span className="absolute -top-1 -right-3 rounded-full bg-foreground/80 px-1.5 text-[0.75rem] font-semibold leading-[1.1rem] text-background tabular-nums">
+                          <span className="absolute -top-1 -right-3 rounded-full bg-foreground/80 px-1.5 text-[0.9375rem] font-semibold leading-[1.25rem] text-background tabular-nums">
                             {count}
                             <span className="sr-only"> items</span>
                           </span>
@@ -227,6 +228,8 @@ export function ParentApp() {
           </nav>
         )}
       </div>
+
+      <AgentPanel view={view} offlineSince={failingSince} consoleHref={consoleHref} />
     </div>
   );
 }
