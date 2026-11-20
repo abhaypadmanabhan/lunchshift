@@ -1,8 +1,11 @@
 # LunchShift status
 
-**Updated 12:01 PT. Milestone:** all sponsors live (SingleStore since 11:58). Proven: the live Statsig flip, the unattended full-auto run, a dropped reply recovered with no duplicate. Next: polish and rehearsal (demo milestone 3:30).
+**Updated 12:32 PT. Milestone:** the end-to-end parent product is under way. Engine, any-allergy support, parent app (`/`) and the cart/orders backend are done and proven live; `/console` is the operator view. Tag `demo-safe` = last commit before the product expansion. Lanes running: real Open Food Facts catalog (Codex) and parent Cart / Order / Orders / Onboarding UI (Opus). Then: design pass, DEMO.md rewrite, 2 rehearsals, backup recording (3:00-3:45).
 
-**Latest KPIs (`npm run kpi`, loop 6, 19/19 scenarios; cross-model review findings fixed):** unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept ($29.48 max / $35) · swaps traced 100%.
+**Latest checks**
+- `npm run kpi`: **21/21 scenarios**. Unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept · swaps traced 100%. New: two-allergy child (peanut + sesame); full-auto pay-at-pickup order with a dropped reply (exactly 1 order); payment still 403.
+- `npm run test:allergens`: **ALL PASS**: 34 parent inputs, 20 labels vs hand oracle, 32 label edge cases, 5 OFF-vs-text conflict checks, 18 allergy sets end to end.
+- Live (12:31): add sesame -> revision 4 -> plan waits for approval -> peanut bread and hummus refused in the cart with reasons -> approve -> hold for the edited cart ($30.67) -> order LS-87CA6A, pay at pickup, idempotent on repeat.
 
 **Sponsors**
 
