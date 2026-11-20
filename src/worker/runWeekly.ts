@@ -117,13 +117,14 @@ async function readMode(ctx: Ctx, why: string, logUnchanged = true): Promise<{ r
     runId: ctx.run.id,
     actor: "statsig",
     type: changed && ctx.run.status !== "running" ? "autonomy_changed" : "mode_observed",
-    summary: `${why}: Statsig says ${reading.mode} (${reading.source}); parent max ${cap}; effective ${effective}`,
+    summary: `${why}: Statsig says ${reading.mode} (${reading.source}); parent max ${cap}; effective ${effective}${ctx.parentApproved && mandateLive ? " (parent approved this order)" : ""}`,
     data: {
       observed: reading.mode,
       source: reading.source,
       ruleId: reading.ruleId ?? null,
       error: reading.error ?? null,
       parentMax: cap,
+      parentApproved: Boolean(ctx.parentApproved),
       effective,
       previousEffective: ctx.run.effectiveMode,
       fetchedAt: reading.fetchedAt,
@@ -449,7 +450,9 @@ async function applyAndMaybeHold(
 ): Promise<ProcessResult> {
   const runId = ctx.run.id;
   if (effective === "suggest_only" && proposal) {
-    await save(ctx, { status: "proposed" });
+    // The cart stays as it was (v1); the repaired basket lives only in the proposal.
+    await ctx.deps.store.saveBasket(runId, proposal.before);
+    await save(ctx, { status: "proposed", basketVersion: proposal.before.version });
     await ev(ctx, {
       runId,
       actor: "worker",
@@ -686,15 +689,22 @@ async function computeKpis(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fin
 }
 
 /** The parent's one click in suggest_only: approve this run's proposal. Re-enters the normal path with authority for this order. */
-export async function approveProposal(deps: WorkerDeps, runId: string): Promise<ProcessResult> {
-  const run = await deps.store.getRun(runId);
+export async function recordApproval(store: AppStore, runId: string): Promise<Run> {
+  const run = await store.getRun(runId);
   if (!run || run.status !== "proposed") throw new Error(`run ${runId} has no open proposal`);
-  await deps.store.appendEvent({
+  const already = (await store.listEvents(runId)).some((e) => e.actor === "parent" && e.data.approved === true);
+  if (already) return run;
+  await store.appendEvent({
     runId,
     actor: "parent",
     type: "note",
     summary: "Parent approved the proposed swap and pickup hold for this week",
     data: { approved: true },
   });
+  return run;
+}
+
+export async function approveProposal(deps: WorkerDeps, runId: string): Promise<ProcessResult> {
+  const run = await recordApproval(deps.store, runId);
   return processRun(deps, { runId, householdId: run.householdId, weekOf: run.weekOf, trigger: run.trigger });
 }

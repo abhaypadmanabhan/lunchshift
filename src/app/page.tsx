@@ -144,7 +144,13 @@ export default function Home() {
             </div>
 
             <div className="col-span-12 mt-4 lg:col-span-8">
-              <WeekPlan view={view} />
+              <WeekPlan
+                view={view}
+                onApprove={async () => {
+                  await fetch("/api/parent/approve", { method: "POST" });
+                  await load();
+                }}
+              />
             </div>
             <div className="col-span-12 mt-4 lg:col-span-4">
               <AutonomyPanel view={view} />

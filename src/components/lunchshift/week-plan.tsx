@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import { ArrowRight, Minus, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { RunView } from "@/lib/domain/view";
 import { money } from "./format";
 import { Code, Panel, recipeInfo, recipeName, skuInfo } from "./primitives";
@@ -41,7 +45,7 @@ function SkuList({ ids, sign }: { ids: string[]; sign: "remove" | "add" | "keep"
   );
 }
 
-export function WeekPlan({ view }: { view: RunView }) {
+export function WeekPlan({ view, onApprove }: { view: RunView; onApprove?: () => Promise<void> }) {
   const { plan, proposal } = view;
   const changed = plan.find((p) => p.status !== "kept");
   const keptCount = plan.filter((p) => p.status === "kept").length;
@@ -79,6 +83,16 @@ export function WeekPlan({ view }: { view: RunView }) {
           );
         })}
       </ol>
+
+      {changed?.status === "proposed_swap" && view.run?.status === "proposed" && onApprove ? (
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-lg bg-wait-soft px-4 py-3">
+          <p className="text-[0.9375rem]">
+            <span className="font-medium">Suggest-only mode.</span>{" "}
+            <span className="text-muted-foreground">Nothing changes in the cart or at the store until you approve.</span>
+          </p>
+          <ApproveButton onApprove={onApprove} />
+        </div>
+      ) : null}
 
       {proposal ? (
         <div className="mt-6">
@@ -140,5 +154,24 @@ export function WeekPlan({ view }: { view: RunView }) {
         </div>
       ) : null}
     </Panel>
+  );
+}
+
+function ApproveButton({ onApprove }: { onApprove: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await onApprove();
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? "Approving…" : "Approve swap and hold"}
+    </Button>
   );
 }

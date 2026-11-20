@@ -1,11 +1,13 @@
-// GET /api/state -> RunView. Thin on purpose: the orchestrator replaces the body with the real builder.
+// GET /api/state -> the real RunView from the app store. `?state=a|b|c|d` serves a static sample (design fallback only).
 import { NextResponse } from "next/server";
+import { buildView } from "@/lib/view/buildView";
 import { isSampleState, sampleRunView } from "@/lib/view/sample";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export function GET(req: Request) {
+export async function GET(req: Request) {
   const param = new URL(req.url).searchParams.get("state");
-  const state = isSampleState(param) ? param : "d";
-  return NextResponse.json(sampleRunView(state), { headers: { "cache-control": "no-store" } });
+  const view = isSampleState(param) ? sampleRunView(param) : await buildView();
+  return NextResponse.json(view, { headers: { "cache-control": "no-store" } });
 }
