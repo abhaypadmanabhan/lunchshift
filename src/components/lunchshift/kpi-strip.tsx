@@ -10,11 +10,13 @@ interface Metric {
   onTarget: boolean | null;
 }
 
-function metrics(k: KpiSet | null): Metric[] {
+function metrics(k: KpiSet | null, signedOff: boolean): Metric[] {
   return [
     { label: "Unsafe items in cart", value: k ? String(k.unsafeItemsInCart) : null, target: "Target 0", onTarget: k ? k.unsafeItemsInCart === 0 : null },
     { label: "Meal completeness", value: k ? `${k.mealCompletenessPct}%` : null, target: "Target 100%", onTarget: k ? k.mealCompletenessPct === 100 : null },
-    { label: "Shopper clicks per weekly order", value: k ? String(k.humanClicksPerOrder) : null, target: "Target 0", onTarget: k ? k.humanClicksPerOrder === 0 : null },
+    signedOff
+      ? { label: "Shopper clicks per weekly order", value: k ? String(k.humanClicksPerOrder) : null, target: "Parent sign-off in suggest-only; target 0 in auto mode", onTarget: null }
+      : { label: "Shopper clicks per weekly order", value: k ? String(k.humanClicksPerOrder) : null, target: "Target 0", onTarget: k ? k.humanClicksPerOrder === 0 : null },
     { label: "Duplicate holds", value: k ? String(k.duplicateHolds) : null, target: "Target 0", onTarget: k ? k.duplicateHolds === 0 : null },
     {
       label: "Budget kept",
@@ -26,7 +28,7 @@ function metrics(k: KpiSet | null): Metric[] {
   ];
 }
 
-export function KpiStrip({ kpis, suite }: { kpis: KpiSet | null; suite: KpiSuiteResult | null }) {
+export function KpiStrip({ kpis, suite, signedOff = false }: { kpis: KpiSet | null; suite: KpiSuiteResult | null; signedOff?: boolean }) {
   const passed = suite?.scenarios.filter((s) => s.pass).length ?? 0;
   return (
     <section className="rounded-xl border bg-card">
@@ -37,7 +39,7 @@ export function KpiStrip({ kpis, suite }: { kpis: KpiSet | null; suite: KpiSuite
         </span>
       </header>
       <dl className="mt-4 grid grid-cols-2 overflow-hidden md:grid-cols-3 lg:grid-cols-6">
-        {metrics(kpis).map((m) => (
+        {metrics(kpis, signedOff).map((m) => (
           <div key={m.label} className="-ml-px border-t border-l px-4 py-5 md:px-6">
             <dt className="min-h-[2.75rem] text-sm leading-snug text-muted-foreground">{m.label}</dt>
             <dd

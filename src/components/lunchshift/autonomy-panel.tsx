@@ -45,6 +45,7 @@ export function AutonomyPanel({ view }: { view: RunView }) {
   const { mode } = view;
   const m = view.household.mandate;
   const capped = MODE_RANK[mode.observed] > MODE_RANK[mode.parentMax];
+  const approved = view.events.some((e) => e.actor === "parent" && e.data.approved === true);
 
   return (
     <Panel title="Autonomy" aside={mode.source === "statsig" ? "Statsig live" : "Default (config unavailable)"}>
@@ -59,6 +60,9 @@ export function AutonomyPanel({ view }: { view: RunView }) {
         <Row k="Effective">
           <span className="font-medium">{MODE_LABEL[mode.effective]}</span>
           {capped ? <span className="text-muted-foreground"> (capped by parent)</span> : null}
+          {approved && MODE_RANK[mode.effective] > MODE_RANK[mode.observed] ? (
+            <span className="text-muted-foreground"> (parent approved this order)</span>
+          ) : null}
         </Row>
         <Row k="Source">
           {mode.source === "statsig" ? "Statsig" : "Safe default"}

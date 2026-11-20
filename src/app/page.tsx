@@ -157,7 +157,7 @@ export default function Home() {
             </div>
 
             <div className="col-span-12 mt-10">
-              <KpiStrip kpis={view.kpis} suite={view.kpiSuite} />
+              <KpiStrip kpis={view.kpis} suite={view.kpiSuite} signedOff={view.events.some((e) => e.actor === "parent")} />
             </div>
 
             <div className="col-span-12 mt-4 lg:col-span-8">
