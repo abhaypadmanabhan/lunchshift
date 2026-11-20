@@ -128,7 +128,7 @@ function placeHold(db: DatabaseSync, key: string | undefined, req: HoldRequest):
       lines: req.lines,
       totalCents: total,
       slot: req.slot,
-      expiresAt: new Date(now.getTime() + 48 * 3600_000).toISOString(),
+      expiresAt: slotEnd(req.slot) ?? new Date(now.getTime() + 48 * 3600_000).toISOString(),
       fingerprint: fp,
       createdAt: now.toISOString(),
     };
@@ -149,6 +149,12 @@ function placeHold(db: DatabaseSync, key: string | undefined, req: HoldRequest):
     if (e instanceof HoldError) return { status: e.status, body: e.body };
     throw e;
   }
+}
+
+/** A hold lives until the end of its pickup slot ("Sun 2026-11-22 16:00-18:00", store time PT). */
+export function slotEnd(slot: string): string | null {
+  const m = /(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}-(\d{2}:\d{2})/.exec(slot);
+  return m ? new Date(`${m[1]}T${m[2]}:00-08:00`).toISOString() : null;
 }
 
 class HoldError extends Error {

@@ -36,7 +36,7 @@ import {
   type SwapExplainer,
   type SwapProposal,
 } from "../lib/domain/types";
-import { hashFingerprint } from "../grocer/server";
+import { hashFingerprint, slotEnd } from "../grocer/server";
 import type { GrocerClient } from "../grocer/client";
 import type { AllergenScreen, ScreenResult } from "../lib/allergen";
 
@@ -659,7 +659,10 @@ async function reconcileHold(ctx: Ctx, reqIn?: HoldRequest, byIdIn?: Map<string,
       const fpMatch = hold.fingerprint === fp && (!ctx.run.requestFingerprint || ctx.run.requestFingerprint === fp);
       const all = await ctx.deps.grocer.listHolds(runId);
       const active = all.filter((x) => x.status === "active").length;
-      const matched = hold.status === "active" && linesMatch && fpMatch && hold.totalCents === req.totalCents && hold.slot === req.slot && active === 1;
+      const end = slotEnd(req.slot);
+      const coversPickup = !end || Date.parse(hold.expiresAt) >= Date.parse(end);
+      const matched =
+        hold.status === "active" && linesMatch && fpMatch && hold.totalCents === req.totalCents && hold.slot === req.slot && active === 1 && coversPickup;
       await ev(ctx, {
         runId,
         actor: "grocer",
@@ -668,7 +671,7 @@ async function reconcileHold(ctx: Ctx, reqIn?: HoldRequest, byIdIn?: Map<string,
         data: { hold, matched, activeHoldsForRun: active, expectedFingerprint: fp },
       });
       if (!matched) {
-        const why = active !== 1 ? `${active} active holds for this run` : !linesMatch ? "lines differ" : !fpMatch ? "fingerprint differs" : "total, slot or status differs";
+        const why = active !== 1 ? `${active} active holds for this run` : !linesMatch ? "lines differ" : !fpMatch ? "fingerprint differs" : !coversPickup ? "hold expires before pickup ends" : "total, slot or status differs";
         return (await escalate(ctx, `merchant record does not match the request (${why})`)).run;
       }
       await ctx.deps.store.saveReceipt({

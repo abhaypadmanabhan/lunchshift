@@ -25,3 +25,8 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - Review verdict CHANGES, with 7 findings. Each finding was reproduced as a scenario first; all five new scenarios were red on the old code.
 - Fixed: only `evidence: "confirmed"` counts (an unlabelled SKU was held); a parent click is capped by the parent's max, and a failed config read never authorizes; the household is re-read before each mode check, so a mid-run revocation is seen; `maxHoldsPerWeek` is enforced across the week's runs; read-back requires an exact line match, the stored fingerprint and exactly one active hold; the unsafe KPI is measured from the merchant's held lines against a fresh catalog.
 - Suite now 18/18; all six KPIs green. Not done: the cross-run `maxSwapsPerWeek` count (one run per week in the demo), and KPIs on escalated runs (shown as pending).
+
+## Loop 6 · live Statsig flip · 11:50 PT
+- Live flip proven: the run waited in `auto_swap` (cart repaired, no hold). Abhay set `auto_swap_and_hold` in the Statsig console. Over 3 consecutive worker ticks (6 s) the reads went suggest_only -> auto_swap -> auto_swap_and_hold (Statsig propagation is eventually consistent). The pre-hold re-read agreed, so one hold was placed; the store dropped the reply; read-back by key verified H-F86DD81A, $26.97, 1 active hold. About 15 s from Abhay's message to a verified hold.
+- Miss found on screen: the hold expired 48 h after creation (Nov 22 11:49), before the 4-6 pm pickup. Change: the store sets expiry to the end of the pickup slot, and read-back now requires the expiry to cover pickup.
+- Suite 18/18, all six KPIs green.
