@@ -74,6 +74,8 @@ export interface HouseholdFact {
   confirmedBy: string; // "parent"
   confirmedAt: string; // ISO date
   active: boolean;
+  /** For allergy facts: the normalized allergen (canonical id like "milk", or "custom:kiwi"). */
+  allergen?: { id: string; label: string; terms: string[]; crossContact: boolean };
 }
 
 export interface Mandate {
@@ -89,6 +91,8 @@ export interface Mandate {
   approvedAt: string;
   /** Agent credential scopes. No payment scope exists. */
   scopes: string[];
+  /** Household policy revision the parent's standing approval covers. A newer household revision needs fresh approval. */
+  policyRevision?: number;
 }
 
 export interface Household {
@@ -252,6 +256,7 @@ export type RunStatus =
   | "hold_pending" // dispatched, response lost or unverified
   | "hold_verified"
   | "escalated"
+  | "superseded" // household rules changed; a fresh run replaced this one
   | "failed";
 
 export interface Run {

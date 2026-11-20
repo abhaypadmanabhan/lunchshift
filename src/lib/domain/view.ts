@@ -48,7 +48,12 @@ export interface RunView {
   stockout: { skuId: string; name: string } | null;
   refusals: CandidateDecision[]; // rejected near-matches (first one is the hero refusal)
   memory: MemoryRecall | null;
-  proposal: SwapProposal | null;
+  proposal: SwapProposal | null; // first swap (kept for the console)
+  proposals: SwapProposal[]; // every whole-lunch swap in this run (allergy changes can touch several lunches)
+  /** Why this run waits for the parent, in one plain sentence (null when it doesn't). */
+  needsApproval: string | null;
+  /** Allergens the app understands (canonical list) for the parent's setup screen; free text is also accepted. */
+  allergens: { id: string; label: string; examples: string[] }[];
   plan: PlanRow[];
   basket: Basket | null;
   receipt: Receipt | null;
@@ -56,4 +61,23 @@ export interface RunView {
   kpiSuite: KpiSuiteResult | null; // latest `npm run kpi`
   events: AuditEvent[];
   integrations: IntegrationStatus[];
+}
+
+// ---------- Parent app API (POST, JSON) ----------
+// POST /api/parent/household  body: HouseholdUpdate -> HouseholdUpdateResult
+//   Saves the child's allergies/budget, bumps the policy revision, re-seeds Cognee, and starts a fresh plan for the week.
+// POST /api/parent/plan        -> { ok }   "Plan my week now" (manual trigger; the worker picks it up within ~3 s)
+// POST /api/parent/approve     -> { ok }   approve the open proposal (also re-approves the standing mandate at this revision)
+// POST /api/parent/cancel-hold -> { ok }   release this week's store hold
+export interface HouseholdUpdate {
+  childName?: string;
+  allergies: { text: string; crossContact: boolean }[]; // free text: "peanuts", "dairy", "sesame", "kiwi"
+  budgetCents?: number;
+}
+export interface HouseholdUpdateResult {
+  ok: boolean;
+  normalized: { input: string; id: string; label: string; custom: boolean }[];
+  policyRevision: number;
+  runId: string;
+  reason?: string;
 }

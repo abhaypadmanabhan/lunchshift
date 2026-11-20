@@ -256,8 +256,9 @@ const RECEIPT: Receipt = {
   activeHoldsForRun: 1,
 };
 
-const base = (): Omit<RunView, "run" | "mode" | "plan" | "basket" | "receipt" | "kpis" | "events" | "proposal"> => ({
+const base = (): Omit<RunView, "run" | "mode" | "plan" | "basket" | "receipt" | "kpis" | "events" | "proposal" | "proposals" | "needsApproval"> => ({
   generatedAt: new Date().toISOString(),
+  allergens: [],
   household: { id: HOUSEHOLD.id, childName: HOUSEHOLD.childName, facts: HOUSEHOLD.facts, mandate: HOUSEHOLD.mandate },
   stockout: { skuId: "bread-harvest-ww", name: "Harvest Whole Wheat Bread" },
   refusals: REFUSALS,
@@ -281,8 +282,10 @@ export function sampleRunView(state: SampleState): RunView {
       return {
         ...base(),
         run: run("proposed", "suggest_only", T("16:00:08")),
+        needsApproval: "LunchShift is in suggest-only mode, so it waits for you before changing the cart.",
         mode: mode("suggest_only", "rule-default-suggest", T("16:00:01")),
         proposal: PROPOSAL,
+        proposals: [PROPOSAL],
         plan: plan("proposed_swap"),
         basket: BEFORE,
         receipt: null,
@@ -292,9 +295,11 @@ export function sampleRunView(state: SampleState): RunView {
     case "b":
       return {
         ...base(),
+        needsApproval: null,
         run: run("swapped_waiting", "auto_swap", T("16:00:09")),
         mode: mode("auto_swap", "rule-demo-household", T("16:01:00")),
         proposal: PROPOSAL,
+        proposals: [PROPOSAL],
         plan: plan("swapped"),
         basket: AFTER,
         receipt: null,
@@ -304,9 +309,11 @@ export function sampleRunView(state: SampleState): RunView {
     case "c":
       return {
         ...base(),
+        needsApproval: null,
         run: run("hold_pending", "auto_swap_and_hold", T("16:02:16")),
         mode: mode("auto_swap_and_hold", "rule-demo-household", T("16:02:11")),
         proposal: PROPOSAL,
+        proposals: [PROPOSAL],
         plan: plan("swapped"),
         basket: AFTER,
         receipt: null,
@@ -316,9 +323,11 @@ export function sampleRunView(state: SampleState): RunView {
     case "d":
       return {
         ...base(),
+        needsApproval: null,
         run: run("hold_verified", "auto_swap_and_hold", T("16:02:18")),
         mode: mode("auto_swap_and_hold", "rule-demo-household", T("16:02:11")),
         proposal: PROPOSAL,
+        proposals: [PROPOSAL],
         plan: plan("swapped"),
         basket: AFTER,
         receipt: RECEIPT,

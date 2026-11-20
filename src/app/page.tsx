@@ -24,6 +24,7 @@ const RUN_HEADLINE: Record<RunStatus, { text: string; tone: "ok" | "wait" | "ref
   hold_verified: { text: "Pickup hold verified", tone: "ok" },
   escalated: { text: "Needs a parent", tone: "refuse" },
   failed: { text: "Run failed", tone: "refuse" },
+  superseded: { text: "Replaced by a newer plan", tone: "plain" },
 };
 
 const TRIGGER_LABEL: Record<string, string> = {
