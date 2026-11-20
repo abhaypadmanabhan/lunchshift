@@ -86,8 +86,11 @@ function line(e: AuditEvent, view: RunView): Line | Line[] | null {
       }
       const name = str(d.skuName) ?? str(d.recipeName) ?? e.summary.match(/^Refused (.+?)(?: \(\$[\d.]+\))?:/)?.[1] ?? "an unsafe option";
       const reasons = Array.isArray(d.reasons) ? (d.reasons as string[]) : [];
-      const why = reasons.filter((r) => r !== "out_of_stock" || reasons.length === 1).map((r) => REASON_SHORT[r] ?? r).slice(0, 2).join(", ");
-      const what = d.usual === true ? `Stopped using ${name}` : str(d.recipeName) ? `Ruled out ${name.toLowerCase()}` : `Refused ${name}`;
+      const allergen = view.household.facts.find((f) => f.id === str(d.factId))?.allergen?.label.toLowerCase().replace(" / ", " or ");
+      const say = (r: string) =>
+        allergen && r === "allergen_warning" ? `label says ${allergen}` : allergen && r === "recipe_allergen" ? `contains ${allergen}` : allergen && r === "classifier_flag" ? `label check: ${allergen}` : (REASON_SHORT[r] ?? r);
+      const why = reasons.filter((r) => r !== "out_of_stock" || reasons.length === 1).map(say).slice(0, 2).join(", ");
+      const what = d.usual === true ? `Refused the usual ${name}` : `Refused ${name}`;
       return { sponsor: "LunchShift", text: why ? `${what} · ${why}` : what, tone: "refuse" };
     }
     case "alternatives_ranked": {
