@@ -77,7 +77,7 @@ function StatusCard({ view, onRefresh }: { view: RunView; onRefresh: () => Promi
     <section
       aria-labelledby="status-title"
       className={cn(
-        "rounded-lg p-5",
+        "flex flex-col rounded-lg p-6 @2xl:flex-1",
         head.tone === "wait" ? "bg-wait-soft" : head.tone === "alert" ? "bg-refuse-soft" : "bg-card border",
       )}
     >
@@ -104,7 +104,7 @@ function StatusCard({ view, onRefresh }: { view: RunView; onRefresh: () => Promi
         </ol>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
+      <div className="mt-auto flex flex-wrap items-center gap-3 pt-5">
         {run?.status === "proposed" ? (
           <AppButton busy={busy === "approve"} onClick={() => void act("approve")} className="flex-1">
             Approve
@@ -133,8 +133,8 @@ function StatusCard({ view, onRefresh }: { view: RunView; onRefresh: () => Promi
 function LunchRow({ row, view, onWhy }: { row: PlanRow; view: RunView; onWhy: () => void }) {
   const changed = row.status !== "kept";
   return (
-    <li className={cn("flex items-center gap-4 px-4 py-3.5 transition-colors duration-[var(--dur-slow)]", changed && "bg-ok-soft/70")}>
-      <span className="w-8 shrink-0 text-[0.9375rem] text-muted-foreground">{row.day}</span>
+    <li className={cn("flex min-h-[4.5rem] items-center gap-4 px-5 py-3 transition-colors duration-[var(--dur-slow)]", changed && "bg-ok-soft/70")}>
+      <span className="w-10 shrink-0 text-[0.9375rem] text-muted-foreground">{row.day}</span>
       <MealTile recipeId={row.recipeId} name={row.recipeName} imageUrl={mainProductImage(view, row.recipeName)} />
       <div className="min-w-0 flex-1">
         <p className="text-[1.0625rem] font-medium leading-snug">{row.recipeName}</p>
@@ -277,7 +277,7 @@ export function WeekTab({
   return (
     <div className="space-y-6">
       {/* Wide main column (desktop): the safety hero on the left, the week's status and order on the right. */}
-      <div className="grid gap-6 @2xl:grid-cols-2 @2xl:items-start">
+      <div className="grid gap-4 @2xl:grid-cols-2 @2xl:items-stretch">
         <SafetyHero
           view={view}
           onWhy={() => {
@@ -286,7 +286,7 @@ export function WeekTab({
           }}
         />
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-4">
           <StatusCard view={view} onRefresh={onRefresh} />
           <OrderCard view={view} onOpen={(o) => onOpenOrder(o)} onRefresh={onRefresh} />
         </div>

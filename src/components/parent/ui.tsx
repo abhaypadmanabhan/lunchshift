@@ -64,9 +64,9 @@ export function SectionTitle({ children, aside }: { children: ReactNode; aside?:
 /** Product photo on a neutral tile. A missing or broken image keeps the tile with the brand's initial. */
 export function ProductTile({ src, name, brand, size = "md" }: { src?: string; name: string; brand: string; size?: "sm" | "md" }) {
   const [broken, setBroken] = useState(false);
-  const box = size === "sm" ? "size-12" : "size-16";
+  const box = size === "sm" ? "size-12" : "size-14";
   return (
-    <span className={cn("relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sunken", box)} aria-hidden>
+    <span className={cn("relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sunken ring-1 ring-border", box)} aria-hidden>
       {src && !broken ? (
         // eslint-disable-next-line @next/next/no-img-element -- local /public product shots, sizes vary
         <img src={src} alt="" className="size-full object-contain p-1.5 mix-blend-multiply" onError={() => setBroken(true)} loading="lazy" />

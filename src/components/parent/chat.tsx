@@ -284,7 +284,7 @@ export function ChatSetup({
         <button
           type="button"
           onClick={onUseForm}
-          className="inline-flex min-h-11 shrink-0 items-center rounded-md px-1 text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
+          className="inline-flex min-h-11 shrink-0 items-center rounded-md px-1 text-[0.9375rem] font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary"
         >
           Use a form instead
         </button>
@@ -293,12 +293,12 @@ export function ChatSetup({
       <div className="mt-4 flex-1 space-y-5 px-1" aria-live="polite">
         {turns.map((t, i) =>
           t.from === "agent" ? (
-            <div key={i} className="ls-enter max-w-[34ch]">
+            <div key={i} className="ls-enter max-w-[48ch]">
               <p className="text-[0.9375rem] font-medium text-primary">LunchShift</p>
               <p className="mt-0.5 text-[1.0625rem] leading-relaxed">{t.text}</p>
             </div>
           ) : (
-            <p key={i} className="ls-enter ml-auto w-fit max-w-[85%] rounded-[1.25rem] rounded-br-md bg-secondary px-4 py-2.5 text-base leading-snug">
+            <p key={i} className="ls-enter ml-auto w-fit max-w-[70%] rounded-xl bg-secondary px-4 py-3 text-base leading-normal">
               {t.text}
             </p>
           ),
@@ -306,7 +306,7 @@ export function ChatSetup({
         {busy === "send" ? <Typing /> : null}
 
         {facts.length && !saved ? (
-          <section className="ls-enter space-y-4 rounded-lg bg-sunken p-4" aria-label="Facts to confirm">
+          <section className="ls-enter space-y-4 rounded-lg border bg-card p-5" aria-label="Facts to confirm">
             <FactChips
               facts={facts}
               on={on}

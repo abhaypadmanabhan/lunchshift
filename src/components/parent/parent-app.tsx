@@ -157,7 +157,7 @@ function Sidebar({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 [scrollbar-width:thin]">
         {switcher}
-        <nav aria-label="Sections" className="mt-6">
+        <nav aria-label="Sections" className="mt-5 border-t border-border/70 pt-4">
           <ul className="space-y-0.5">
             {SIDE_NAV.map(({ id, label, Icon }) => {
               const on = active === id;
@@ -169,11 +169,11 @@ function Sidebar({
                     aria-current={on ? "page" : undefined}
                     onClick={() => onNav(id)}
                     className={cn(
-                      "flex min-h-11 w-full items-center gap-3 rounded-lg border border-transparent px-3 text-left text-base transition-colors duration-[var(--dur-fast)]",
-                      on ? "border-border bg-card font-medium text-foreground" : "text-foreground/75 hover:bg-secondary hover:text-foreground",
+                      "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-base transition-colors duration-[var(--dur-fast)]",
+                      on ? "bg-ok-soft font-semibold text-ok" : "text-foreground/80 hover:bg-secondary hover:text-foreground",
                     )}
                   >
-                    <Icon className={cn("size-[1.125rem] shrink-0", on ? "text-primary" : "text-muted-foreground")} strokeWidth={on ? 2.1 : 1.8} aria-hidden />
+                    <Icon className={cn("size-[1.125rem] shrink-0", on ? "text-ok" : "text-muted-foreground")} strokeWidth={on ? 2.1 : 1.8} aria-hidden />
                     <span className="flex-1">{label}</span>
                     {n ? (
                       <span
@@ -197,7 +197,7 @@ function Sidebar({
         <button
           type="button"
           onClick={() => onNav("family")}
-          className="mx-3 mt-3 rounded-lg bg-card px-4 py-3 text-left border transition-colors duration-[var(--dur-fast)] hover:bg-secondary/60"
+          className="mx-3 mt-3 rounded-lg border-t border-border/70 px-3 pt-4 pb-3 text-left transition-colors duration-[var(--dur-fast)] hover:bg-secondary/60"
         >
           <span className="block text-[0.9375rem] text-muted-foreground">LunchShift may</span>
           <span className="block text-base font-medium">{modeLabel(view.mode.effective)}</span>

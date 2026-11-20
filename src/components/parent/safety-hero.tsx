@@ -58,49 +58,49 @@ export function SafetyHero({ view, onWhy }: { view: RunView; onWhy: () => void }
   const allergyLabel = chip ? `${chip.label.replace(/s$/, "")} allergy` : "Allergy rule";
 
   return (
-    <section aria-labelledby="safe-title" className="ls-enter overflow-hidden rounded-lg bg-card border">
-      <div className="flex items-center gap-2.5 px-5 pt-5">
+    <section aria-labelledby="safe-title" className="ls-enter flex flex-col overflow-hidden rounded-lg border bg-card">
+      <div className="flex items-center gap-2.5 px-6 pt-6">
         <ShieldCheck className="size-6 shrink-0 text-ok" strokeWidth={2} aria-hidden />
         <h2 id="safe-title" className="text-[1.375rem] font-semibold leading-tight tracking-[-0.015em]">
           Kept {child} safe
         </h2>
       </div>
 
-      <div className="mx-3 mt-4 rounded-lg bg-refuse-soft p-4">
-        <div className="flex items-center gap-3.5">
-          <ProductTile src={product?.imageUrl} name={name} brand={product?.brand ?? name} size="sm" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[1.0625rem] font-medium leading-snug">{name}</p>
-            <p className="text-[0.9375rem] tabular-nums">
-              <span className="font-medium text-refuse">Refused</span>
-              <span className="text-muted-foreground">{price !== undefined ? ` · ${money(price)}` : ""} · store&apos;s swap</span>
-            </p>
-          </div>
-        </div>
-        {r.labelText ? (
-          <p className="mt-3 text-[1rem] leading-relaxed text-foreground/90">“{highlight(labelExcerpt(r.labelText), terms)}”</p>
-        ) : null}
-        {r.screen?.risk ? (
-          <p className="mt-1 text-[0.9375rem] text-muted-foreground tabular-nums">
-            Label check agreed · <span className="font-mono text-foreground/80">{r.screen.score.toFixed(2)}</span>
+      <div className="flex items-start gap-4 px-6 pt-4">
+        <ProductTile src={product?.imageUrl} name={name} brand={product?.brand ?? name} size="sm" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[1.0625rem] font-semibold leading-snug">{name}</p>
+          <p className="text-[0.9375rem] tabular-nums">
+            <span className="font-semibold text-refuse">Refused</span>
+            <span className="text-muted-foreground">{price !== undefined ? ` · ${money(price)}` : ""} · store&apos;s swap</span>
           </p>
-        ) : null}
+          {r.labelText ? (
+            <p className="mt-3 rounded-lg bg-refuse-soft px-4 py-3 text-[1rem] leading-relaxed text-foreground">
+              “{highlight(labelExcerpt(r.labelText), terms)}”
+            </p>
+          ) : null}
+          {r.screen?.risk ? (
+            <p className="mt-2 text-[0.9375rem] text-muted-foreground tabular-nums">
+              Label check agreed · <span className="font-mono text-foreground/80">{r.screen.score.toFixed(2)}</span>
+            </p>
+          ) : null}
+        </div>
       </div>
 
-      <div className="px-5 pt-3.5 pb-4">
-        <p className="text-[1.0625rem] font-medium text-ok">Never added to your cart</p>
-        {fact ? (
-          <p className="mt-2">
-            <span className="inline-block rounded-lg bg-sunken px-3 py-1.5 text-[0.9375rem] leading-snug text-muted-foreground">
+      <div className="mx-6 mt-5 mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t pt-3">
+        <div className="min-w-0">
+          <p className="text-base font-medium text-ok">Never added to your cart</p>
+          {fact ? (
+            <p className="text-[0.9375rem] leading-snug text-muted-foreground">
               <span className="font-medium text-foreground">{allergyLabel}</span> · confirmed by you {confirmedDay(fact.confirmedAt)}
               {view.memory?.provider === "cognee" ? " · recalled from memory" : ""}
-            </span>
-          </p>
-        ) : null}
+            </p>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={onWhy}
-          className="mt-1 -mb-1 inline-flex min-h-11 items-center gap-1 rounded-md text-base font-medium text-primary underline-offset-4 hover:underline"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md text-base font-medium text-primary underline-offset-4 hover:underline"
         >
           {others > 0 ? `Why? · ${others} more refused` : "Why?"} <ChevronRight className="size-4" aria-hidden />
         </button>
