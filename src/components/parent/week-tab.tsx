@@ -316,8 +316,8 @@ export function WeekTab({
   );
 }
 
-/** The lunch's main real product photo: the priciest cart line used by this lunch that has an image. */
+/** The lunch's signature product photo: the cart line this lunch shares with the fewest others (then the priciest). */
 function mainProductImage(view: RunView, recipeName: string): string | undefined {
   const lines = (view.cart?.lines ?? []).filter((l) => l.imageUrl && l.usedBy.includes(recipeName));
-  return lines.sort((a, b) => b.unitPriceCents - a.unitPriceCents)[0]?.imageUrl;
+  return lines.sort((a, b) => a.usedBy.length - b.usedBy.length || b.unitPriceCents - a.unitPriceCents)[0]?.imageUrl;
 }
