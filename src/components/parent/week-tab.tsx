@@ -42,13 +42,20 @@ function StatusCard({ view, onRefresh }: { view: RunView; onRefresh: () => Promi
   const head = statusHeadline(view);
   const run = view.run;
   const step = stepIndex(view);
-  const holdRef = view.receipt?.hold.holdId.match(/[0-9a-f]{8,}/i)?.[0].slice(0, 8).toUpperCase();
+  const holdRef = view.receipt?.hold.holdId
+    .match(/[0-9a-f]{8,}/i)?.[0]
+    .slice(0, 8)
+    .toUpperCase();
   const holdActive = run?.status === "hold_verified" && view.receipt?.hold.status !== "released";
 
   const act = async (kind: "approve" | "cancel" | "plan") => {
     setBusy(kind);
     setMsg(null);
-    const path = { approve: "/api/parent/approve", cancel: "/api/parent/cancel-hold", plan: "/api/parent/plan" }[kind];
+    const path = {
+      approve: "/api/parent/approve",
+      cancel: "/api/parent/cancel-hold",
+      plan: "/api/parent/plan",
+    }[kind];
     const res = await postParent(path);
     setBusy(null);
     if (!res.ok) {
@@ -69,7 +76,10 @@ function StatusCard({ view, onRefresh }: { view: RunView; onRefresh: () => Promi
   return (
     <section
       aria-labelledby="status-title"
-      className={cn("rounded-xl p-5", head.tone === "wait" ? "bg-wait-soft" : head.tone === "alert" ? "bg-refuse-soft" : "bg-card shadow-[0_1px_0_var(--border)]")}
+      className={cn(
+        "rounded-xl p-5",
+        head.tone === "wait" ? "bg-wait-soft" : head.tone === "alert" ? "bg-refuse-soft" : "bg-card shadow-[0_1px_0_var(--border)]",
+      )}
     >
       <div key={run?.status ?? "none"} className="ls-enter">
         <h2 id="status-title" className="text-[1.375rem] font-semibold leading-tight tracking-[-0.015em]">
@@ -87,12 +97,7 @@ function StatusCard({ view, onRefresh }: { view: RunView; onRefresh: () => Promi
         <ol className="mt-5 grid grid-cols-3 gap-2" aria-label="Progress this week">
           {STEPS.map((s, i) => (
             <li key={s} aria-current={i === step ? "step" : undefined}>
-              <span
-                className={cn(
-                  "block h-1 rounded-full transition-colors duration-[var(--dur-slow)]",
-                  i <= step ? "bg-primary" : "bg-foreground/10",
-                )}
-              />
+              <span className={cn("block h-1 rounded-full transition-colors duration-[var(--dur-slow)]", i <= step ? "bg-primary" : "bg-foreground/10")} />
               <span className={cn("mt-2 block text-[0.9375rem]", i <= step ? "text-foreground" : "text-muted-foreground")}>{s}</span>
             </li>
           ))}
@@ -151,7 +156,19 @@ function LunchRow({ row, view, onWhy }: { row: PlanRow; view: RunView; onWhy: ()
   );
 }
 
-function WhySheet({ view, proposal, row, open, onOpenChange }: { view: RunView; proposal?: SwapProposal; row?: PlanRow; open: boolean; onOpenChange: (o: boolean) => void }) {
+function WhySheet({
+  view,
+  proposal,
+  row,
+  open,
+  onOpenChange,
+}: {
+  view: RunView;
+  proposal?: SwapProposal;
+  row?: PlanRow;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const child = view.household.childName;
   const allergyRefusal = view.refusals.find((r) => r.factText);
   return (
@@ -196,7 +213,9 @@ function WhySheet({ view, proposal, row, open, onOpenChange }: { view: RunView; 
                           );
                         })()}
                         <p className="mt-1 text-[0.9375rem] text-muted-foreground">Because {refusalReason(r)}.</p>
-                        {r.labelText ? <blockquote className="mt-2 border-l-2 border-refuse/50 pl-3 text-[0.9375rem]">“{labelExcerpt(r.labelText, 220)}”</blockquote> : null}
+                        {r.labelText ? (
+                          <blockquote className="mt-2 border-l-2 border-refuse/50 pl-3 text-[0.9375rem]">“{labelExcerpt(r.labelText, 220)}”</blockquote>
+                        ) : null}
                         {view.cart?.catalog.find((c) => c.skuId === r.candidateId)?.sourceUrl ? (
                           <a
                             href={view.cart?.catalog.find((c) => c.skuId === r.candidateId)?.sourceUrl}
@@ -217,7 +236,8 @@ function WhySheet({ view, proposal, row, open, onOpenChange }: { view: RunView; 
                   <h3 className="text-[0.9375rem] font-medium text-muted-foreground">What it remembered about {child}</h3>
                   <p className="mt-1">{allergyRefusal.factText}</p>
                   <p className="mt-1 text-[0.9375rem] text-muted-foreground">
-                    Your rule{allergyRefusal.factRevision ? `, version ${allergyRefusal.factRevision}` : ""}
+                    Your rule
+                    {allergyRefusal.factRevision ? `, version ${allergyRefusal.factRevision}` : ""}
                     {view.memory?.provider === "cognee" ? ", recalled from LunchShift's memory" : ""}.
                   </p>
                 </div>
@@ -256,17 +276,21 @@ export function WeekTab({
   const whyRow = view.plan.find((p) => p.day === whyDay);
   return (
     <div className="space-y-6">
-      <SafetyHero
-        view={view}
-        onWhy={() => {
-          setWhyDay(null);
-          setOpen(true);
-        }}
-      />
+      {/* Wide main column (desktop): the safety hero on the left, the week's status and order on the right. */}
+      <div className="grid gap-6 @2xl:grid-cols-2 @2xl:items-start">
+        <SafetyHero
+          view={view}
+          onWhy={() => {
+            setWhyDay(null);
+            setOpen(true);
+          }}
+        />
 
-      <StatusCard view={view} onRefresh={onRefresh} />
-
-      <OrderCard view={view} onOpen={(o) => onOpenOrder(o)} onRefresh={onRefresh} />
+        <div className="space-y-6">
+          <StatusCard view={view} onRefresh={onRefresh} />
+          <OrderCard view={view} onOpen={(o) => onOpenOrder(o)} onRefresh={onRefresh} />
+        </div>
+      </div>
 
       <section aria-labelledby="lunches-title" className="space-y-3 pt-2">
         <SectionTitle aside="Monday to Friday">
@@ -292,15 +316,13 @@ export function WeekTab({
             <p className="mt-1 text-[0.9375rem] text-muted-foreground">Monday to Friday appear once the week is planned</p>
           </div>
         )}
-        {view.run ? (
-          <p className="px-1 text-[0.9375rem] text-muted-foreground">Updated {timeOfDay(view.run.updatedAt)}</p>
-        ) : null}
+        {view.run ? <p className="px-1 text-[0.9375rem] text-muted-foreground">Updated {timeOfDay(view.run.updatedAt)}</p> : null}
       </section>
 
       <button
         type="button"
         onClick={onOpenActivity}
-        className="flex w-full items-center gap-4 rounded-xl bg-card px-5 py-4 text-left shadow-[0_1px_0_var(--border)] hover:bg-secondary/60 stage:hidden"
+        className="flex w-full items-center gap-4 rounded-xl bg-card px-5 py-4 text-left shadow-[0_1px_0_var(--border)] hover:bg-secondary/60 xl:hidden"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-base font-medium">What LunchShift did</span>

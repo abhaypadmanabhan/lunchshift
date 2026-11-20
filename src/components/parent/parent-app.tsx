@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "cn";
-import { CalendarDays, ChevronLeft, Inbox, Receipt, ShoppingBasket, Users } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronLeft, Inbox, Receipt, Repeat, ShoppingBasket, Users } from "lucide-react";
 import type { Order } from "@/lib/domain/types";
+import type { RunView } from "@/lib/domain/view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ActivityTab } from "./activity-tab";
 import { AgentPanel } from "./agent-panel";
 import { CartTab } from "./cart-tab";
 import { AskBar, ChatSetup, type ChatCommand } from "./chat";
-import { timeOfDay } from "./copy";
+import { modeLabel, timeOfDay } from "./copy";
 import { DemoBar, DEMO_STEPS } from "./demo-bar";
 import { FamilySwitcher } from "./family-switcher";
 import { FamilyTab } from "./family-tab";
@@ -32,7 +33,12 @@ type Screen =
   | { kind: "chat" } // setup as a conversation with the agent
   | { kind: "landing" }
   | null;
-const SUB_TITLE: Record<Sub, string> = { activity: "Activity", routines: "Routines", memory: "Memory", inbox: "Inbox" };
+const SUB_TITLE: Record<Sub, string> = {
+  activity: "Activity",
+  routines: "Routines",
+  memory: "Memory",
+  inbox: "Inbox",
+};
 
 const TABS: { id: Tab; label: string; Icon: typeof CalendarDays }[] = [
   { id: "week", label: "This week", Icon: CalendarDays },
@@ -41,7 +47,12 @@ const TABS: { id: Tab; label: string; Icon: typeof CalendarDays }[] = [
   { id: "family", label: "Family", Icon: Users },
 ];
 
-const TAB_TITLE: Record<Tab, string> = { week: "", cart: "This week's cart", orders: "Orders", family: "Family & rules" };
+const TAB_TITLE: Record<Tab, string> = {
+  week: "",
+  cart: "This week's cart",
+  orders: "Orders",
+  family: "Family & rules",
+};
 
 function Loading() {
   return (
@@ -103,6 +114,106 @@ function NextSunday({ onGo }: { onGo: () => Promise<void> }) {
   );
 }
 
+type NavId = Tab | "routines" | "inbox" | "memory";
+const SIDE_NAV: { id: NavId; label: string; Icon: typeof CalendarDays }[] = [
+  ...TABS,
+  { id: "routines", label: "Routines", Icon: Repeat },
+  { id: "inbox", label: "Inbox", Icon: Inbox },
+  { id: "memory", label: "Memory", Icon: BookOpen },
+];
+
+/** Desktop sidebar (1024 px and wider): wordmark, families, sections, what LunchShift may do, the console. */
+function Sidebar({
+  view,
+  active,
+  onNav,
+  consoleHref,
+  switcher,
+}: {
+  view: RunView | null;
+  active: NavId | null;
+  onNav: (id: NavId) => void;
+  consoleHref: string;
+  switcher: React.ReactNode;
+}) {
+  const count = (id: NavId) => {
+    if (!view) return 0;
+    if (id === "week") return view.run?.status === "proposed" ? view.proposals.length || 1 : 0;
+    if (id === "cart") return view.cart?.lines.length ?? 0;
+    if (id === "inbox") return inboxCount(view);
+    return 0;
+  };
+  const needsYou = (id: NavId) => id === "inbox" || id === "week";
+  return (
+    <aside
+      aria-label="LunchShift"
+      className="sticky top-[var(--ls-top)] hidden h-[calc(100dvh-var(--ls-top))] flex-col border-r border-border/70 bg-sidebar/70 lg:flex"
+    >
+      <div className="px-5 pt-7 pb-5">
+        <p className="text-[1.25rem] font-semibold tracking-[-0.02em] text-primary">LunchShift</p>
+        {view?.week ? <p className="text-[0.9375rem] text-muted-foreground">{view.week.label}</p> : null}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 [scrollbar-width:thin]">
+        {switcher}
+        <nav aria-label="Sections" className="mt-6">
+          <ul className="space-y-0.5">
+            {SIDE_NAV.map(({ id, label, Icon }) => {
+              const on = active === id;
+              const n = count(id);
+              return (
+                <li key={id}>
+                  <button
+                    type="button"
+                    aria-current={on ? "page" : undefined}
+                    onClick={() => onNav(id)}
+                    className={cn(
+                      "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-base transition-colors duration-[var(--dur-fast)]",
+                      on ? "bg-card font-medium text-foreground shadow-[0_1px_0_var(--border)]" : "text-foreground/75 hover:bg-secondary hover:text-foreground",
+                    )}
+                  >
+                    <Icon className={cn("size-[1.125rem] shrink-0", on ? "text-primary" : "text-muted-foreground")} strokeWidth={on ? 2.1 : 1.8} aria-hidden />
+                    <span className="flex-1">{label}</span>
+                    {n ? (
+                      <span
+                        className={cn(
+                          "min-w-6 rounded-full px-1.5 text-center text-[0.875rem] leading-6 font-medium tabular-nums",
+                          needsYou(id) ? "bg-wait-soft text-wait" : "text-muted-foreground",
+                        )}
+                      >
+                        {n}
+                        <span className="sr-only">{needsYou(id) ? " need you" : " items"}</span>
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
+      {view ? (
+        <button
+          type="button"
+          onClick={() => onNav("family")}
+          className="mx-3 mt-3 rounded-xl bg-card px-4 py-3 text-left shadow-[0_1px_0_var(--border)] transition-colors duration-[var(--dur-fast)] hover:bg-secondary/60"
+        >
+          <span className="block text-[0.9375rem] text-muted-foreground">LunchShift may</span>
+          <span className="block text-base font-medium">{modeLabel(view.mode.effective)}</span>
+          {view.mode.effective !== view.mode.parentMax ? (
+            <span className="block text-[0.9375rem] leading-snug text-wait">You chose {modeLabel(view.mode.parentMax)}; Statsig caps it for now</span>
+          ) : null}
+        </button>
+      ) : null}
+      <a
+        href={consoleHref}
+        className="mx-3 mt-2 mb-4 flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-muted-foreground hover:bg-secondary hover:text-foreground"
+      >
+        Open console
+      </a>
+    </aside>
+  );
+}
+
 export function ParentApp({ demo = false }: { demo?: boolean }) {
   const { view, failingSince, refresh, sample, setSample } = useRunView();
   const [tab, setTab] = useState<Tab>("week");
@@ -160,8 +271,7 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
   const openOrder = screen?.kind === "order" ? (view?.orders.find((o) => o.orderId === screen.order.orderId) ?? screen.order) : null;
   const celebrate = !!openOrder && view?.order?.orderId === openOrder.orderId && openOrder.status !== "cancelled";
 
-  const sub =
-    screen && (screen.kind === "activity" || screen.kind === "routines" || screen.kind === "memory" || screen.kind === "inbox") ? screen : null;
+  const sub = screen && (screen.kind === "activity" || screen.kind === "routines" || screen.kind === "memory" || screen.kind === "inbox") ? screen : null;
   const title =
     screen?.kind === "onboarding" || screen?.kind === "chat"
       ? "Set up"
@@ -252,7 +362,10 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
         break;
       case 6:
         // The parent now trusts LunchShift to swap and hold on its own; next Sunday shows it.
-        if (!isSample) await postParent("/api/parent/autonomy", { mode: "auto_swap_and_hold" });
+        if (!isSample)
+          await postParent("/api/parent/autonomy", {
+            mode: "auto_swap_and_hold",
+          });
         await nextSunday();
         break;
       case 7:
@@ -263,189 +376,229 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
 
   const onLanding = screen?.kind === "landing";
   const onSetup = screen?.kind === "chat" || screen?.kind === "onboarding";
+  const fullBleed = onLanding || onSetup;
   const mainTabs = !screen;
+  const navActive: NavId | null = sub ? (sub.kind === "activity" ? "week" : sub.kind) : screen?.kind === "order" ? screen.from : screen ? null : tab;
+  const onNav = (id: NavId) => {
+    if (id === "routines" || id === "inbox" || id === "memory") open({ kind: id, from: tab });
+    else go(id);
+  };
+  const switcher = (stacked: boolean) =>
+    view ? (
+      <FamilySwitcher
+        view={view}
+        stacked={stacked}
+        onSwitched={refresh}
+        onNew={(id) => {
+          decidedFor.current = id;
+          if (isSample) setSample("f");
+          open({ kind: "chat" });
+        }}
+      />
+    ) : null;
+
+  const content = !view ? (
+    failingSince ? (
+      <Unreachable since={failingSince} onRetry={() => void refresh()} />
+    ) : (
+      <Loading />
+    )
+  ) : onLanding ? (
+    <Landing onStart={() => open({ kind: "chat" })} />
+  ) : screen?.kind === "chat" ? (
+    <div className="ls-enter px-1">
+      <ChatSetup
+        view={view}
+        sample={isSample}
+        command={chatCommand}
+        onRefresh={refresh}
+        onUseForm={() => open({ kind: "onboarding" })}
+        onPlan={() => void planNow()}
+      />
+    </div>
+  ) : screen?.kind === "onboarding" ? (
+    <div className="ls-enter px-1">
+      <Onboarding view={view} onRefresh={refresh} onDone={() => go("week")} />
+    </div>
+  ) : openOrder ? (
+    <div key={openOrder.orderId} className="ls-enter">
+      <OrderScreen view={view} order={openOrder} celebrate={celebrate} onClose={() => go(screen?.kind === "order" ? screen.from : "week")} />
+    </div>
+  ) : sub ? (
+    <div key={sub.kind} className="ls-enter space-y-4">
+      <button
+        type="button"
+        onClick={() => go(sub.from ?? "week")}
+        className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-md pr-2 text-base font-medium text-primary hover:underline lg:hidden"
+      >
+        <ChevronLeft className="size-5" aria-hidden /> {TABS.find((t) => t.id === (sub.from ?? "week"))?.label}
+      </button>
+      {sub.kind === "activity" ? <ActivityTab view={view} /> : null}
+      {sub.kind === "routines" ? <RoutinesView view={view} onRefresh={refresh} /> : null}
+      {sub.kind === "memory" ? <FactHistory view={view} /> : null}
+      {sub.kind === "inbox" ? <InboxView view={view} onRefresh={refresh} /> : null}
+    </div>
+  ) : (
+    <div key={tab} className="ls-enter">
+      {tab === "week" ? (
+        <WeekTab
+          view={view}
+          onRefresh={refresh}
+          onOpenOrder={(o) => open({ kind: "order", order: o, from: "week" })}
+          onOpenActivity={() => open({ kind: "activity", from: "week" })}
+        />
+      ) : null}
+      {tab === "week" && view.order && view.week.index === 0 ? <NextSunday onGo={nextSunday} /> : null}
+      {tab === "cart" ? (
+        <CartTab view={view} onRefresh={refresh} onPlan={() => void planNow()} onOpenOrder={(o) => open({ kind: "order", order: o, from: "cart" })} />
+      ) : null}
+      {tab === "orders" ? <OrdersTab view={view} onOpen={(o) => open({ kind: "order", order: o, from: "orders" })} /> : null}
+      {tab === "family" ? (
+        <FamilyTab view={view} onRefresh={refresh} onSetup={() => open({ kind: "chat" })} onOpen={(kind) => open({ kind, from: "family" })} />
+      ) : null}
+      {/* Below 1280 px the chat floats above the tabs; wider, it lives in the right rail. */}
+      {tab === "week" || tab === "cart" ? <AskBar sample={isSample} onRefresh={refresh} className="lg:bottom-0 xl:hidden" /> : null}
+    </div>
+  );
+
+  const offline =
+    failingSince && view ? (
+      <div role="status" className="mb-4 rounded-lg bg-wait-soft px-4 py-3 text-[0.9375rem] leading-snug">
+        <span className="font-medium">You&apos;re offline.</span> Showing what we last heard at {timeOfDay(view.generatedAt)}. Retrying…
+      </div>
+    ) : null;
 
   return (
-    <div className={cn("ls-parent min-h-dvh overflow-x-clip bg-sunken/70 md:py-8 stage:flex stage:items-start stage:justify-center stage:gap-14", demo && "pt-16 md:pt-24")}>
+    <div className={cn("ls-parent min-h-dvh overflow-x-clip", demo && "pt-16")} style={{ "--ls-top": demo ? "4rem" : "0px" } as React.CSSProperties}>
       {demo && view ? (
         <DemoBar step={demoStep} total={DEMO_STEPS.length} onStep={(n) => void runStep(n)} consoleHref={consoleHref} view={view} onRefresh={refresh} />
       ) : null}
-      <a
-        href={consoleHref}
-        className={cn(
-          "fixed top-5 right-6 z-30 hidden rounded-md px-2 py-1 text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground lg:block stage:hidden",
-          demo && "lg:hidden",
-        )}
-      >
-        Open console
-      </a>
 
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col stage:mx-0 stage:shrink-0 bg-background md:min-h-[calc(100dvh-4rem)] md:rounded-[1.75rem] md:shadow-[0_1px_2px_oklch(0.27_0.015_60/0.06),0_12px_40px_-12px_oklch(0.27_0.015_60/0.18)]">
-        {onLanding ? null : (
-          <header className="space-y-4 px-5 pt-8 pb-5">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="text-[0.9375rem] font-medium text-primary">
-                  LunchShift{mainTabs && view?.week ? <span className="font-normal text-muted-foreground"> · {view.week.label}</span> : null}
-                </p>
-                <h1 className="mt-0.5 text-[1.875rem] font-semibold leading-tight tracking-[-0.02em]">{title}</h1>
-              </div>
-              <div className="flex items-center gap-3 pb-0.5">
-                <a href={consoleHref} className="text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground lg:hidden">
-                  Open console
-                </a>
-                {view && screen?.kind !== "onboarding" && screen?.kind !== "chat" ? (
-                  <button
-                    type="button"
-                    aria-label={`Inbox${inboxCount(view) ? `, ${inboxCount(view)} need you` : ""}`}
-                    aria-current={screen?.kind === "inbox" ? "page" : undefined}
-                    onClick={() => open({ kind: "inbox", from: screen?.kind === "inbox" ? screen.from : tab })}
-                    className={cn(
-                      "relative -mr-2 inline-flex size-11 items-center justify-center rounded-lg hover:bg-secondary",
-                      screen?.kind === "inbox" ? "text-primary" : "text-foreground/80",
-                    )}
-                  >
-                    <Inbox className="size-[1.375rem]" strokeWidth={1.8} aria-hidden />
-                    {inboxCount(view) ? (
-                      <span className="absolute top-0.5 right-0 min-w-5 rounded-full bg-wait px-1.5 text-center text-[0.8125rem] font-semibold leading-5 text-primary-foreground tabular-nums">
-                        {inboxCount(view)}
-                      </span>
-                    ) : null}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            {mainTabs && view ? (
-              <FamilySwitcher
-                view={view}
-                onSwitched={refresh}
-                onNew={(id) => {
-                  decidedFor.current = id;
-                  if (isSample) setSample("f");
-                  open({ kind: "chat" });
-                }}
-              />
-            ) : null}
-            {notice && mainTabs ? (
-              <p role="status" className="rounded-lg bg-wait-soft px-4 py-3 text-[0.9375rem] leading-snug">
-                {notice}
-              </p>
-            ) : null}
-          </header>
-        )}
+      {fullBleed ? (
+        /* Landing and setup: full width and centred, no sidebar or rail. */
+        <div className="mx-auto flex min-h-[calc(100dvh-var(--ls-top))] w-full max-w-[46rem] flex-col px-4 md:px-8">
+          {onSetup ? (
+            <header className="px-1 pt-8 pb-5 md:pt-14">
+              <p className="text-[1.0625rem] font-semibold tracking-[-0.01em] text-primary">LunchShift</p>
+              <h1 className="mt-0.5 text-[1.875rem] font-semibold leading-tight tracking-[-0.02em] md:text-[2.25rem]">Set up</h1>
+            </header>
+          ) : null}
+          {offline}
+          <main className={cn("flex-1", onSetup && "pb-10")}>{content}</main>
+        </div>
+      ) : (
+        <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_22.5rem]">
+          <Sidebar view={view} active={navActive} onNav={onNav} consoleHref={consoleHref} switcher={switcher(true)} />
 
-        {failingSince && view ? (
-          <div role="status" className="mx-5 mb-4 rounded-lg bg-wait-soft px-4 py-3 text-[0.9375rem] leading-snug">
-            <span className="font-medium">You&apos;re offline.</span> Showing what we last heard at {timeOfDay(view.generatedAt)}. Retrying…
-          </div>
-        ) : null}
-
-        <main className={cn("flex-1", onLanding ? "" : "px-4 pb-10", mainTabs && (tab === "week" || tab === "cart") && "pb-2")}>
-          {!view ? (
-            failingSince ? <Unreachable since={failingSince} onRetry={() => void refresh()} /> : <Loading />
-          ) : onLanding ? (
-            <Landing onStart={() => open({ kind: "chat" })} />
-          ) : screen?.kind === "chat" ? (
-            <div className="ls-enter px-1">
-              <ChatSetup
-                view={view}
-                sample={isSample}
-                command={chatCommand}
-                onRefresh={refresh}
-                onUseForm={() => open({ kind: "onboarding" })}
-                onPlan={() => void planNow()}
-              />
-            </div>
-          ) : screen?.kind === "onboarding" ? (
-            <div className="ls-enter px-1">
-              <Onboarding view={view} onRefresh={refresh} onDone={() => go("week")} />
-            </div>
-          ) : openOrder ? (
-            <div key={openOrder.orderId} className="ls-enter">
-              <OrderScreen view={view} order={openOrder} celebrate={celebrate} onClose={() => go(screen?.kind === "order" ? screen.from : "week")} />
-            </div>
-          ) : sub ? (
-            <div key={sub.kind} className="ls-enter space-y-4">
-              <button
-                type="button"
-                onClick={() => go(sub.from ?? "week")}
-                className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-md pr-2 text-base font-medium text-primary hover:underline"
-              >
-                <ChevronLeft className="size-5" aria-hidden /> {TABS.find((t) => t.id === (sub.from ?? "week"))?.label}
-              </button>
-              {sub.kind === "activity" ? <ActivityTab view={view} /> : null}
-              {sub.kind === "routines" ? <RoutinesView view={view} onRefresh={refresh} /> : null}
-              {sub.kind === "memory" ? <FactHistory view={view} /> : null}
-              {sub.kind === "inbox" ? <InboxView view={view} onRefresh={refresh} /> : null}
-            </div>
-          ) : (
-            <div key={tab} className="ls-enter">
-              {tab === "week" ? (
-                <WeekTab
-                  view={view}
-                  onRefresh={refresh}
-                  onOpenOrder={(o) => open({ kind: "order", order: o, from: "week" })}
-                  onOpenActivity={() => open({ kind: "activity", from: "week" })}
-                />
-              ) : null}
-              {tab === "week" && view.order && view.week.index === 0 ? <NextSunday onGo={nextSunday} /> : null}
-              {tab === "cart" ? (
-                <CartTab view={view} onRefresh={refresh} onPlan={() => void planNow()} onOpenOrder={(o) => open({ kind: "order", order: o, from: "cart" })} />
-              ) : null}
-              {tab === "orders" ? <OrdersTab view={view} onOpen={(o) => open({ kind: "order", order: o, from: "orders" })} /> : null}
-              {tab === "family" ? <FamilyTab view={view} onRefresh={refresh} onSetup={() => open({ kind: "chat" })} onOpen={(kind) => open({ kind, from: "family" })} /> : null}
-              {tab === "week" || tab === "cart" ? <AskBar sample={isSample} onRefresh={refresh} /> : null}
-            </div>
-          )}
-        </main>
-
-        {onLanding || onSetup ? null : (
-          <nav
-            aria-label="Sections"
-            className="sticky bottom-0 z-20 w-full border-t bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:rounded-b-[1.75rem]"
-          >
-            <ul className="grid grid-cols-4">
-              {TABS.map(({ id, label, Icon }) => {
-                const active = tab === id;
-                const badge = id === "week" && view?.run?.status === "proposed";
-                const count = id === "cart" ? (view?.cart?.lines.length ?? 0) : 0;
-                return (
-                  <li key={id}>
+          <div className="mx-auto flex min-h-[calc(100dvh-var(--ls-top))] w-full max-w-[640px] min-w-0 flex-col bg-background lg:max-w-[52rem] lg:bg-transparent lg:px-8">
+            <header className="space-y-4 px-5 pt-8 pb-5 lg:px-0 lg:pt-10 lg:pb-6">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-[0.9375rem] font-medium text-primary lg:hidden">
+                    LunchShift
+                    {mainTabs && view?.week ? <span className="font-normal text-muted-foreground"> · {view.week.label}</span> : null}
+                  </p>
+                  <h1 className="mt-0.5 text-[1.875rem] font-semibold leading-tight tracking-[-0.02em] lg:mt-0 lg:text-[2rem]">{title}</h1>
+                </div>
+                <div className="flex items-center gap-3 pb-0.5 lg:hidden">
+                  <a href={consoleHref} className="text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground">
+                    Open console
+                  </a>
+                  {view ? (
                     <button
                       type="button"
-                      aria-current={active ? "page" : undefined}
-                      onClick={() => go(id)}
+                      aria-label={`Inbox${inboxCount(view) ? `, ${inboxCount(view)} need you` : ""}`}
+                      aria-current={screen?.kind === "inbox" ? "page" : undefined}
+                      onClick={() =>
+                        open({
+                          kind: "inbox",
+                          from: screen?.kind === "inbox" ? screen.from : tab,
+                        })
+                      }
                       className={cn(
-                        "flex min-h-16 w-full flex-col items-center justify-center gap-1 text-[0.9375rem] transition-colors duration-[var(--dur-fast)]",
-                        active ? "font-medium text-primary" : "text-muted-foreground hover:text-foreground",
+                        "relative -mr-2 inline-flex size-11 items-center justify-center rounded-lg hover:bg-secondary",
+                        screen?.kind === "inbox" ? "text-primary" : "text-foreground/80",
                       )}
                     >
-                      <span className="relative">
-                        <Icon className="size-[1.375rem]" strokeWidth={active ? 2.2 : 1.8} aria-hidden />
-                        {badge ? (
-                          <span className="absolute -top-1 -right-2.5 rounded-full bg-wait px-1.5 text-[0.9375rem] font-semibold leading-[1.25rem] text-primary-foreground">
-                            {view?.proposals.length || 1}
-                            <span className="sr-only"> waiting for you</span>
-                          </span>
-                        ) : null}
-                        {count ? (
-                          <span className="absolute -top-1 -right-3 rounded-full bg-foreground/80 px-1.5 text-[0.9375rem] font-semibold leading-[1.25rem] text-background tabular-nums">
-                            {count}
-                            <span className="sr-only"> items</span>
-                          </span>
-                        ) : null}
-                      </span>
-                      {label}
+                      <Inbox className="size-[1.375rem]" strokeWidth={1.8} aria-hidden />
+                      {inboxCount(view) ? (
+                        <span className="absolute top-0.5 right-0 min-w-5 rounded-full bg-wait px-1.5 text-center text-[0.8125rem] font-semibold leading-5 text-primary-foreground tabular-nums">
+                          {inboxCount(view)}
+                        </span>
+                      ) : null}
                     </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        )}
-      </div>
+                  ) : null}
+                </div>
+              </div>
+              {mainTabs ? <div className="lg:hidden">{switcher(false)}</div> : null}
+              {notice && mainTabs ? (
+                <p role="status" className="rounded-lg bg-wait-soft px-4 py-3 text-[0.9375rem] leading-snug">
+                  {notice}
+                </p>
+              ) : null}
+            </header>
 
-      <AgentPanel view={view} offlineSince={failingSince} consoleHref={consoleHref} />
+            <div className="px-4 lg:px-0">{offline}</div>
+
+            <main className={cn("@container flex-1 px-4 pb-10 lg:px-0 lg:pb-16", mainTabs && (tab === "week" || tab === "cart") && "pb-2 lg:pb-8")}>
+              {content}
+            </main>
+
+            <nav
+              aria-label="Sections"
+              className="sticky bottom-0 z-20 w-full border-t bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+            >
+              <ul className="grid grid-cols-4">
+                {TABS.map(({ id, label, Icon }) => {
+                  const active = tab === id;
+                  const badge = id === "week" && view?.run?.status === "proposed";
+                  const count = id === "cart" ? (view?.cart?.lines.length ?? 0) : 0;
+                  return (
+                    <li key={id}>
+                      <button
+                        type="button"
+                        aria-current={active ? "page" : undefined}
+                        onClick={() => go(id)}
+                        className={cn(
+                          "flex min-h-16 w-full flex-col items-center justify-center gap-1 text-[0.9375rem] transition-colors duration-[var(--dur-fast)]",
+                          active ? "font-medium text-primary" : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        <span className="relative">
+                          <Icon className="size-[1.375rem]" strokeWidth={active ? 2.2 : 1.8} aria-hidden />
+                          {badge ? (
+                            <span className="absolute -top-1 -right-2.5 rounded-full bg-wait px-1.5 text-[0.9375rem] font-semibold leading-[1.25rem] text-primary-foreground">
+                              {view?.proposals.length || 1}
+                              <span className="sr-only"> waiting for you</span>
+                            </span>
+                          ) : null}
+                          {count ? (
+                            <span className="absolute -top-1 -right-3 rounded-full bg-foreground/80 px-1.5 text-[0.9375rem] font-semibold leading-[1.25rem] text-background tabular-nums">
+                              {count}
+                              <span className="sr-only"> items</span>
+                            </span>
+                          ) : null}
+                        </span>
+                        {label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          </div>
+
+          {/* Right rail (1280 px and wider): the agent's own feed on top, the conversation with it below. */}
+          <div className="sticky top-[var(--ls-top)] hidden h-[calc(100dvh-var(--ls-top))] min-h-0 flex-col border-l border-border/70 bg-card/60 backdrop-blur-sm xl:flex">
+            <AgentPanel view={view} offlineSince={failingSince} className="flex-1" />
+            {view ? (
+              <section aria-label="Ask LunchShift" className="flex max-h-[62%] min-h-0 shrink-0 flex-col border-t border-border/70 bg-background/70 p-4">
+                <AskBar sample={isSample} onRefresh={refresh} docked className="min-h-0" />
+              </section>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
