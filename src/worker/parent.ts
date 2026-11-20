@@ -1,12 +1,13 @@
 // Parent actions from the app. Each one is a recorded parent event; the background worker stays the only writer
 // of plans and holds (these functions only record intent, supersede a stale run, or release a hold).
 import { applyHouseholdUpdate, currentRunId } from "../lib/domain/household";
-import { currentWeekOf } from "../lib/domain/families";
+import { blankFamily, currentWeekOf, readPointer, writePointer } from "../lib/domain/families";
+import { activeCatalog } from "../lib/domain/catalog";
 import { HOUSEHOLD } from "../lib/domain/fixture";
 import type { AppStore, Run } from "../lib/domain/types";
 import type { HouseholdUpdate, HouseholdUpdateResult } from "../lib/domain/view";
 import { getMemory } from "../lib/memory";
-import { activeHousehold, ensureSeeded, grocerClient } from "./deps";
+import { activeHousehold, ensureSeeded, grocerClient, grocerOperator } from "./deps";
 import { checkSku, hardRestrictions } from "../lib/domain/rules";
 import { allProposals, draftKey, placeOrderFor } from "./runWeekly";
 import { getAnalytics } from "../lib/autonomy";
@@ -147,4 +148,56 @@ export async function placeOrderByParent(): Promise<{ ok: boolean; reason?: stri
   const h = await activeHousehold(store);
   const r = await placeOrderFor({ store, grocer: grocerClient(), analytics: getAnalytics() }, currentRunId(h, currentWeekOf()), "parent");
   return { ok: r.ok, reason: r.reason, order: r.order };
+}
+
+const MODES = ["suggest_only", "auto_swap", "auto_swap_and_hold"] as const;
+type Mode = (typeof MODES)[number];
+
+/** "How much can LunchShift do?" Saved per family; no re-plan. The worker sees it on its next check. */
+export async function setAutonomy(mode: string): Promise<{ ok: boolean; reason?: string }> {
+  if (!MODES.includes(mode as Mode)) return { ok: false, reason: "Unknown mode" };
+  const store = await ensureSeeded();
+  const h = await activeHousehold(store);
+  await store.saveHousehold({ ...h, mandate: { ...h.mandate, maxAutonomy: mode as Mode, approvedAt: new Date().toISOString() } });
+  const run = await store.getRun(currentRunId(h, currentWeekOf()));
+  if (run) {
+    await store.appendEvent({
+      runId: run.id,
+      actor: "parent",
+      type: "note",
+      summary: `Parent set LunchShift to ${mode === "suggest_only" ? "Ask me" : mode === "auto_swap" ? "Swap for me" : "Swap and hold"}`,
+      data: { autonomySetting: mode },
+    });
+  }
+  return { ok: true };
+}
+
+export async function switchFamily(householdId: string): Promise<{ ok: boolean; reason?: string }> {
+  const store = await ensureSeeded();
+  const h = await store.getHousehold(householdId);
+  if (!h) return { ok: false, reason: "No such family" };
+  writePointer({ householdId });
+  // Switching re-plans that family's week (a no-op if it already has a plan).
+  if (h.onboarded !== false) await scheduleRun(store, currentRunId(h, currentWeekOf()), "manual", h.id);
+  return { ok: true };
+}
+
+export async function newFamily(): Promise<{ ok: boolean; householdId: string }> {
+  const store = await ensureSeeded();
+  const n = readPointer().newFamilies + 1;
+  const h = blankFamily(n);
+  await store.saveHousehold(h);
+  writePointer({ householdId: h.id, newFamilies: n });
+  return { ok: true, householdId: h.id };
+}
+
+/** Demo clock: jump to next Sunday. The store restocks, then the usual bread sells out (a real stock event). */
+export async function nextWeek(): Promise<{ ok: boolean; weekOf: string }> {
+  const store = await ensureSeeded();
+  const op = grocerOperator();
+  await op.reset();
+  writePointer({ weekIndex: 1 });
+  await op.setStock(activeCatalog().stockoutSku, 0);
+  void store;
+  return { ok: true, weekOf: currentWeekOf() };
 }
