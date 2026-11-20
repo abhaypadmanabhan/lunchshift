@@ -290,7 +290,15 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
       const w = await world("auto_swap_and_hold", hh);
       await w.op.setStock(DEMO_STOCKOUT_SKU, 0);
       const r1 = await w.run();
+      // Later ticks must not apply the swaps or hold before the parent approves.
+      const t2 = await w.run();
+      const t3 = await w.run();
+      const appliedEarly = (await w.store.listEvents(w.runId)).some((e) => e.type === "swap_applied");
       const h1 = (await w.client.listHolds(w.runId)).length;
+      if (t2.run.status !== "proposed" || t3.run.status !== "proposed" || appliedEarly) {
+        await w.grocer.close();
+        return { pass: false, detail: `before approval: ticks -> ${t2.run.status}, ${t3.run.status}; swaps applied early ${appliedEarly}; holds ${h1}` };
+      }
       const r2 = await approveProposal(w.deps, w.runId);
       const holds = (await w.client.listHolds(w.runId)).filter((h) => h.status === "active");
       const bad = holds.flatMap((h) => h.lines).filter((l) => ["bread-value-wheat", "hummus-classic", "sauce-thai-peanut"].includes(l.skuId));

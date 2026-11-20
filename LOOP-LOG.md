@@ -47,3 +47,9 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - Allergen v2 (captain steer): fixed the false positives; OFF tags as primary evidence, and OFF-vs-text disagreement blocks the item; 32 edge-case labels.
 - Cart and orders: draft cart with deterministic checks; pay-at-pickup orders keyed by `order:<runId>`; the agent auto-orders in full auto. KPI scenario: a dropped order reply still gives exactly 1 order.
 - Suite 21/21, allergen matrix all pass, live API path proven.
+
+## Loop 10 · integration · 12:45 PT
+- Live integration found two misses that the suites didn't:
+  1. **Approval gate leak (critical).** A run that needed approval for more swaps than the mandate allows was applied and held on the next tick, because the mode re-read forgot the pending approval. The two-allergy scenario now ticks twice before approving; it failed on the old code (hold placed), and the fix (the run remembers it is awaiting approval and caps autonomy) passes.
+  2. **SIE classifier false positive.** "Contains: milk." scored 0.65 "contains peanuts" because the model had no neutral class to choose. Added an "only other ingredients" class and raised the threshold to 0.85. Live check: peanut flags exactly 2 products, peanut+sesame exactly 3, dairy exactly 1.
+- Suite 21/21; allergen matrix all pass.

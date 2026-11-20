@@ -83,6 +83,8 @@ type Ctx = {
   analyticsUser: string;
   /** The parent explicitly approved this run's proposal (one click). Authorizes this order only. */
   parentApproved?: boolean;
+  /** This run asked for the parent's approval (more swaps than the mandate covers); nothing autonomous until given. */
+  awaitingApproval?: boolean;
 };
 
 async function ev(ctx: Ctx, e: Parameters<AppStore["appendEvent"]>[0]) {
@@ -126,7 +128,7 @@ async function readMode(ctx: Ctx, why: string, logUnchanged = true): Promise<{ r
   const mandateLive = !m.revoked && new Date(m.expiresAt).getTime() > Date.now();
   // Household rules newer than the standing approval: nothing autonomous until the parent approves again.
   const policyOk = (m.policyRevision ?? ctx.household.policyRevision) === ctx.household.policyRevision;
-  const cap = mandateLive && policyOk ? m.maxAutonomy : "suggest_only";
+  const cap = mandateLive && policyOk && !ctx.awaitingApproval ? m.maxAutonomy : "suggest_only";
   // A failed or defaulted read never authorizes anything. A parent's approval of this run's proposal requests
   // a hold for this one order, but the parent's own maximum still caps it.
   const readOk = reading.source === "statsig" && !reading.error;
@@ -191,7 +193,11 @@ export async function processRun(
       updatedAt: now,
     } satisfies Run);
   const ctx: Ctx = { deps, run, household, analyticsUser: household.id };
-  if (existing) ctx.parentApproved = (await deps.store.listEvents(run.id)).some((e) => e.actor === "parent" && e.data.approved === true);
+  if (existing) {
+    const evs = await deps.store.listEvents(run.id);
+    ctx.parentApproved = evs.some((e) => e.actor === "parent" && e.data.approved === true);
+    ctx.awaitingApproval = !ctx.parentApproved && evs.some((e) => typeof e.data.approvalReason === "string" && e.data.swaps !== undefined);
+  }
 
   if (!existing || existing.status === "scheduled") {
     run.status = "running";
@@ -522,6 +528,7 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
     await save(ctx, { effectiveMode: effective });
   }
   if (reasons.length && !ctx.parentApproved) {
+    ctx.awaitingApproval = true;
     const approvalReason = `${reasons.join("; ")}. Approve to apply ${proposals.length === 1 ? "this change" : `these ${proposals.length} changes`}.`;
     await ev(ctx, { runId, actor: "worker", type: "note", summary: `Needs parent approval: ${approvalReason}`, data: { approvalReason, swaps: proposals.length } });
   }

@@ -18,7 +18,9 @@ export interface AllergenScreen {
 }
 
 export const SIE_CLASSIFIER = "MoritzLaurer/deberta-v3-large-zeroshot-v2.0";
-const THRESHOLD = 0.6;
+// Measured 2026-11-20: with only allergen classes to choose from, "Contains: milk." scored 0.65 "contains peanuts".
+// A neutral "other ingredients" class plus a higher bar removes that while true hits stay at 0.95+.
+const THRESHOLD = 0.85;
 const PHRASE: Record<string, string> = {
   peanut: "peanuts",
   tree_nut: "tree nuts",
@@ -41,7 +43,11 @@ export function classesFor(restrictions: HouseholdFact[]): { label: string; alle
     out.push({ label: `contains ${phrase}`, allergenId: id, risk: true });
     if (f.allergen?.crossContact ?? true) out.push({ label: `may contain ${phrase} or made on shared equipment with ${phrase}`, allergenId: id, risk: true });
   }
-  out.push({ label: "free of these allergens", risk: false }, { label: "no allergen information", risk: false });
+  out.push(
+    { label: "free of these allergens", risk: false },
+    { label: "contains only other ingredients or other allergens", risk: false },
+    { label: "no allergen information", risk: false },
+  );
   return out;
 }
 
