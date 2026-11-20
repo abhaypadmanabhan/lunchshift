@@ -11,7 +11,7 @@ Built for the tokens& Personal Agents Hackathon (Nov 20, 2026). Products are rea
 - **Live:** https://lunchshift-web-production.up.railway.app (set up your own family through the chat, or pick a sample family).
 - **Guided demo:** [/demo](https://lunchshift-web-production.up.railway.app/demo): the eight-step story with a **Next step** bar. Runbook: `DEMO.md`.
 - **Console:** [/console](https://lunchshift-web-production.up.railway.app/console): evidence, autonomy mode, store receipt, the six KPIs and the audit trail.
-- **Video:** `docs/proof/backup-story.mp4` (the guided demo, recorded against the public URL).
+- **Video:** `docs/proof/final-demo.mp4` (2:52, narrated). The unedited guided-demo run: `docs/proof/backup-story.mp4`. Architecture: `docs/ARCHITECTURE.md`. Numbers: `docs/proof/metrics.png`. Security review: `SECURITY.md`.
 
 It is one shared demo instance: other visitors see the same families, and **Reset demo** on the console returns it to a clean state.
 
