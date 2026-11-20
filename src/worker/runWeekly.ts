@@ -25,6 +25,7 @@ import {
   type HoldRequest,
   type Household,
   type KpiSet,
+  type PlannedLunch,
   type MemoryProvider,
   type MemoryRecall,
   type Ranker,
@@ -46,7 +47,7 @@ export interface WorkerDeps {
   analytics: Analytics;
   ranker: Ranker;
   explainer: SwapExplainer;
-  buildRankQuery?: (h: Household, plan: Recipe[], basketRoles: string[]) => RankQuery;
+  buildRankQuery?: (h: Household, keptPlan: PlannedLunch[], basketRoles: string[]) => RankQuery;
 }
 
 const TERMINAL = new Set(["hold_verified", "escalated", "failed"]);
@@ -56,7 +57,7 @@ export function minMode(a: AutonomyMode, b: AutonomyMode): AutonomyMode {
   return MODE_RANK[a] <= MODE_RANK[b] ? a : b;
 }
 
-export function defaultRankQuery(h: Household, plan: Recipe[], basketRoles: string[]): RankQuery {
+export function defaultRankQuery(h: Household, keptPlan: PlannedLunch[], basketRoles: string[]): RankQuery {
   const prefs = h.facts.filter((f) => f.kind === "preference" && f.active);
   const preferTags: string[] = [];
   if (prefs.some((f) => /rice bowl/i.test(f.text))) preferTags.push("rice_bowl");
@@ -64,7 +65,7 @@ export function defaultRankQuery(h: Household, plan: Recipe[], basketRoles: stri
   const prepFact = prefs.find((f) => /prep/i.test(f.text));
   const maxPrep = Number(prepFact?.text.match(/(\d+)\s*min/)?.[1] ?? 20);
   return {
-    text: `Whole school lunch for ${h.childName}. ${prefs.map((f) => f.text).join(" ")} Week already has: ${plan.map((r) => r.name).join(", ")}.`,
+    text: `Whole school lunch for ${h.childName}. ${prefs.map((f) => f.text).join(" ")} Week already has: ${keptPlan.map((p) => p.recipeId).join(", ")}.`,
     maxPrepMinutes: maxPrep,
     preferTags,
     pantryRoles: basketRoles,
@@ -96,7 +97,7 @@ async function save(ctx: Ctx, patch: Partial<Run>) {
   await ctx.deps.store.upsertRun(ctx.run);
 }
 
-async function readMode(ctx: Ctx, why: string): Promise<{ reading: AutonomyReading; effective: AutonomyMode }> {
+async function readMode(ctx: Ctx, why: string, logUnchanged = true): Promise<{ reading: AutonomyReading; effective: AutonomyMode }> {
   let reading: AutonomyReading;
   try {
     reading = await ctx.deps.autonomy.read(ctx.analyticsUser);
@@ -108,6 +109,7 @@ async function readMode(ctx: Ctx, why: string): Promise<{ reading: AutonomyReadi
   const cap = mandateLive ? m.maxAutonomy : "suggest_only";
   const effective = minMode(reading.mode, cap);
   const changed = effective !== ctx.run.effectiveMode || reading.mode !== ctx.run.observedMode;
+  if (!changed && !logUnchanged) return { reading, effective };
   await ev(ctx, {
     runId: ctx.run.id,
     actor: "statsig",
@@ -163,7 +165,8 @@ export async function processRun(
     } satisfies Run);
   const ctx: Ctx = { deps, run, household, analyticsUser: household.id };
 
-  if (!existing) {
+  if (!existing || existing.status === "scheduled") {
+    run.status = "running";
     await deps.store.upsertRun(run);
     await ev(ctx, {
       runId: run.id,
@@ -359,7 +362,8 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
 
   // 6. Rank eligible complete lunches, then let the model explain (and only choose among eligible ids).
   const pantryRoles = [...roleNeeds(keepRecipes).keys()];
-  const q = (deps.buildRankQuery ?? defaultRankQuery)(household, keepRecipes, pantryRoles);
+  const keptPlan = household.plan.filter((p) => p !== slot);
+  const q = (deps.buildRankQuery ?? defaultRankQuery)(household, keptPlan, pantryRoles);
   let ranking;
   try {
     ranking = await deps.ranker.rank(q, eligible);
@@ -482,7 +486,7 @@ async function applyAndMaybeHold(
 
 async function resumeWaiting(ctx: Ctx): Promise<ProcessResult> {
   const before = ctx.run.effectiveMode;
-  const { effective } = await readMode(ctx, "Waiting-run check");
+  const { effective } = await readMode(ctx, "Waiting-run check", false);
   const proposal = await lastProposal(ctx.deps.store, ctx.run.id);
   if (MODE_RANK[effective] <= MODE_RANK[before]) return { run: ctx.run, proposal };
   const cat = await ctx.deps.grocer.catalog();

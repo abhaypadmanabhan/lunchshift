@@ -12,7 +12,9 @@
     "kpi": "tsx --env-file-if-exists=.env scripts/kpi.ts",
     "smoke:store": "tsx --env-file-if-exists=.env scripts/smoke-store.ts",
     "smoke:vendors": "tsx --env-file-if-exists=.env scripts/smoke-vendors.ts",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "demo": "tsx --env-file-if-exists=.env src/worker/operator.ts",
+    "audit": "tsx --env-file-if-exists=.env scripts/audit.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",

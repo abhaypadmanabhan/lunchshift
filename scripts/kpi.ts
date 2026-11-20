@@ -6,18 +6,14 @@ import type { AutonomyMode, Household, KpiSet, Ranker } from "../src/lib/domain/
 import { startGrocer, AGENT_TOKEN, OPERATOR_TOKEN } from "../src/grocer/server";
 import { GrocerClient, GrocerOperator } from "../src/grocer/client";
 import { processRun, type WorkerDeps } from "../src/worker/runWeekly";
-import { FixtureMemory, MemoryStore, RecordingAnalytics, StaticAutonomy, TagRanker, TemplateExplainer } from "../src/worker/testing";
+import { FixtureMemory, MemoryStore, RecordingAnalytics, StaticAutonomy, TemplateExplainer } from "../src/worker/testing";
+import { LocalVectorRanker } from "../src/lib/ranking/local";
+import { buildRankQuery } from "../src/lib/ranking/features";
 
 type Scenario = { name: string; pass: boolean; detail: string; kpis?: KpiSet; auto?: boolean };
 
 async function rankerForHarness(): Promise<Ranker> {
-  try {
-    const mod = (await import("../src/lib/ranking/local")) as { LocalVectorRanker?: new () => Ranker };
-    if (mod.LocalVectorRanker) return new mod.LocalVectorRanker();
-  } catch {
-    /* ranking lane not merged yet */
-  }
-  return new TagRanker();
+  return new LocalVectorRanker();
 }
 
 async function world(mode: AutonomyMode | "invalid" | "timeout", household: Household = HOUSEHOLD) {
@@ -37,6 +33,7 @@ async function world(mode: AutonomyMode | "invalid" | "timeout", household: Hous
     analytics,
     ranker: await rankerForHarness(),
     explainer: new TemplateExplainer(),
+    buildRankQuery: (h, kept, roles) => buildRankQuery(h, kept, roles, RECIPES),
   };
   const runId = `kpi-${Math.random().toString(36).slice(2, 8)}`;
   const run = () => processRun(deps, { runId, householdId: household.id, weekOf: "2026-11-22", trigger: "schedule" });

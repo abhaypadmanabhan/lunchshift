@@ -137,7 +137,8 @@ export function checkRecipe(
   for (const line of recipe.lines) {
     const sku = skuForRole(line.role);
     if (!sku) {
-      reasons.push("out_of_stock");
+      // No safe in-stock SKU for this role. If the recipe itself is blocked, that is the reason that matters.
+      if (!reasons.includes("recipe_allergen") && !reasons.includes("out_of_stock")) reasons.push("out_of_stock");
       continue;
     }
     const d = checkSku(h, sku, 1);
