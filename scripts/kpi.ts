@@ -5,7 +5,8 @@ import { DEMO_STOCKOUT_SKU, HOUSEHOLD, RECIPES } from "../src/lib/domain/fixture
 import type { AutonomyMode, Household, KpiSet, Ranker } from "../src/lib/domain/types";
 import { startGrocer, AGENT_TOKEN, OPERATOR_TOKEN } from "../src/grocer/server";
 import { GrocerClient, GrocerOperator } from "../src/grocer/client";
-import { approveProposal, processRun, type WorkerDeps } from "../src/worker/runWeekly";
+import { approveProposal, allProposals, processRun, type WorkerDeps } from "../src/worker/runWeekly";
+import { applyHouseholdUpdate } from "../src/lib/domain/household";
 import { FixtureMemory, MemoryStore, RecordingAnalytics, StaticAutonomy, TemplateExplainer } from "../src/worker/testing";
 import { LocalVectorRanker } from "../src/lib/ranking/local";
 import { buildRankQuery } from "../src/lib/ranking/features";
@@ -272,6 +273,35 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
       const r = await w.run();
       await w.grocer.close();
       return { pass: r.run.status !== "hold_verified", detail: `status ${r.run.status}` };
+    },
+  },
+  {
+    name: "Two-allergy child (peanut + sesame), bread stockout: 2 lunches swapped, held only after the parent approves",
+    auto: false,
+    fn: async () => {
+      const { household } = applyHouseholdUpdate(HOUSEHOLD, {
+        allergies: [
+          { text: "peanuts", crossContact: true },
+          { text: "sesame", crossContact: true },
+        ],
+      });
+      // The parent already approved this revision: the run is autonomous, but 2 swaps exceed the 1-swap mandate.
+      const hh = { ...household, mandate: { ...household.mandate, policyRevision: household.policyRevision } };
+      const w = await world("auto_swap_and_hold", hh);
+      await w.op.setStock(DEMO_STOCKOUT_SKU, 0);
+      const r1 = await w.run();
+      const h1 = (await w.client.listHolds(w.runId)).length;
+      const r2 = await approveProposal(w.deps, w.runId);
+      const holds = (await w.client.listHolds(w.runId)).filter((h) => h.status === "active");
+      const bad = holds.flatMap((h) => h.lines).filter((l) => ["bread-value-wheat", "hummus-classic", "sauce-thai-peanut"].includes(l.skuId));
+      const swaps = (await allProposals(w.store, w.runId)).map((p) => `${p.affectedDay}->${p.toRecipeId.replace("r-", "")}`);
+      const k = (await w.store.getKpis(w.runId))!;
+      await w.grocer.close();
+      return {
+        pass: r1.run.status === "proposed" && h1 === 0 && r2.run.status === "hold_verified" && holds.length === 1 && bad.length === 0 && swaps.length === 2,
+        detail: `${r1.run.status} (holds ${h1}) -> approve -> ${r2.run.status}; swaps ${swaps.join(", ")}; unsafe lines ${bad.length}`,
+        kpis: k,
+      };
     },
   },
   {

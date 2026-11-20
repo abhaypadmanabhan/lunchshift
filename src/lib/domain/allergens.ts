@@ -15,10 +15,14 @@ export const MAJOR_ALLERGENS: AllergenDef[] = [
     label: "Tree nuts",
     terms: ["tree nut", "tree nuts", "tree-nut", "tree-nuts", "nuts", "almond", "almonds", "cashew", "cashews", "walnut", "walnuts", "pecan", "pecans", "hazelnut", "hazelnuts", "pistachio", "pistachios", "macadamia", "brazil nut", "pine nut", "pine nuts"],
   },
-  { id: "milk", label: "Milk / dairy", terms: ["milk", "dairy", "lactose", "cheese", "whey", "casein", "cream", "butter", "yogurt", "yoghurt"] },
-  { id: "egg", label: "Eggs", terms: ["egg", "eggs", "albumin", "mayonnaise"] },
-  { id: "wheat", label: "Wheat / gluten", terms: ["wheat", "gluten", "flour", "spelt", "semolina", "durum"] },
-  { id: "soy", label: "Soy", terms: ["soy", "soya", "soybean", "soybeans", "tofu", "edamame"] },
+  {
+    id: "milk",
+    label: "Milk / dairy",
+    terms: ["milk", "dairy", "lactose", "cheese", "whey", "casein", "caseinate", "cream", "butter", "buttermilk", "ghee", "lactalbumin", "yogurt", "yoghurt", "milk solids"],
+  },
+  { id: "egg", label: "Eggs", terms: ["egg", "eggs", "egg white", "egg yolk", "albumin", "albumen", "ovalbumin", "meringue", "mayonnaise"] },
+  { id: "wheat", label: "Wheat / gluten", terms: ["wheat", "gluten", "flour", "spelt", "semolina", "durum", "farina", "bulgur", "couscous", "seitan"] },
+  { id: "soy", label: "Soy", terms: ["soy", "soya", "soybean", "soybeans", "tofu", "edamame", "soy lecithin"] },
   { id: "sesame", label: "Sesame", terms: ["sesame", "tahini"] },
   { id: "fish", label: "Fish", terms: ["fish", "salmon", "tuna", "cod", "anchovy", "anchovies", "tilapia"] },
   { id: "shellfish", label: "Shellfish", terms: ["shellfish", "shrimp", "prawn", "prawns", "crab", "lobster", "crustacean", "crustaceans"] },
@@ -57,6 +61,47 @@ export function normalizeAllergy(input: string): NormalizedAllergy | null {
   return { input, id: `custom:${slug}`, label: t.replace(/\b\w/g, (c) => c.toUpperCase()), terms, custom: true };
 }
 
+const NOT_WHAT_IT_SEEMS: [RegExp, string][] = [
+  [/sunflower(?: seed)? butter/g, "sunflower spread"],
+  [/sun ?butter/g, "sunflower spread"],
+  [/cocoa butter/g, "cocoa fat"],
+  [/shea butter/g, "shea fat"],
+  [/apple butter/g, "apple spread"],
+  [/peanut butter/g, "peanuts"],
+  [/(almond|cashew|pecan|walnut|hazelnut|pistachio) butter/g, "$1"],
+  [/coconut (milk|cream)/g, "coconut"],
+  [/(rice|oat|almond|cashew|hemp) milk/g, "$1 drink"],
+  [/soy ?milk/g, "soy drink"],
+  [/cream of tartar/g, "tartaric salt"],
+  [/(rice|corn|potato|tapioca|chickpea|coconut|sorghum|cassava|millet|quinoa|teff|banana|arrowroot) flour/g, "$1 starch"],
+  [/cornflour/g, "corn starch"],
+  [/buckwheat/g, "buck grain"],
+  [/peanut[- ]free and tree[- ]nut[- ]free/g, "peanut-free, tree-nut-free"],
+];
+
+function demask(text: string): string {
+  let t = ` ${text.toLowerCase()} `;
+  for (const [re, to] of NOT_WHAT_IT_SEEMS) t = t.replace(re, to);
+  return t;
+}
+
+/** Open Food Facts tags -> app ids. Allergens are "contains"; traces are "may contain". */
+const OFF_TAG: Record<string, string> = {
+  "en:peanuts": "peanut",
+  "en:nuts": "tree_nut",
+  "en:milk": "milk",
+  "en:eggs": "egg",
+  "en:gluten": "wheat",
+  "en:soybeans": "soy",
+  "en:sesame-seeds": "sesame",
+  "en:fish": "fish",
+  "en:crustaceans": "shellfish",
+  "en:molluscs": "shellfish",
+};
+export function offTagsToIds(tags: string[] | undefined): string[] {
+  return [...new Set((tags ?? []).map((t) => OFF_TAG[t]).filter((x): x is string => Boolean(x)))];
+}
+
 export interface ParsedLabel {
   contains: Set<string>;
   mayContain: Set<string>;
@@ -70,7 +115,7 @@ export interface ParsedLabel {
  */
 export function parseLabel(text: string): ParsedLabel {
   const out: ParsedLabel = { contains: new Set(), mayContain: new Set(), freeOf: new Set() };
-  const lower = ` ${text.toLowerCase()} `;
+  const lower = demask(text);
   // "X-free" / "free of X" first, and blank them out so they don't count as mentions.
   let rest = lower;
   for (const def of MAJOR_ALLERGENS) {
@@ -84,13 +129,13 @@ export function parseLabel(text: string): ParsedLabel {
   }
   const sentences = rest.split(/[.;]/);
   for (const s of sentences) {
-    const cross = /(may contain|traces? of|shared (?:equipment|facility|line)|processes|processed in|manufactured in|made in a facility|made on)/.test(s);
+    const cross = /(may contain|traces? of|shared (?:equipment|facility|line)|processes|processed (?:in|on)|manufactured (?:in|on)|made in a facility|made on|also handles|handles|same facility|produced in a facility|packed in a facility)/.test(s);
     const containsClause = /\bcontains?\b/.test(s) && !/may contain/.test(s);
     for (const def of MAJOR_ALLERGENS) {
       if (!def.terms.some((term) => wordRe(term).test(s))) continue;
       if (cross) out.mayContain.add(def.id);
-      else out.contains.add(def.id); // a "Contains:" clause or a bare mention both count as contains
-      void containsClause;
+      // An explicit "Contains:" clause always counts. A bare mention counts unless the label says "X-free".
+      else if (containsClause || !out.freeOf.has(def.id)) out.contains.add(def.id);
     }
   }
   for (const id of out.contains) out.mayContain.delete(id);
@@ -99,14 +144,16 @@ export function parseLabel(text: string): ParsedLabel {
 
 /** Every allergen tag a SKU carries: printed warnings, parsed label, and custom-term matches on label or product name. */
 export function skuAllergenTags(
-  sku: { name: string; label: { sourceText: string; allergenWarnings?: string[] } },
+  sku: { name: string; label: { sourceText: string; allergenWarnings?: string[] }; allergenTags?: string[]; traceTags?: string[] },
   customTerms: { id: string; terms: string[] }[] = [],
 ): Set<string> {
   const tags = new Set<string>(Array.isArray(sku.label.allergenWarnings) ? sku.label.allergenWarnings : []);
+  for (const id of offTagsToIds(sku.allergenTags)) tags.add(id);
+  for (const id of offTagsToIds(sku.traceTags)) tags.add(`${id}_cross_contact`);
   const parsed = parseLabel(sku.label.sourceText ?? "");
   for (const id of parsed.contains) tags.add(id);
   for (const id of parsed.mayContain) tags.add(`${id}_cross_contact`);
-  const hay = ` ${norm(`${sku.name} ${sku.label.sourceText ?? ""}`)} `;
+  const hay = ` ${norm(demask(`${sku.name} ${sku.label.sourceText ?? ""}`))} `;
   for (const c of customTerms) {
     const hit = c.terms.some((t) => wordRe(norm(t)).test(hay) && !new RegExp(`${escapeRe(norm(t))}[- ]free`).test(hay));
     if (hit) tags.add(c.id);
@@ -117,4 +164,20 @@ export function skuAllergenTags(
 /** The tags a hard restriction blocks: the allergen itself, plus its may-contain warning when cross-contact is on. */
 export function blockedTags(a: { id: string; crossContact: boolean }): string[] {
   return a.crossContact ? [a.id, `${a.id}_cross_contact`] : [a.id];
+}
+
+/**
+ * Two independent readings of one product disagree about an allergen this household cares about: the OFF tags
+ * say one thing and the ingredient text another. Returns the allergen ids in dispute (the item is then blocked).
+ */
+export function evidenceConflicts(
+  sku: { label: { sourceText: string }; allergenTags?: string[]; traceTags?: string[] },
+  householdAllergens: string[],
+): string[] {
+  if (!sku.allergenTags && !sku.traceTags) return [];
+  const parsed = parseLabel(sku.label.sourceText ?? "");
+  const off = new Set([...offTagsToIds(sku.allergenTags), ...offTagsToIds(sku.traceTags)]);
+  const text = new Set([...parsed.contains, ...parsed.mayContain]);
+  // Disputed: exactly one source mentions the allergen (a "free of X" statement counts as the text saying no).
+  return householdAllergens.filter((a) => !a.startsWith("custom:") && off.has(a) !== text.has(a));
 }

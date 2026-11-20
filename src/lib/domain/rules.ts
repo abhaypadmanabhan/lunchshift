@@ -1,5 +1,5 @@
 // Deterministic hard rules. The only code allowed to decide eligibility.
-import { blockedTags, skuAllergenTags } from "./allergens";
+import { blockedTags, evidenceConflicts, skuAllergenTags } from "./allergens";
 import type {
   Basket,
   BasketLine,
@@ -34,7 +34,7 @@ export function customTerms(h: Household): { id: string; terms: string[] }[] {
 
 /** Every allergen tag on this exact SKU (printed warnings + parsed label + custom-term matches). */
 export function tagsFor(h: Household, sku: Sku): Set<string> {
-  return skuAllergenTags({ name: sku.name, label: sku.label ?? { sourceText: "" } }, customTerms(h));
+  return skuAllergenTags({ name: sku.name, label: sku.label ?? { sourceText: "" }, allergenTags: sku.allergenTags, traceTags: sku.traceTags }, customTerms(h));
 }
 
 /** Exact-SKU check: label evidence, allergen warnings, stock. */
@@ -43,7 +43,13 @@ export function checkSku(h: Household, sku: Sku, packsNeeded: number): Candidate
   const restricted = hardRestrictions(h).length > 0;
   // Only an explicit "confirmed" counts as evidence. Anything else (missing, empty, unknown) blocks
   // whenever the household has any hard restriction to clear.
-  if (restricted && sku.label?.evidence === "conflicting") reasons.push("conflicting_label_evidence");
+  const disputed = restricted
+    ? evidenceConflicts(
+        { label: sku.label ?? { sourceText: "" }, allergenTags: sku.allergenTags, traceTags: sku.traceTags },
+        hardRestrictions(h).map((f) => f.allergen?.id ?? "").filter(Boolean),
+      )
+    : [];
+  if (restricted && (sku.label?.evidence === "conflicting" || disputed.length > 0)) reasons.push("conflicting_label_evidence");
   else if (restricted && sku.label?.evidence !== "confirmed") reasons.push("missing_label_evidence");
   let fact = blockingFact(h, tagsFor(h, sku));
   if (fact) reasons.push("allergen_warning");

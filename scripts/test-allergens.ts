@@ -1,7 +1,7 @@
 // npm run test:allergens - any-allergy matrix. Exit 1 on any failure.
 // The oracle below is written by hand from the fixture labels; it does not reuse the parser it checks.
 import { CATALOG, HOUSEHOLD, RECIPES } from "../src/lib/domain/fixture";
-import { normalizeAllergy, parseLabel } from "../src/lib/domain/allergens";
+import { evidenceConflicts, normalizeAllergy, parseLabel } from "../src/lib/domain/allergens";
 import { applyHouseholdUpdate, currentRunId } from "../src/lib/domain/household";
 import type { Household } from "../src/lib/domain/types";
 import { startGrocer, AGENT_TOKEN } from "../src/grocer/server";
@@ -102,6 +102,70 @@ function violates(skuId: string, allergies: { id: string; crossContact: boolean 
   return null;
 }
 
+function labelTable() {
+  console.log("\n2b. Label edge cases (table-driven)");
+  const T: [string, string[], string[]][] = [
+    ["Ingredients: sunflower seed butter, salt.", [], []],
+    ["SunButter (roasted sunflower seed), sugar.", [], []],
+    ["Dark chocolate (sugar, cocoa butter, cocoa mass).", [], []],
+    ["Coconut milk, water, guar gum.", [], []],
+    ["Rice flour, tapioca starch, salt.", [], []],
+    ["Buckwheat groats.", [], []],
+    ["Almond milk (filtered water, almonds).", ["tree_nut"], []],
+    ["Peanut butter (peanuts, salt).", ["peanut"], []],
+    ["Cream of tartar, baking soda, corn starch.", [], []],
+    ["Ghee (clarified butter).", ["milk"], []],
+    ["Contains lactalbumin.", ["milk"], []],
+    ["Egg whites, ovalbumin.", ["egg"], []],
+    ["Sugar, meringue powder.", ["egg"], []],
+    ["Enriched wheat flour, water, yeast.", ["wheat"], []],
+    ["Semolina, water.", ["wheat"], []],
+    ["Soy lecithin.", ["soy"], []],
+    ["Tahini (ground sesame).", ["sesame"], []],
+    ["Shrimp, salt.", ["shellfish"], []],
+    ["Anchovies, olive oil.", ["fish"], []],
+    ["Oats. Produced in a facility that also handles peanuts and tree nuts.", [], ["peanut", "tree_nut"]],
+    ["Made on shared equipment that processes milk and eggs.", [], ["milk", "egg"]],
+    ["Contains: wheat, soy. May contain peanuts.", ["wheat", "soy"], ["peanut"]],
+    ["May contain traces of sesame.", [], ["sesame"]],
+    ["Made in a peanut-free and tree-nut-free facility.", [], []],
+    ["Gluten-free. Contains: egg.", ["egg"], []],
+    ["Dairy-free cheese alternative (coconut oil, potato starch).", [], []],
+    ["Butternut squash, eggplant.", [], []],
+    ["Whey protein, casein.", ["milk"], []],
+    ["Contains: milk. May contain wheat.", ["milk"], ["wheat"]],
+    ["Fresh produce. No allergen statement required.", [], []],
+    ["Cashew butter, sea salt.", ["tree_nut"], []],
+    ["Oat milk (water, oats), sunflower oil.", [], []],
+  ];
+  let ok = 0;
+  for (const [text, C, M] of T) {
+    const p = parseLabel(text);
+    const c = [...p.contains].sort().join(","), m = [...p.mayContain].sort().join(",");
+    if (c === [...C].sort().join(",") && m === [...M].sort().join(",")) ok++;
+    else fail(`label ${JSON.stringify(text)}: contains [${c}] may [${m}], want [${C}] / [${M}]`);
+  }
+  console.log(`  ${ok}/${T.length} edge-case labels parsed exactly`);
+}
+
+function offConflicts() {
+  console.log("\n2c. Open Food Facts tags vs ingredient text");
+  const cases: [string, { label: { sourceText: string }; allergenTags?: string[]; traceTags?: string[] }, string[], string[]][] = [
+    ["agree (wheat, soy)", { label: { sourceText: "Wheat flour, soybean oil." }, allergenTags: ["en:gluten", "en:soybeans"] }, ["wheat", "soy"], []],
+    ["OFF trace peanut, text silent", { label: { sourceText: "Wheat flour, water." }, allergenTags: ["en:gluten"], traceTags: ["en:peanuts"] }, ["peanut"], ["peanut"]],
+    ["text milk, OFF silent", { label: { sourceText: "Wheat flour, whey." }, allergenTags: ["en:gluten"] }, ["milk"], ["milk"]],
+    ["no OFF tags: no dispute", { label: { sourceText: "Contains milk." } }, ["milk"], []],
+    ["en:nuts -> tree nut agree", { label: { sourceText: "Almonds, salt." }, allergenTags: ["en:nuts"] }, ["tree_nut"], []],
+  ];
+  let ok = 0;
+  for (const [name, sku, household, want] of cases) {
+    const got = evidenceConflicts(sku, household).sort().join(",");
+    if (got === [...want].sort().join(",")) ok++;
+    else fail(`conflict ${name}: got [${got}] want [${want}]`);
+  }
+  console.log(`  ${ok}/${cases.length} conflict checks`);
+}
+
 async function engineCase(name: string, allergies: { text: string; crossContact: boolean }[], expect: { swapsAtLeast?: number; swapsExactly?: number; escalate?: boolean }) {
   const grocer = await startGrocer({ port: 0, dbPath: ":memory:" });
   try {
@@ -160,6 +224,8 @@ async function engineCase(name: string, allergies: { text: string; crossContact:
 async function main() {
   unitNormalize();
   unitLabels();
+  labelTable();
+  offConflicts();
   console.log("\n3. Full weekly plan per allergy (rules change -> proposal -> parent approves -> one verified hold)");
   const A = (text: string, crossContact = true) => ({ text, crossContact });
   await engineCase("peanuts (cross-contact on)", [A("peanuts")], { swapsExactly: 0 });
