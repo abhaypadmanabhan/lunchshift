@@ -124,6 +124,14 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
     else if (force !== "0" && !view.household.onboarded) setScreen({ kind: "landing" });
   }, [view, demo]);
 
+  // /demo opens on step 1 (the landing) so the recording starts at the beginning of the story.
+  const demoStarted = useRef(false);
+  useEffect(() => {
+    if (!demo || demoStarted.current || !view) return;
+    demoStarted.current = true;
+    setScreen({ kind: "landing" });
+  }, [demo, view]);
+
   const go = (t: Tab) => {
     setTab(t);
     setScreen(null);
