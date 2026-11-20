@@ -31,8 +31,16 @@ function fallback(name: string): { field: Field; mark: string } {
   return { field: fields[name.length % fields.length], mark };
 }
 
-export function MealTile({ recipeId, name, className }: { recipeId: string; name: string; className?: string }) {
+export function MealTile({ recipeId, name, imageUrl, className }: { recipeId: string; name: string; imageUrl?: string; className?: string }) {
   const art = ART[recipeId] ?? fallback(name);
+  if (imageUrl) {
+    return (
+      <span aria-hidden className={cn("relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-card ring-1 ring-border", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- local Open Food Facts snapshot, already small */}
+        <img src={imageUrl} alt="" className="size-full object-contain p-1" loading="lazy" />
+      </span>
+    );
+  }
   return (
     <span aria-hidden className={cn("relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl", FIELD[art.field], className)}>
       {/* a plate seen from above: one soft ring, then the monogram */}

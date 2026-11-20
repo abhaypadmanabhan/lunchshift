@@ -190,7 +190,11 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
         <ul className="divide-y rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
           {order.lines.map((l) => (
             <li key={l.skuId} className="flex items-baseline justify-between gap-4 px-5 py-3">
-              <span className="min-w-0 text-base">
+              <span className="flex min-w-0 items-center gap-3 text-base">
+                {view.cart?.catalog.find((c) => c.skuId === l.skuId)?.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- local Open Food Facts snapshot
+                  <img src={view.cart?.catalog.find((c) => c.skuId === l.skuId)?.imageUrl} alt="" className="size-9 shrink-0 rounded-md bg-card object-contain p-0.5 ring-1 ring-border" />
+                ) : null}
                 {skuName(view, l.skuId)}
                 {l.packs > 1 ? <span className="text-muted-foreground tabular-nums"> × {l.packs}</span> : null}
               </span>

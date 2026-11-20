@@ -6,6 +6,8 @@ import { REASON_LABEL, clock, money, shortDate } from "./format";
 import { Code, recipeName, skuInfo } from "./primitives";
 
 /** Label text with the sentences that matched the blocked allergen set in the refusal colour. */
+import { labelExcerpt } from "@/components/parent/copy";
+
 function LabelQuote({ text }: { text: string }) {
   // Consecutive matching sentences merge into one highlight so it reads as one warning.
   const groups: { hit: boolean; text: string }[] = [];
@@ -82,7 +84,19 @@ export function RefusalHero({ view, onOpenEvent }: { view: RunView; onOpenEvent:
             {sku?.brand ? ` · ${sku.brand}` : ""}
             {hero.priceCents != null ? ` · ${money(hero.priceCents)}, cheapest in stock` : ""}
           </p>
-          {hero.labelText ? <LabelQuote text={hero.labelText} /> : <p className="text-muted-foreground">No label text recorded.</p>}
+          {hero.labelText ? (
+            <>
+              <LabelQuote text={labelExcerpt(hero.labelText)} />
+              {labelExcerpt(hero.labelText) !== hero.labelText ? (
+                <details className="mt-2 text-[0.9375rem] text-muted-foreground">
+                  <summary className="cursor-pointer select-none underline decoration-dotted underline-offset-4">Show full label</summary>
+                  <p className="mt-2 leading-relaxed">{hero.labelText}</p>
+                </details>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-muted-foreground">No label text recorded.</p>
+          )}
           {hero.screen ? (
             <p className="mt-3 text-[0.9375rem]">
               <span className="text-muted-foreground">Superlinked SIE classifier agrees: </span>

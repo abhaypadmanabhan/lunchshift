@@ -118,7 +118,7 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
                   : d.reasons.includes("out_of_stock")
                     ? "Out of stock"
                     : d.reasons.join(", ");
-          return { skuId: x.id, name: x.name, brand: x.brand, priceCents: x.priceCents, imageUrl: x.imageUrl, safe: d.eligible, reason };
+          return { skuId: x.id, name: x.name, brand: x.brand, priceCents: x.priceCents, imageUrl: x.imageUrl, sourceUrl: x.sourceUrl, safe: d.eligible, reason };
         }),
       };
     }

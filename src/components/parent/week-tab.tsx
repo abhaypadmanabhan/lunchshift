@@ -130,7 +130,7 @@ function LunchRow({ row, view, onWhy }: { row: PlanRow; view: RunView; onWhy: ()
   return (
     <li className={cn("flex items-center gap-4 px-4 py-3.5 transition-colors duration-[var(--dur-slow)]", changed && "bg-ok-soft/70")}>
       <span className="w-8 shrink-0 text-[0.9375rem] text-muted-foreground">{row.day}</span>
-      <MealTile recipeId={row.recipeId} name={row.recipeName} />
+      <MealTile recipeId={row.recipeId} name={row.recipeName} imageUrl={mainProductImage(view, row.recipeName)} />
       <div className="min-w-0 flex-1">
         <p className="text-[1.0625rem] font-medium leading-snug">{row.recipeName}</p>
         {changed ? (
@@ -180,9 +180,33 @@ function WhySheet({ view, proposal, row, open, onOpenChange }: { view: RunView; 
                   <ul className="mt-2 divide-y rounded-lg bg-sunken">
                     {view.refusals.map((r) => (
                       <li key={r.candidateId} className="px-4 py-3">
-                        <p className="font-medium">{refusalName(view, r)}</p>
-                        <p className="text-[0.9375rem] text-muted-foreground">Because {refusalReason(r)}.</p>
+                        {(() => {
+                          const product = view.cart?.catalog.find((c) => c.skuId === r.candidateId);
+                          return (
+                            <div className="flex items-start gap-3">
+                              {product?.imageUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element -- local Open Food Facts snapshot
+                                <img src={product.imageUrl} alt="" className="size-12 shrink-0 rounded-lg bg-card object-contain p-1 ring-1 ring-border" />
+                              ) : null}
+                              <div className="min-w-0">
+                                <p className="font-medium">{refusalName(view, r)}</p>
+                                {product?.brand ? <p className="text-[0.9375rem] text-muted-foreground">{product.brand}</p> : null}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        <p className="mt-1 text-[0.9375rem] text-muted-foreground">Because {refusalReason(r)}.</p>
                         {r.labelText ? <blockquote className="mt-2 border-l-2 border-refuse/50 pl-3 text-[0.9375rem]">“{labelExcerpt(r.labelText, 220)}”</blockquote> : null}
+                        {view.cart?.catalog.find((c) => c.skuId === r.candidateId)?.sourceUrl ? (
+                          <a
+                            href={view.cart?.catalog.find((c) => c.skuId === r.candidateId)?.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-block text-[0.9375rem] text-primary underline underline-offset-4"
+                          >
+                            Source: Open Food Facts
+                          </a>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -290,4 +314,10 @@ export function WeekTab({
       <WhySheet view={view} proposal={whyDay ? proposalFor(whyDay) : undefined} row={whyRow} open={open} onOpenChange={setOpen} />
     </div>
   );
+}
+
+/** The lunch's main real product photo: the priciest cart line used by this lunch that has an image. */
+function mainProductImage(view: RunView, recipeName: string): string | undefined {
+  const lines = (view.cart?.lines ?? []).filter((l) => l.imageUrl && l.usedBy.includes(recipeName));
+  return lines.sort((a, b) => b.unitPriceCents - a.unitPriceCents)[0]?.imageUrl;
 }

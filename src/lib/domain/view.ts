@@ -86,7 +86,7 @@ export interface CartView {
   editable: boolean; // false once a hold exists (cancel the hold to edit)
   source: "agent" | "parent_draft";
   /** Products the parent can add, each pre-checked against the child's rules. */
-  catalog: { skuId: string; name: string; brand: string; priceCents: number; imageUrl?: string; safe: boolean; reason?: string }[];
+  catalog: { skuId: string; name: string; brand: string; priceCents: number; imageUrl?: string; sourceUrl?: string; safe: boolean; reason?: string }[];
 }
 
 // ---------- Parent app API (POST, JSON) ----------
