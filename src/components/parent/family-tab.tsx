@@ -260,7 +260,7 @@ export function FamilyTab({
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </button>
 
-      <div className="sticky bottom-[4.75rem] z-10 space-y-3 rounded-lg bg-background py-2 ">
+      <div className="sticky bottom-[4.75rem] z-10 space-y-3 border-t border-border/70 bg-background pt-3 pb-4 lg:bottom-0">
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
         <AppButton className="w-full" disabled={!canSave} busy={saving} onClick={() => void save()}>
           {dirty ? "Save and re-plan this week" : "No changes to save"}

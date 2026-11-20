@@ -263,7 +263,7 @@ function ReviewBar({ view, onRefresh, onOpenOrder }: { view: RunView; onRefresh:
     return null;
   }
   return (
-    <section aria-label="Review" className="ls-enter space-y-3 rounded-lg bg-card p-4 border">
+    <section aria-label="Review" className="ls-enter space-y-3 rounded-lg bg-card p-5 border">
       {body}
       {err ? <Notice tone="alert">{err}</Notice> : null}
     </section>
@@ -406,15 +406,21 @@ export function CartTab({
   };
 
   return (
-    /* Wide main column (desktop): the list on the left, the budget and review in a sticky summary on the right. */
-    <div className="space-y-8 @2xl:grid @2xl:grid-cols-[minmax(0,1fr)_18rem] @2xl:items-start @2xl:gap-x-8 @2xl:space-y-0">
-      <div className="space-y-8 @2xl:sticky @2xl:top-[calc(var(--ls-top)+2rem)] @2xl:col-start-2 @2xl:row-start-1">
-        {live ? <ShoppingNow view={view} count={lines.length} /> : null}
-        <BudgetMeter totalCents={total} budgetCents={cart.budgetCents} />
+    /* Summary first (budget beside the review), then the full-width list, so product rows stay on one line. */
+    <div className="space-y-8">
+      <div className="space-y-4 @2xl:grid @2xl:grid-cols-2 @2xl:items-stretch @2xl:gap-4 @2xl:space-y-0 [&>*]:min-w-0">
+        {live ? (
+          <div className="@2xl:col-span-2">
+            <ShoppingNow view={view} count={lines.length} />
+          </div>
+        ) : null}
+        <div className={cn("[&>section]:flex [&>section]:h-full [&>section]:flex-col [&>section]:justify-center", live && "@2xl:col-span-2")}>
+          <BudgetMeter totalCents={total} budgetCents={cart.budgetCents} />
+        </div>
         {live ? null : <ReviewBar view={view} onRefresh={onRefresh} onOpenOrder={onOpenOrder} />}
 
         {locked && view.run?.status === "hold_verified" && !view.order ? (
-          <p className="-mt-5 px-1 text-[0.9375rem] text-muted-foreground">
+          <p className="px-1 text-[0.9375rem] text-muted-foreground @2xl:col-span-2">
             Want to change something?{" "}
             <AppButton variant="quiet" busy={busyCancel} onClick={() => void cancelHold()} className="text-[0.9375rem]">
               Cancel the hold
@@ -423,10 +429,14 @@ export function CartTab({
           </p>
         ) : null}
 
-        {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
+        {notice ? (
+          <div className="@2xl:col-span-2">
+            <Notice tone={notice.tone}>{notice.text}</Notice>
+          </div>
+        ) : null}
       </div>
 
-      <div className="space-y-8 @2xl:col-start-1 @2xl:row-start-1">
+      <div className="space-y-8">
         <section aria-labelledby="cart-title" className="space-y-3">
           <SectionTitle aside={`${lines.length} item${lines.length === 1 ? "" : "s"}`}>
             <span id="cart-title">{cart.source === "parent_draft" ? "Your cart" : "Picked by LunchShift"}</span>
@@ -434,20 +444,16 @@ export function CartTab({
           {lines.length ? (
             <ul className={cn("divide-y overflow-hidden rounded-lg bg-card border", firstPaint && "ls-stagger")}>
               {lines.map((l) => (
-                <li key={l.skuId} className={cn("px-4 py-4", arrived.has(l.skuId) && "ls-arrive-in")}>
-                  <div className="flex gap-3">
+                <li key={l.skuId} className={cn("px-5 py-3", arrived.has(l.skuId) && "ls-arrive-in")}>
+                  <div className="flex items-center gap-4">
                     <ProductTile src={l.imageUrl} name={l.name} brand={l.brand} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="min-w-0 text-base font-medium leading-snug">{l.name}</p>
-                        <p className="shrink-0 text-base font-medium tabular-nums">{money(l.lineCents)}</p>
-                      </div>
-                      <p className="text-[0.9375rem] text-muted-foreground">{l.brand}</p>
-                      {l.usedBy.length ? <p className="mt-0.5 text-[0.9375rem] leading-snug text-muted-foreground">For {l.usedBy.join(", ")}</p> : null}
+                      <p className="min-w-0 text-base font-medium leading-snug">{l.name}</p>
+                      <p className="text-[0.9375rem] leading-snug text-muted-foreground tabular-nums">
+                        {l.brand} · {money(l.unitPriceCents)} each
+                      </p>
+                      {l.usedBy.length ? <p className="text-[0.9375rem] leading-snug text-muted-foreground">For {l.usedBy.join(", ")}</p> : null}
                     </div>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between gap-3 pl-[3.75rem]">
-                    <p className="text-[0.9375rem] text-muted-foreground tabular-nums">{money(l.unitPriceCents)} each</p>
                     {locked ? (
                       l.packs > 1 ? (
                         <span className="shrink-0 text-[0.9375rem] text-muted-foreground tabular-nums">× {l.packs}</span>
@@ -455,6 +461,7 @@ export function CartTab({
                     ) : (
                       <Stepper line={l} packs={l.packs} disabled={l.skuId in overrides} onChange={(n) => void setPacks(l.skuId, Math.max(0, n))} />
                     )}
+                    <p className="w-20 shrink-0 text-right font-mono text-base tabular-nums">{money(l.lineCents)}</p>
                   </div>
                   {lineMsg[l.skuId] ? (
                     <div className="mt-3">
@@ -465,7 +472,7 @@ export function CartTab({
               ))}
               {live ? <PendingLine /> : null}
               {refused.map((r) => (
-                <li key={r.candidateId} className="flex items-center gap-3 bg-refuse-soft/60 px-4 py-3.5">
+                <li key={r.candidateId} className="flex items-center gap-4 bg-refuse-soft/60 px-5 py-3">
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-card text-refuse" aria-hidden>
                     <Ban className="size-5" />
                   </span>
