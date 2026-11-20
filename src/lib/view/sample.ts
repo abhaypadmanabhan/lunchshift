@@ -358,7 +358,13 @@ const base = (): Omit<RunView, "run" | "mode" | "plan" | "basket" | "receipt" | 
   cart: null,
   order: null,
   orders: PAST_ORDERS,
-  household: { id: HOUSEHOLD.id, childName: HOUSEHOLD.childName, facts: HOUSEHOLD.facts, mandate: HOUSEHOLD.mandate },
+  household: { id: HOUSEHOLD.id, childName: HOUSEHOLD.childName, facts: HOUSEHOLD.facts, mandate: HOUSEHOLD.mandate, onboarded: true },
+  families: [
+    { id: HOUSEHOLD.id, childName: "Maya", allergies: ["Peanuts"], active: true, onboarded: true },
+    { id: "fam-leo", childName: "Leo", allergies: ["Sesame", "Milk / dairy"], active: false, onboarded: true },
+    { id: "fam-ava", childName: "Ava", allergies: ["Wheat / gluten"], active: false, onboarded: true },
+  ],
+  week: { weekOf: "2026-11-22", label: "This Sunday · Nov 22", index: 0 },
   stockout: { skuId: "bread-harvest-ww", name: "Harvest Whole Wheat Bread" },
   refusals: REFUSALS,
   memory: MEMORY,
@@ -458,6 +464,7 @@ export function sampleRunView(state: SampleState): RunView {
       return {
         ...base(),
         household: {
+          onboarded: false,
           id: HOUSEHOLD.id,
           childName: "",
           facts: HOUSEHOLD.facts.filter((f) => f.kind !== "hard_restriction" && f.kind !== "member"),

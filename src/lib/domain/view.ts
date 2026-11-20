@@ -36,7 +36,9 @@ export interface KpiSuiteResult {
 
 export interface RunView {
   generatedAt: string;
-  household: { id: string; childName: string; facts: HouseholdFact[]; mandate: Mandate };
+  household: { id: string; childName: string; facts: HouseholdFact[]; mandate: Mandate; onboarded: boolean };
+  families: FamilySummary[];
+  week: WeekInfo;
   run: Run | null;
   mode: {
     observed: AutonomyMode;
@@ -111,3 +113,41 @@ export interface HouseholdUpdateResult {
   runId: string;
   reason?: string;
 }
+
+// ---------- Story mode: families, chat with the agent, weeks ----------
+// RunView.families / RunView.week / RunView.household.onboarded are filled by /api/state.
+export interface FamilySummary {
+  id: string; // householdId, e.g. "fam-maya"
+  childName: string;
+  allergies: string[]; // display labels, e.g. ["Peanuts"]
+  active: boolean;
+  onboarded: boolean;
+}
+
+/** A fact the agent extracted from the parent's words, shown as a chip to confirm before it is saved to memory. */
+export interface ProposedFact {
+  id: string; // stable within one reply, e.g. "allergy:peanut"
+  kind: "child" | "allergy" | "preference" | "budget" | "pickup" | "store" | "plan_change" | "cart_change";
+  label: string; // chip text, e.g. "Peanut allergy (avoid may-contain too)"
+  value: Record<string, unknown>; // structured payload, e.g. { text: "peanuts", crossContact: true }
+}
+
+// POST /api/chat          body: { message: string, mode: "onboarding" | "assistant" }
+//                         -> { ok, reply: string, facts: ProposedFact[], provider: "anthropic" | "rules" }
+//   The agent (Claude) reads the parent's words and proposes facts; nothing is saved until confirmed.
+// POST /api/chat/confirm  body: { facts: ProposedFact[] }
+//                         -> { ok, saved: { label: string; memory: "cognee" | "fallback" }[], runId?: string, reason?: string }
+//   Saves confirmed facts to the household record and Cognee memory (per household), and re-plans when rules change.
+// POST /api/family/switch body: { householdId }   -> { ok }   switch the active family (Maya / Leo / Ava / a new one)
+// POST /api/family/new    body: {}                -> { ok, householdId }   a blank family that starts with chat onboarding
+// POST /api/parent/plan   -> { ok, runId }        "Plan this week": the agent shops live (events stream into /api/state)
+// POST /api/demo/next-week -> { ok, weekOf }      advance the demo clock to next Sunday and sell out the usual bread
+export interface WeekInfo {
+  weekOf: string; // ISO date of the Sunday
+  label: string; // "This Sunday · Nov 22" / "Next Sunday · Nov 29"
+  index: number; // 0 = first week, 1 = next week
+}
+// POST /api/parent/autonomy body: { mode: "suggest_only" | "auto_swap" | "auto_swap_and_hold" } -> { ok }
+//   "How much can LunchShift do?" Saved per household (mandate.maxAutonomy, no re-plan). It is sent to Statsig as
+//   custom.autonomy_pref on every evaluation; effective = the lower of Statsig's autonomy_mode (the operator ceiling)
+//   and this setting. RunView.mode: observed = Statsig, parentMax = this setting, effective = what the agent does.

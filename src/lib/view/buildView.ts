@@ -182,7 +182,9 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
 
   return {
     generatedAt: new Date().toISOString(),
-    household: { id: household.id, childName: household.childName, facts: household.facts, mandate: household.mandate },
+    household: { id: household.id, childName: household.childName, facts: household.facts, mandate: household.mandate, onboarded: true },
+    families: [],
+    week: { weekOf: "2026-11-22", label: "This Sunday · Nov 22", index: 0 },
     run,
     mode: run
       ? {
