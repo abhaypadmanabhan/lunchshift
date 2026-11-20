@@ -57,7 +57,7 @@ export function ReceiptPanel({ view }: { view: RunView }) {
         <h2 className="text-lg font-semibold tracking-[-0.01em]">Store pickup hold</h2>
         <span className="text-sm text-muted-foreground">Sandbox grocer</span>
       </header>
-      <div key={status} className="flex flex-1 flex-col animate-in fade-in-0 slide-in-from-bottom-1 duration-300 motion-reduce:slide-in-from-bottom-0">
+      <div key={status} className="ls-enter flex flex-1 flex-col">
         {receipt && status === "hold_verified" ? (
           <>
             <div className="rounded-lg bg-ok-soft px-4 py-3.5">

@@ -163,3 +163,27 @@
     outline-offset: 2px;
   }
 }
+
+/* State changes during the demo: a short fade-and-settle when the run status changes,
+   and a 4 s background wash on audit rows that just arrived. Reduced motion keeps the fade, drops the movement. */
+@keyframes ls-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ls-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ls-arrive {
+  0%, 35% { background-color: var(--ok-soft); }
+  100% { background-color: transparent; }
+}
+@utility ls-enter {
+  animation: ls-enter var(--dur-slow) var(--ease-out) both;
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: ls-fade;
+  }
+}
+@utility ls-arrive {
+  animation: ls-arrive 4s var(--ease-out) both;
+}
