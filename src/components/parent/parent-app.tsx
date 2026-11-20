@@ -2,22 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "cn";
-import { CalendarDays, ChevronLeft, Receipt, ShoppingBasket, Users } from "lucide-react";
+import { CalendarDays, ChevronLeft, Inbox, Receipt, ShoppingBasket, Users } from "lucide-react";
 import type { Order } from "@/lib/domain/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ActivityTab } from "./activity-tab";
 import { AgentPanel } from "./agent-panel";
 import { CartTab } from "./cart-tab";
 import { timeOfDay } from "./copy";
+import { FactHistory } from "./fact-history";
 import { FamilyTab } from "./family-tab";
+import { InboxView, inboxCount } from "./inbox-view";
 import { Onboarding, onboardingSeen } from "./onboarding";
 import { OrderScreen, OrdersTab } from "./order-view";
+import { RoutinesView } from "./routines-view";
 import { AppButton } from "./ui";
 import { POLL_MS, postParent, useRunView } from "./use-run-view";
 import { WeekTab } from "./week-tab";
 
 type Tab = "week" | "cart" | "orders" | "family";
-type Screen = { kind: "order"; order: Order; from: Tab } | { kind: "activity" } | { kind: "onboarding" } | null;
+type Sub = "activity" | "routines" | "memory" | "inbox";
+type Screen = { kind: "order"; order: Order; from: Tab } | { kind: Sub; from: Tab } | { kind: "onboarding" } | null;
+const SUB_TITLE: Record<Sub, string> = { activity: "Activity", routines: "Routines", memory: "Memory", inbox: "Inbox" };
 
 const TABS: { id: Tab; label: string; Icon: typeof CalendarDays }[] = [
   { id: "week", label: "This week", Icon: CalendarDays },
@@ -100,11 +105,12 @@ export function ParentApp() {
   const openOrder = screen?.kind === "order" ? (view?.orders.find((o) => o.orderId === screen.order.orderId) ?? screen.order) : null;
   const celebrate = !!openOrder && view?.order?.orderId === openOrder.orderId && openOrder.status !== "cancelled";
 
+  const sub = screen && screen.kind !== "order" && screen.kind !== "onboarding" ? screen : null;
   const title =
     screen?.kind === "onboarding"
       ? "Welcome"
-      : screen?.kind === "activity"
-        ? "Activity"
+      : screen && screen.kind !== "order"
+        ? SUB_TITLE[screen.kind]
         : screen?.kind === "order"
           ? "Your order"
           : tab === "week"
@@ -133,9 +139,30 @@ export function ParentApp() {
             <p className="text-[0.9375rem] font-medium text-primary">LunchShift</p>
             <h1 className="mt-0.5 text-[1.875rem] font-semibold leading-tight tracking-[-0.02em]">{title}</h1>
           </div>
-          <a href={consoleHref} className="pb-1.5 text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground lg:hidden">
-            Open console
-          </a>
+          <div className="flex items-center gap-3 pb-0.5">
+            <a href={consoleHref} className="text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground lg:hidden">
+              Open console
+            </a>
+            {view && screen?.kind !== "onboarding" ? (
+              <button
+                type="button"
+                aria-label={`Inbox${inboxCount(view) ? `, ${inboxCount(view)} need you` : ""}`}
+                aria-current={screen?.kind === "inbox" ? "page" : undefined}
+                onClick={() => open({ kind: "inbox", from: screen?.kind === "inbox" ? screen.from : tab })}
+                className={cn(
+                  "relative -mr-2 inline-flex size-11 items-center justify-center rounded-lg hover:bg-secondary",
+                  screen?.kind === "inbox" ? "text-primary" : "text-foreground/80",
+                )}
+              >
+                <Inbox className="size-[1.375rem]" strokeWidth={1.8} aria-hidden />
+                {inboxCount(view) ? (
+                  <span className="absolute top-0.5 right-0 min-w-5 rounded-full bg-wait px-1.5 text-center text-[0.8125rem] font-semibold leading-5 text-primary-foreground tabular-nums">
+                    {inboxCount(view)}
+                  </span>
+                ) : null}
+              </button>
+            ) : null}
+          </div>
         </header>
 
         {failingSince && view ? (
@@ -155,16 +182,19 @@ export function ParentApp() {
             <div key={openOrder.orderId} className="ls-enter">
               <OrderScreen view={view} order={openOrder} celebrate={celebrate} onClose={() => go(screen?.kind === "order" ? screen.from : "week")} />
             </div>
-          ) : screen?.kind === "activity" ? (
-            <div className="ls-enter space-y-4">
+          ) : sub ? (
+            <div key={sub.kind} className="ls-enter space-y-4">
               <button
                 type="button"
-                onClick={() => go("week")}
+                onClick={() => go(sub.from)}
                 className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-md pr-2 text-base font-medium text-primary hover:underline"
               >
-                <ChevronLeft className="size-5" aria-hidden /> This week
+                <ChevronLeft className="size-5" aria-hidden /> {TABS.find((t) => t.id === sub.from)?.label}
               </button>
-              <ActivityTab view={view} />
+              {sub.kind === "activity" ? <ActivityTab view={view} /> : null}
+              {sub.kind === "routines" ? <RoutinesView view={view} onRefresh={refresh} /> : null}
+              {sub.kind === "memory" ? <FactHistory view={view} /> : null}
+              {sub.kind === "inbox" ? <InboxView view={view} onRefresh={refresh} /> : null}
             </div>
           ) : (
             <div key={tab} className="ls-enter">
@@ -173,12 +203,12 @@ export function ParentApp() {
                   view={view}
                   onRefresh={refresh}
                   onOpenOrder={(o) => open({ kind: "order", order: o, from: "week" })}
-                  onOpenActivity={() => open({ kind: "activity" })}
+                  onOpenActivity={() => open({ kind: "activity", from: "week" })}
                 />
               ) : null}
               {tab === "cart" ? <CartTab view={view} onRefresh={refresh} onPlan={planNow} /> : null}
               {tab === "orders" ? <OrdersTab view={view} onOpen={(o) => open({ kind: "order", order: o, from: "orders" })} /> : null}
-              {tab === "family" ? <FamilyTab view={view} onRefresh={refresh} onSetup={() => open({ kind: "onboarding" })} /> : null}
+              {tab === "family" ? <FamilyTab view={view} onRefresh={refresh} onSetup={() => open({ kind: "onboarding" })} onOpen={(kind) => open({ kind, from: "family" })} /> : null}
             </div>
           )}
         </main>
@@ -190,7 +220,7 @@ export function ParentApp() {
           >
             <ul className="grid grid-cols-4">
               {TABS.map(({ id, label, Icon }) => {
-                const active = tab === id && screen?.kind !== "activity";
+                const active = tab === id;
                 const badge = id === "week" && view?.run?.status === "proposed";
                 const count = id === "cart" ? (view?.cart?.lines.length ?? 0) : 0;
                 return (
