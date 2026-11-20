@@ -1,6 +1,6 @@
 # LunchShift status
 
-**Updated 13:12 PT. Milestone:** feature-complete on real Open Food Facts products, with the captain's polish done (console refusal shows the allergen sentence plus Show full label; OFF photos on meal tiles, cart, orders and the Why sheet with brand and a Source: Open Food Facts link). Tags: demo-safe, demo-safe-2, demo-safe-3. **Waiting on Abhay's Statsig flip** for the rehearsal (staged: auto_swap, parent-edited cart $31.55, dropped store reply armed).
+**Updated 13:17 PT. Milestone:** rehearsal passed on real products with the live Statsig flip (edited cart held, lost reply recovered, agent placed order LS-5425D4). Backup video of the unattended run: docs/proof/backup-fullauto.mp4. Next: Abhay records the narrated take (DEMO.md); before that, set Statsig back to auto_swap and press Reset demo.
 
 **Latest checks**
 - `npm run kpi`: **21/21 scenarios**. Unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept · swaps traced 100%. New: two-allergy child (peanut + sesame); full-auto pay-at-pickup order with a dropped reply (exactly 1 order); payment still 403.

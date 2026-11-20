@@ -58,3 +58,8 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - Real Open Food Facts snapshot (45 products, 42 photos, demo prices) behind `LUNCHSHIFT_CATALOG=off`, the demo default. The story holds on real labels: the usual When Pigs Fly whole wheat sells out; the cheaper Country Hearth Dakota 12-Grain is refused (OFF traces: peanuts; SIE 0.95); the Hannaford bread with no ingredient text is blocked; Monday becomes the rice-and-bean bowl ($30.36/$35).
 - Design pass merged (desktop stage with the "LunchShift at work" panel, the "Kept Maya safe" hero, short status lines). Live fixes: feed copy from real event data (sponsor credits: Cognee, SIE, SingleStore, Claude, Statsig, Store); the hero shows the allergen sentence of a real label, not the full ingredient list.
 - Suites unchanged and green (fixture): kpi 21/21, allergen matrix all pass. Secret scan PASS; history grep shows no keys.
+
+## Loop 12 · live rehearsal + backup video · 13:16 PT
+- Rehearsal on real products with Abhay's live Statsig flip: the parent-edited cart ($31.55) was held; the store reply was dropped; read-back verified H-AFFE14B2 (1 active); the agent placed order LS-5425D4 (pay at pickup). During propagation the pre-hold re-read saw `auto_swap` twice and correctly waited; the hold was placed once both reads agreed.
+- Fixes: the clicks KPI counts only clicks the order needed (approvals), not voluntary cart edits; the feed collapses flapping mode reads; the status total follows the parent's cart.
+- Backup video: `docs/proof/backup-fullauto.mp4`, 50 s, recorded by `scripts/record.mjs` (CDP screencast + ffmpeg) of the unattended run. Audit actors: worker, cognee, statsig, sie, ranker, llm, grocer; zero parent or operator events.
