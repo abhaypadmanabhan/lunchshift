@@ -67,22 +67,22 @@ export async function buildView(runId = DEMO_RUN_ID): Promise<RunView> {
     {
       name: "Cognee",
       status: memory ? (memory.provider === "cognee" ? "live" : "fallback") : process.env.COGNEE_API_KEY ? "live" : "missing",
-      detail: memory ? (memory.provider === "cognee" ? `Recalled ${memory.factIds.length} facts from the household graph` : `Fallback: ${memory.error ?? "fixture facts"}`) : "Household memory",
+      detail: memory ? (memory.provider === "cognee" ? `${memory.factIds.length} facts recalled` : "Fixture facts (Cognee unreachable)") : "Household memory",
     },
-    { name: "SingleStore", status: ss.provider === "singlestore" ? "live" : "fallback", detail: ss.detail },
+    { name: "SingleStore", status: ss.provider === "singlestore" ? "live" : "fallback", detail: ss.provider === "singlestore" ? "System of record + vector SQL" : "SQLite stand-in (SingleStore unreachable)" },
     {
       name: "Statsig",
       status: modeEv ? (modeEv.data.source === "statsig" ? "live" : "fallback") : process.env.STATSIG_SERVER_SECRET ? "live" : "missing",
       detail: modeEv
         ? modeEv.data.source === "statsig"
           ? `autonomy_mode read live (rule ${String(modeEv.data.ruleId ?? "default")})`
-          : `Defaulted to suggest_only: ${String(modeEv.data.error ?? "no config")}`
+          : "Safe default suggest_only (config not readable)"
         : "autonomy_mode dynamic config",
     },
     {
       name: "Superlinked SIE",
       status: process.env.SIE_API_KEY ? (rankProvider === "sie" ? "live" : "fallback") : "missing",
-      detail: process.env.SIE_API_KEY ? "Reranker" : `Key pending; ranking via ${rankProvider === "singlestore_vector" ? "SingleStore vector SQL" : "local vector"} fallback`,
+      detail: process.env.SIE_API_KEY ? "Reranker" : `Key pending · ${rankProvider === "singlestore_vector" ? "SingleStore vector" : "local vector"} fallback`,
     },
     {
       name: "Anthropic",
