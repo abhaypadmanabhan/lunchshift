@@ -9,7 +9,7 @@
 | Sponsor | State | Proof |
 | --- | --- | --- |
 | Cognee | **Live** | Fresh worker session recalls 5 facts. The refusal cites `fact-allergy-peanut r3`. |
-| Statsig | **Live** (11:41) | `autonomy_mode` reads `suggest_only` from Statsig (rule `default`). Every audit step is logged as `agent_step`, plus `weekly_run_metrics` and the decision events. |
+| Statsig | **Live** (11:41) | `autonomy_mode` reads `suggest_only` from Statsig (rule `default`). The UI's Autonomy panel shows "Statsig live", source Statsig · rule `default`. Every audit step is logged as `agent_step`, plus `weekly_run_metrics` and the decision events. The log_event API accepted them (the run's audit records "weekly_run_metrics sent"). Arrival in the console is not yet checked: look under Metrics → Events for `weekly_run_metrics`. |
 | Superlinked SIE | **Live** (11:41) | Task model as a tool: the DeBERTa-v3 zero-shot allergen classifier flags Value Wheat at 0.97 and the Thai sauce at 0.95 (it can only add refusals). The Qwen3-Reranker-0.6B reranks the safe lunches (rice bowl 0.989 vs 0.001). |
 | SingleStore | **Blocked** | Error class: DNS (ENOTFOUND). The host in the env doesn't resolve on public resolvers. The code accepts `singlestore://` or `mysql://`, and creates the `lunchshift` database when the URL has no db name. SQLite stands in, labelled as such. |
 | Anthropic | **Live** | Claude explains the swap, choosing among eligible lunches only. |
