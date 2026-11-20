@@ -3,7 +3,10 @@
 import { readFile } from "node:fs/promises";
 import { HOUSEHOLD, RECIPES } from "../domain/fixture";
 import { MAJOR_ALLERGENS } from "../domain/allergens";
-import type { AuditEvent, CandidateDecision, MemoryRecall, SwapProposal } from "../domain/types";
+import type { AuditEvent, CandidateDecision, MemoryRecall, Order, Sku, SwapProposal } from "../domain/types";
+import type { CartView } from "../domain/view";
+import { checkSku, hardRestrictions } from "../domain/rules";
+import { cartBasket } from "../../worker/parent";
 import type { IntegrationStatus, KpiSuiteResult, PlanRow, RunView } from "../domain/view";
 import { storeStatus } from "../store";
 import { getAutonomy } from "../autonomy";
@@ -71,11 +74,71 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
 
   const ss = await storeStatus();
   let grocerUp = true;
+  let skus: Sku[] = [];
   try {
-    await grocerClient().catalog();
+    skus = (await grocerClient().catalog()).skus;
   } catch {
     grocerUp = false;
   }
+  const skuById = new Map(skus.map((x) => [x.id, x]));
+
+  // Cart: the parent's draft, else the agent's basket for this run.
+  let cart: CartView | null = null;
+  if (run) {
+    const { basket: b, source } = await cartBasket(store, run);
+    if (b) {
+      const planNames = new Map(plan.map((p) => [p.recipeId, p.recipeName]));
+      const usedByNames = (ids: string[]) => ids.map((id) => planNames.get(id) ?? recipeName(id));
+      cart = {
+        lines: b.lines.map((l) => ({
+          skuId: l.skuId,
+          name: l.name,
+          brand: skuById.get(l.skuId)?.brand ?? "",
+          imageUrl: skuById.get(l.skuId)?.imageUrl,
+          packs: l.packs,
+          unitPriceCents: l.unitPriceCents,
+          lineCents: l.lineCents,
+          usedBy: usedByNames(l.usedBy),
+        })),
+        totalCents: b.totalCents,
+        budgetCents: household.mandate.budgetCents,
+        editable: run.status === "proposed" || run.status === "swapped_waiting",
+        source,
+        catalog: skus.map((x) => {
+          const d = checkSku(household, x, 1);
+          const fact = hardRestrictions(household).find((f) => f.id === d.factId);
+          const reason = d.eligible
+            ? undefined
+            : d.reasons.includes("allergen_warning")
+              ? `Contains ${fact?.allergen?.label.toLowerCase() ?? "a blocked allergen"}: ${household.childName}'s allergy`
+              : d.reasons.includes("missing_label_evidence")
+                ? "No allergen statement on file"
+                : d.reasons.includes("conflicting_label_evidence")
+                  ? "Allergen sources disagree"
+                  : d.reasons.includes("out_of_stock")
+                    ? "Out of stock"
+                    : d.reasons.join(", ");
+          return { skuId: x.id, name: x.name, brand: x.brand, priceCents: x.priceCents, imageUrl: x.imageUrl, safe: d.eligible, reason };
+        }),
+      };
+    }
+  }
+
+  // Orders: this run's order and the household's history (order_placed events in the app store).
+  const order = (last("order_placed")?.data.order as Order | undefined) ?? null;
+  let orders: Order[] = [];
+  try {
+    const live = new Map((await grocerClient().listOrders()).map((o) => [o.orderId, o]));
+    const runs = await store.listRuns(household.id);
+    for (const r of runs) {
+      const evs = r.id === run?.id ? events : await store.listEvents(r.id);
+      for (const e of evs) if (e.type === "order_placed") orders.push(live.get((e.data.order as Order).orderId) ?? (e.data.order as Order));
+    }
+    orders = orders.sort((a, b) => b.placedAt.localeCompare(a.placedAt));
+  } catch {
+    orders = order ? [order] : [];
+  }
+  const liveOrder = order ? (orders.find((o) => o.orderId === order.orderId) ?? order) : null;
   const rationaleProvider = proposal?.rationaleProvider;
   const rankProvider = proposal?.ranking.provider;
   const integrations: IntegrationStatus[] = [
@@ -152,9 +215,9 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
     memory,
     proposal,
     proposals,
-    cart: null,
-    order: null,
-    orders: [],
+    cart,
+    order: liveOrder,
+    orders,
     needsApproval:
       run?.status === "proposed"
         ? (([...events].reverse().find((e) => typeof e.data.approvalReason === "string")?.data.approvalReason as string | undefined) ??

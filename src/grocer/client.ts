@@ -1,5 +1,5 @@
 // The agent's only merchant capability: catalog read, hold create, hold read. No payment route exists in this client.
-import type { HoldRequest, MerchantHold, Sku } from "../lib/domain/types";
+import type { HoldRequest, MerchantHold, Order, Sku } from "../lib/domain/types";
 
 export type HoldDispatch =
   | { kind: "ok"; hold: MerchantHold; replayed: boolean }
@@ -64,6 +64,32 @@ export class GrocerClient {
     return ((await r.json()) as { hold: MerchantHold }).hold;
   }
 
+  async placeOrder(req: { operationKey: string; holdKey: string; placedBy: "agent" | "parent" }): Promise<
+    { kind: "ok"; order: Order; replayed: boolean } | { kind: "rejected"; status: number; error: string } | { kind: "lost"; error: string }
+  > {
+    try {
+      const r = await this.req("/orders", { method: "POST", body: JSON.stringify(req), headers: { "idempotency-key": req.operationKey } });
+      const b = (await r.json()) as { order?: Order; replayed?: boolean; error?: string };
+      if (r.ok && b.order) return { kind: "ok", order: b.order, replayed: Boolean(b.replayed) };
+      return { kind: "rejected", status: r.status, error: b.error ?? "unknown" };
+    } catch (e) {
+      return { kind: "lost", error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  async readOrder(operationKey: string): Promise<Order | null> {
+    const r = await this.req(`/orders/${encodeURIComponent(operationKey)}`);
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`readOrder ${r.status}`);
+    return ((await r.json()) as { order: Order }).order;
+  }
+
+  async listOrders(runId?: string): Promise<Order[]> {
+    const r = await this.req(`/orders${runId ? `?runId=${encodeURIComponent(runId)}` : ""}`);
+    if (!r.ok) throw new Error(`listOrders ${r.status}`);
+    return ((await r.json()) as { orders: Order[] }).orders;
+  }
+
   /** Release a hold by its operation key (parent cancelled the pickup). Idempotent. */
   async releaseHold(operationKey: string): Promise<MerchantHold | null> {
     const r = await this.req(`/holds/${encodeURIComponent(operationKey)}/release`, { method: "POST", body: "{}" });
@@ -110,6 +136,9 @@ export class GrocerOperator {
   }
   dropNextHoldResponse(on = true) {
     return this.post("/admin/faults", { dropNextHoldResponse: on });
+  }
+  dropNextOrderResponse() {
+    return this.post("/admin/faults", { dropNextOrderResponse: true });
   }
   async state(): Promise<{ holds: MerchantHold[]; faults: { dropNextHoldResponse: boolean } }> {
     const r = await fetch(`${this.baseUrl}/admin/state`, {

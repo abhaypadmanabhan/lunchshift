@@ -248,6 +248,7 @@ export interface AnalyticsEvent {
     | "meal_swapped"
     | "hold_verified"
     | "weekly_run_metrics"
+    | "order_placed"
     | "agent_step"; // one per audit event: the run's trace (type, actor, seq, mode)
   value?: string | number;
   metadata: Record<string, string>; // synthetic ids and numbers only. No allergy text, names, secrets.
@@ -319,6 +320,9 @@ export interface AuditEvent {
     | "hold_readback"
     | "hold_verified"
     | "hold_escalated"
+    | "order_placed"
+    | "order_response_lost"
+    | "cart_edited"
     | "metrics_computed"
     | "note";
   summary: string; // one human line

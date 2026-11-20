@@ -603,7 +603,8 @@ async function resumeWaiting(ctx: Ctx): Promise<ProcessResult> {
   const cat = await ctx.deps.grocer.catalog();
   const byId = new Map(cat.skus.map((s) => [s.id, s]));
   const finalPlan = await planAfter(ctx, proposals);
-  const basket = proposals.length ? proposals[proposals.length - 1].after : await ctx.deps.store.getBasket(ctx.run.id);
+  const draft = await ctx.deps.store.getBasket(draftKey(ctx.run.id));
+  const basket = draft ?? (proposals.length ? proposals[proposals.length - 1].after : await ctx.deps.store.getBasket(ctx.run.id));
   if (!basket) return { run: (await escalate(ctx, "no basket to resume")).run, proposal: first, proposals };
   if (ctx.run.status === "proposed") return applyAndMaybeHold(ctx, effective, basket, proposals, byId, finalPlan);
   if (effective === "auto_swap_and_hold") return { run: await dispatchHold(ctx, basket, byId, finalPlan), proposal: first, proposals };
@@ -745,6 +746,8 @@ async function reconcileHold(ctx: Ctx, reqIn?: HoldRequest, byIdIn?: Map<string,
         totalCents: hold.totalCents,
       };
       await computeKpis(ctx, held, fresh, finalPlan, active);
+      // Full autonomy (from Statsig, not a one-off parent approval): the agent also places the pay-at-pickup order.
+      if (ctx.run.effectiveMode === "auto_swap_and_hold" && !ctx.parentApproved) await placeOrderFor(ctx.deps, runId, "agent");
       return ctx.run;
     }
     if (attempt === 1) break;
@@ -841,3 +844,41 @@ export async function approveProposal(deps: WorkerDeps, runId: string): Promise<
   const run = await recordApproval(deps.store, runId);
   return processRun(deps, { runId, householdId: run.householdId, weekOf: run.weekOf, trigger: run.trigger });
 }
+
+/**
+ * Turn this run's verified hold into a pay-at-pickup order. Idempotent by key `order:<runId>`; a lost reply is
+ * resolved by reading the order back. The agent's credential can create pay-at-pickup orders, never payments.
+ */
+export async function placeOrderFor(
+  deps: Pick<WorkerDeps, "store" | "grocer" | "analytics">,
+  runId: string,
+  placedBy: "agent" | "parent",
+): Promise<{ ok: boolean; order?: import("../lib/domain/types").Order; reason?: string }> {
+  const run = await deps.store.getRun(runId);
+  if (!run || run.status !== "hold_verified" || !run.operationKey) return { ok: false, reason: "No verified store hold this week" };
+  const events = await deps.store.listEvents(runId);
+  const prior = events.find((e) => e.type === "order_placed");
+  if (prior) return { ok: true, order: prior.data.order as import("../lib/domain/types").Order };
+  const key = `order:${runId}`;
+  const actor = placedBy === "agent" ? "worker" : "parent";
+  const res = await deps.grocer.placeOrder({ operationKey: key, holdKey: run.operationKey, placedBy });
+  let order = res.kind === "ok" ? res.order : null;
+  if (res.kind === "lost") {
+    await deps.store.appendEvent({ runId, actor: "grocer", type: "order_response_lost", summary: `No reply from the store when placing the order (${res.error}); reading it back by key`, data: { operationKey: key } });
+    order = await deps.grocer.readOrder(key).catch(() => null);
+  }
+  if (res.kind === "rejected") return { ok: false, reason: `Store refused the order: ${res.error}` };
+  if (!order) return { ok: false, reason: "Order not confirmed yet; will retry with the same key" };
+  await deps.store.appendEvent({
+    runId,
+    actor,
+    type: "order_placed",
+    summary: `Order ${order.orderId} placed by ${placedBy === "agent" ? "LunchShift" : "the parent"}: pay at pickup, $${(order.totalCents / 100).toFixed(2)}, ${order.slot}`,
+    data: { order, operationKey: key },
+  });
+  await deps.analytics.log(run.householdId, [{ eventName: "order_placed", value: order.totalCents, metadata: { runId, placedBy } }]).catch(() => undefined);
+  return { ok: true, order };
+}
+
+/** Where the parent's edited cart for a run is kept (same basket table). */
+export const draftKey = (runId: string) => `${runId}#draft`;

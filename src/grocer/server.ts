@@ -7,11 +7,11 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { CATALOG, CATALOG_VERSION } from "../lib/domain/fixture";
 import { fingerprint } from "../lib/domain/rules";
-import type { HoldLine, HoldRequest, MerchantHold, Sku } from "../lib/domain/types";
+import type { HoldLine, HoldRequest, MerchantHold, Order, Sku } from "../lib/domain/types";
 
 export const AGENT_TOKEN = process.env.GROCER_AGENT_TOKEN ?? "sandbox-agent-token";
 export const OPERATOR_TOKEN = process.env.GROCER_OPERATOR_TOKEN ?? "sandbox-operator-token";
-const AGENT_SCOPES = ["catalog:read", "quote:create", "hold:create", "hold:read", "hold:cancel"];
+const AGENT_SCOPES = ["catalog:read", "quote:create", "hold:create", "hold:read", "hold:cancel", "order:create_pay_at_pickup"];
 
 export interface GrocerHandle {
   url: string;
@@ -42,6 +42,8 @@ export function openGrocerDb(path: string): DatabaseSync {
       lines TEXT NOT NULL, total_cents INTEGER NOT NULL, slot TEXT NOT NULL, expires_at TEXT NOT NULL,
       fingerprint TEXT NOT NULL, created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS faults (name TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS orders (order_id TEXT PRIMARY KEY, operation_key TEXT NOT NULL UNIQUE, hold_key TEXT NOT NULL UNIQUE,
+      run_id TEXT NOT NULL, status TEXT NOT NULL, placed_by TEXT NOT NULL, doc TEXT NOT NULL, created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS stock_events (seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, sku_id TEXT NOT NULL, stock INTEGER NOT NULL, kind TEXT NOT NULL);
   `);
   const count = (db.prepare("SELECT COUNT(*) AS n FROM products").get() as { n: number }).n;
@@ -50,7 +52,7 @@ export function openGrocerDb(path: string): DatabaseSync {
 }
 
 function seed(db: DatabaseSync) {
-  db.exec("DELETE FROM products; DELETE FROM holds; DELETE FROM faults; DELETE FROM stock_events;");
+  db.exec("DELETE FROM products; DELETE FROM holds; DELETE FROM faults; DELETE FROM stock_events; DELETE FROM orders;");
   const ins = db.prepare("INSERT INTO products (id, sku, stock, price_cents) VALUES (?, ?, ?, ?)");
   // Fixture state for the unattended full-auto proof: a SKU can start the day sold out (no stock event emitted).
   const presetOut = process.env.GROCER_PRESET_STOCKOUT;
@@ -159,6 +161,64 @@ export function slotEnd(slot: string): string | null {
   return m ? new Date(`${m[1]}T${m[2]}:00-08:00`).toISOString() : null;
 }
 
+/** Turn an active hold into a pay-at-pickup order. Idempotent by operation key; one order per hold. */
+function placeOrder(db: DatabaseSync, key: string | undefined, body: { operationKey: string; holdKey: string; placedBy?: "agent" | "parent" }): Result {
+  if (!key || key !== body.operationKey) return { status: 400, body: { error: "idempotency_key_required" } };
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const existing = db.prepare("SELECT doc, hold_key FROM orders WHERE operation_key = ?").get(key) as { doc: string; hold_key: string } | undefined;
+    if (existing) {
+      db.exec("COMMIT");
+      if (existing.hold_key !== body.holdKey) return { status: 409, body: { error: "key_reused_with_different_payload" } };
+      return { status: 200, body: { order: JSON.parse(existing.doc) as Order, replayed: true } };
+    }
+    const h = db.prepare("SELECT * FROM holds WHERE operation_key = ?").get(body.holdKey) as Record<string, unknown> | undefined;
+    if (!h || h.status !== "active") {
+      db.exec("COMMIT");
+      return { status: 422, body: { error: "no_active_hold" } };
+    }
+    const hold = rowToHold(h);
+    const dupe = db.prepare("SELECT doc FROM orders WHERE hold_key = ?").get(body.holdKey) as { doc: string } | undefined;
+    if (dupe) {
+      db.exec("COMMIT");
+      return { status: 409, body: { error: "hold_already_ordered" } };
+    }
+    const now = new Date().toISOString();
+    const order: Order = {
+      orderId: `LS-${randomUUID().slice(0, 6).toUpperCase()}`,
+      operationKey: key,
+      holdId: hold.holdId,
+      runId: hold.runId,
+      status: "placed",
+      payment: "pay_at_pickup",
+      placedBy: body.placedBy === "parent" ? "parent" : "agent",
+      lines: hold.lines,
+      totalCents: hold.totalCents,
+      slot: hold.slot,
+      placedAt: now,
+      timeline: [
+        { step: "placed", at: now, label: "Order placed · pay at pickup" },
+        { step: "held", at: hold.createdAt, label: "Items held at the store" },
+        { step: "ready", at: null, label: `Ready for pickup · ${hold.slot.replace(/^\w+ /, "")}` },
+      ],
+    };
+    db.prepare("INSERT INTO orders (order_id, operation_key, hold_key, run_id, status, placed_by, doc, created_at) VALUES (?,?,?,?,?,?,?,?)").run(
+      order.orderId, key, body.holdKey, order.runId, order.status, order.placedBy, JSON.stringify(order), now,
+    );
+    db.exec("COMMIT");
+    const drop = getFault(db, "drop_next_order_response") === "1";
+    if (drop) db.prepare("DELETE FROM faults WHERE name = 'drop_next_order_response'").run();
+    return { status: 201, body: { order, replayed: false }, dropResponse: drop };
+  } catch (e) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      /* closed */
+    }
+    throw e;
+  }
+}
+
 class HoldError extends Error {
   constructor(
     public status: number,
@@ -199,9 +259,10 @@ function handle(db: DatabaseSync, method: string, url: URL, auth: string, key: s
       return { status: 200, body: { ok: true } };
     }
     if (method === "POST" && p === "/admin/faults") {
-      const b = body as { dropNextHoldResponse?: boolean };
+      const b = body as { dropNextHoldResponse?: boolean; dropNextOrderResponse?: boolean };
       if (b.dropNextHoldResponse) db.prepare("INSERT OR REPLACE INTO faults (name, value) VALUES ('drop_next_hold_response','1')").run();
-      else db.prepare("DELETE FROM faults WHERE name = 'drop_next_hold_response'").run();
+      else if (b.dropNextHoldResponse === false) db.prepare("DELETE FROM faults WHERE name = 'drop_next_hold_response'").run();
+      if (b.dropNextOrderResponse) db.prepare("INSERT OR REPLACE INTO faults (name, value) VALUES ('drop_next_order_response','1')").run();
       return { status: 200, body: { ok: true } };
     }
     if (method === "GET" && p === "/admin/state") {
@@ -230,6 +291,19 @@ function handle(db: DatabaseSync, method: string, url: URL, auth: string, key: s
     return { status: 200, body: { events } };
   }
   if (method === "POST" && p === "/holds") return placeHold(db, key, body as HoldRequest);
+  if (method === "POST" && p === "/orders") return placeOrder(db, key, body as { operationKey: string; holdKey: string; placedBy?: "agent" | "parent" });
+  if (method === "GET" && p === "/orders") {
+    const runId = url.searchParams.get("runId");
+    const rows = (runId
+      ? db.prepare("SELECT doc FROM orders WHERE run_id = ? ORDER BY created_at DESC").all(runId)
+      : db.prepare("SELECT doc FROM orders ORDER BY created_at DESC").all()) as { doc: string }[];
+    return { status: 200, body: { orders: rows.map((r) => JSON.parse(r.doc) as Order) } };
+  }
+  if (method === "GET" && p.startsWith("/orders/")) {
+    const k = decodeURIComponent(p.slice("/orders/".length));
+    const r = db.prepare("SELECT doc FROM orders WHERE operation_key = ?").get(k) as { doc: string } | undefined;
+    return r ? { status: 200, body: { order: JSON.parse(r.doc) as Order } } : { status: 404, body: { error: "not_found" } };
+  }
   if (method === "GET" && p === "/holds") {
     const runId = url.searchParams.get("runId") ?? "";
     const rows = db.prepare("SELECT * FROM holds WHERE run_id = ? ORDER BY created_at").all(runId) as Record<string, unknown>[];
@@ -247,6 +321,13 @@ function handle(db: DatabaseSync, method: string, url: URL, auth: string, key: s
       if (r.status === "active") {
         for (const l of JSON.parse(String(r.lines)) as HoldLine[]) db.prepare("UPDATE products SET stock = stock + ? WHERE id = ?").run(l.packs, l.skuId);
         db.prepare("UPDATE holds SET status = 'released' WHERE operation_key = ?").run(k);
+        const o = db.prepare("SELECT order_id, doc FROM orders WHERE hold_key = ?").get(k) as { order_id: string; doc: string } | undefined;
+        if (o) {
+          const doc = JSON.parse(o.doc) as Order;
+          doc.status = "cancelled";
+          doc.timeline = [...doc.timeline, { step: "cancelled", at: new Date().toISOString(), label: "Cancelled by the parent" }];
+          db.prepare("UPDATE orders SET status = 'cancelled', doc = ? WHERE order_id = ?").run(JSON.stringify(doc), o.order_id);
+        }
       }
       db.exec("COMMIT");
       const after = db.prepare("SELECT * FROM holds WHERE operation_key = ?").get(k) as Record<string, unknown>;

@@ -5,7 +5,7 @@ import { DEMO_STOCKOUT_SKU, HOUSEHOLD, RECIPES } from "../src/lib/domain/fixture
 import type { AutonomyMode, Household, KpiSet, Ranker } from "../src/lib/domain/types";
 import { startGrocer, AGENT_TOKEN, OPERATOR_TOKEN } from "../src/grocer/server";
 import { GrocerClient, GrocerOperator } from "../src/grocer/client";
-import { approveProposal, allProposals, processRun, type WorkerDeps } from "../src/worker/runWeekly";
+import { approveProposal, allProposals, placeOrderFor, processRun, type WorkerDeps } from "../src/worker/runWeekly";
 import { applyHouseholdUpdate } from "../src/lib/domain/household";
 import { FixtureMemory, MemoryStore, RecordingAnalytics, StaticAutonomy, TemplateExplainer } from "../src/worker/testing";
 import { LocalVectorRanker } from "../src/lib/ranking/local";
@@ -300,6 +300,31 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
       return {
         pass: r1.run.status === "proposed" && h1 === 0 && r2.run.status === "hold_verified" && holds.length === 1 && bad.length === 0 && swaps.length === 2,
         detail: `${r1.run.status} (holds ${h1}) -> approve -> ${r2.run.status}; swaps ${swaps.join(", ")}; unsafe lines ${bad.length}`,
+        kpis: k,
+      };
+    },
+  },
+  {
+    name: "Full auto places one pay-at-pickup order; a dropped order reply still yields exactly one order",
+    auto: true,
+    fn: async () => {
+      const w = await world("auto_swap_and_hold");
+      await w.op.setStock(DEMO_STOCKOUT_SKU, 0);
+      await w.op.dropNextOrderResponse();
+      const r = await w.run();
+      const ev = await w.store.listEvents(w.runId);
+      const lost = ev.some((e) => e.type === "order_response_lost");
+      const placed = ev.filter((e) => e.type === "order_placed").length;
+      // Parent also taps "Place order" and the run is replayed: still one order at the store.
+      await placeOrderFor(w.deps, w.runId, "parent");
+      await w.run();
+      const orders = await w.client.listOrders(w.runId);
+      const pay = await w.client.tryPayment();
+      const k = (await w.store.getKpis(w.runId))!;
+      await w.grocer.close();
+      return {
+        pass: r.run.status === "hold_verified" && lost && placed === 1 && orders.length === 1 && orders[0].payment === "pay_at_pickup" && orders[0].placedBy === "agent" && pay.status === 403,
+        detail: `status ${r.run.status}, reply lost ${lost}, order events ${placed}, store orders ${orders.length} (${orders[0]?.orderId} ${orders[0]?.payment}, by ${orders[0]?.placedBy}), payment ${pay.status}`,
         kpis: k,
       };
     },
