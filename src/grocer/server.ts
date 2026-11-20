@@ -11,7 +11,7 @@ import type { HoldLine, HoldRequest, MerchantHold, Sku } from "../lib/domain/typ
 
 export const AGENT_TOKEN = process.env.GROCER_AGENT_TOKEN ?? "sandbox-agent-token";
 export const OPERATOR_TOKEN = process.env.GROCER_OPERATOR_TOKEN ?? "sandbox-operator-token";
-const AGENT_SCOPES = ["catalog:read", "quote:create", "hold:create", "hold:read"];
+const AGENT_SCOPES = ["catalog:read", "quote:create", "hold:create", "hold:read", "hold:cancel"];
 
 export interface GrocerHandle {
   url: string;
@@ -234,6 +234,27 @@ function handle(db: DatabaseSync, method: string, url: URL, auth: string, key: s
     const runId = url.searchParams.get("runId") ?? "";
     const rows = db.prepare("SELECT * FROM holds WHERE run_id = ? ORDER BY created_at").all(runId) as Record<string, unknown>[];
     return { status: 200, body: { holds: rows.map(rowToHold) } };
+  }
+  if (method === "POST" && p.startsWith("/holds/") && p.endsWith("/release")) {
+    const k = decodeURIComponent(p.slice("/holds/".length, -"/release".length));
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const r = db.prepare("SELECT * FROM holds WHERE operation_key = ?").get(k) as Record<string, unknown> | undefined;
+      if (!r) {
+        db.exec("COMMIT");
+        return { status: 404, body: { error: "not_found" } };
+      }
+      if (r.status === "active") {
+        for (const l of JSON.parse(String(r.lines)) as HoldLine[]) db.prepare("UPDATE products SET stock = stock + ? WHERE id = ?").run(l.packs, l.skuId);
+        db.prepare("UPDATE holds SET status = 'released' WHERE operation_key = ?").run(k);
+      }
+      db.exec("COMMIT");
+      const after = db.prepare("SELECT * FROM holds WHERE operation_key = ?").get(k) as Record<string, unknown>;
+      return { status: 200, body: { hold: rowToHold(after) } };
+    } catch (e) {
+      db.exec("ROLLBACK");
+      throw e;
+    }
   }
   if (method === "GET" && p.startsWith("/holds/")) {
     const k = decodeURIComponent(p.slice("/holds/".length));

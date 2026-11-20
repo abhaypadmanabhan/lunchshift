@@ -1,5 +1,7 @@
 // Live wiring: every sponsor adapter behind its interface, each with a labelled fallback.
 import { HOUSEHOLD, RECIPES } from "../lib/domain/fixture";
+import { currentRunId, WEEK_OF } from "../lib/domain/household";
+import type { AppStore } from "../lib/domain/types";
 import { getAnalytics, getAutonomy } from "../lib/autonomy";
 import { getExplainer } from "../lib/llm";
 import { getMemory } from "../lib/memory";
@@ -11,8 +13,13 @@ import { GrocerClient, GrocerOperator } from "../grocer/client";
 import type { WorkerDeps } from "./runWeekly";
 
 export const GROCER_URL = process.env.GROCER_URL ?? "http://127.0.0.1:4100";
-export const DEMO_RUN_ID = process.env.DEMO_RUN_ID ?? "run-2026-11-22";
-export const DEMO_WEEK = "2026-11-22";
+export const DEMO_WEEK = WEEK_OF;
+
+/** This week's run id for the household as it is now (a rules change starts a fresh run). */
+export async function runIdNow(store: AppStore): Promise<string> {
+  const h = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
+  return currentRunId(h);
+}
 
 export function grocerClient() {
   return new GrocerClient(GROCER_URL, AGENT_TOKEN, 4000);
@@ -21,12 +28,16 @@ export function grocerOperator() {
   return new GrocerOperator(GROCER_URL, OPERATOR_TOKEN);
 }
 
-/** Idempotent: ensures the household record and recipe library exist in the app store. */
+/** Idempotent: ensures the household record and recipe library exist. Never overwrites the parent's edits. */
+let seeded = false;
 export async function ensureSeeded() {
   const store = await getStore();
-  await store.init();
-  await store.saveHousehold(HOUSEHOLD);
-  await store.saveRecipes(RECIPES);
+  if (!seeded) {
+    await store.init();
+    if (!(await store.getHousehold(HOUSEHOLD.id))) await store.saveHousehold(HOUSEHOLD);
+    await store.saveRecipes(RECIPES);
+    seeded = true;
+  }
   return store;
 }
 

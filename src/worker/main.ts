@@ -2,7 +2,7 @@
 // events, and re-checks of waiting runs (so a live Statsig flip is observed on the next tick).
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { HOUSEHOLD, USUAL_SKU_BY_ROLE } from "../lib/domain/fixture";
-import { DEMO_RUN_ID, DEMO_WEEK, liveDeps } from "./deps";
+import { DEMO_WEEK, liveDeps, runIdNow } from "./deps";
 import { processRun } from "./runWeekly";
 
 const TICK_MS = Number(process.env.WORKER_TICK_MS ?? 3000);
@@ -39,7 +39,8 @@ async function main() {
     if (busy) return;
     busy = true;
     try {
-      const run = await deps.store.getRun(DEMO_RUN_ID);
+      const runId = await runIdNow(deps.store);
+      const run = await deps.store.getRun(runId);
       // Reset detection: the store lost the run, so restart the event cursor too.
       if (!run && state.lastStockEventSeq > 0) {
         const evs = await deps.grocer.events(0);
@@ -55,7 +56,7 @@ async function main() {
       if (!run && Date.now() >= dueAt) trigger = trigger ?? "schedule";
       if (trigger || (run && WAITING.has(run.status))) {
         const r = await processRun(deps, {
-          runId: DEMO_RUN_ID,
+          runId,
           householdId: HOUSEHOLD.id,
           weekOf: DEMO_WEEK,
           trigger: trigger ?? run?.trigger ?? "schedule",

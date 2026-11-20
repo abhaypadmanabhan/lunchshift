@@ -2,6 +2,7 @@
 // and the latest KPI suite file. Server-only.
 import { readFile } from "node:fs/promises";
 import { HOUSEHOLD, RECIPES } from "../domain/fixture";
+import { MAJOR_ALLERGENS } from "../domain/allergens";
 import type { AuditEvent, CandidateDecision, MemoryRecall, SwapProposal } from "../domain/types";
 import type { IntegrationStatus, KpiSuiteResult, PlanRow, RunView } from "../domain/view";
 import { storeStatus } from "../store";
@@ -16,7 +17,7 @@ async function liveMode(userId: string): Promise<AutonomyReading> {
   liveRead = { at: Date.now(), reading };
   return reading;
 }
-import { DEMO_RUN_ID, ensureSeeded, grocerClient } from "../../worker/deps";
+import { ensureSeeded, grocerClient, runIdNow } from "../../worker/deps";
 
 const recipeName = (id: string) => RECIPES.find((r) => r.id === id)?.name ?? id;
 
@@ -28,14 +29,16 @@ async function kpiSuite(): Promise<KpiSuiteResult | null> {
   }
 }
 
-export async function buildView(runId = DEMO_RUN_ID): Promise<RunView> {
+export async function buildView(runIdArg?: string): Promise<RunView> {
   const store = await ensureSeeded();
+  const runId = runIdArg ?? (await runIdNow(store));
   const household = (await store.getHousehold(HOUSEHOLD.id)) ?? HOUSEHOLD;
   const run = await store.getRun(runId);
   const events: AuditEvent[] = run ? await store.listEvents(runId) : [];
   const last = (type: AuditEvent["type"]) => [...events].reverse().find((e) => e.type === type);
 
-  const proposal = (last("swap_proposed")?.data.proposal as SwapProposal | undefined) ?? null;
+  const proposals = events.filter((e) => e.type === "swap_proposed").map((e) => e.data.proposal as SwapProposal);
+  const proposal = proposals[0] ?? null;
   const memEv = last("memory_recalled");
   const memory: MemoryRecall | null = memEv
     ? {
@@ -53,13 +56,14 @@ export async function buildView(runId = DEMO_RUN_ID): Promise<RunView> {
 
   const swapped = run && ["swapped_waiting", "hold_pending", "hold_verified"].includes(run.status);
   const plan: PlanRow[] = household.plan.map((p) => {
-    if (proposal && p.day === proposal.affectedDay) {
+    const sw = proposals.find((x) => x.affectedDay === p.day);
+    if (sw) {
       return {
         day: p.day,
-        recipeId: proposal.toRecipeId,
-        recipeName: recipeName(proposal.toRecipeId),
+        recipeId: sw.toRecipeId,
+        recipeName: recipeName(sw.toRecipeId),
         status: swapped ? "swapped" : "proposed_swap",
-        replacedRecipeName: recipeName(proposal.fromRecipeId),
+        replacedRecipeName: recipeName(sw.fromRecipeId),
       };
     }
     return { day: p.day, recipeId: p.recipeId, recipeName: recipeName(p.recipeId), status: "kept" };
@@ -147,9 +151,13 @@ export async function buildView(runId = DEMO_RUN_ID): Promise<RunView> {
     refusals,
     memory,
     proposal,
-    proposals: proposal ? [proposal] : [],
-    needsApproval: run?.status === "proposed" ? "LunchShift is in suggest-only mode, so it waits for you before changing the cart." : null,
-    allergens: [],
+    proposals,
+    needsApproval:
+      run?.status === "proposed"
+        ? (([...events].reverse().find((e) => typeof e.data.approvalReason === "string")?.data.approvalReason as string | undefined) ??
+          "LunchShift is in suggest-only mode, so it waits for you before changing the cart or the store.")
+        : null,
+    allergens: MAJOR_ALLERGENS.map((a) => ({ id: a.id, label: a.label, examples: a.terms.slice(0, 4) })),
     plan,
     basket: run ? ((await store.getBasket(runId)) ?? proposal?.after ?? null) : null,
     receipt: run ? await store.getReceipt(runId) : null,

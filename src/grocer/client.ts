@@ -64,6 +64,14 @@ export class GrocerClient {
     return ((await r.json()) as { hold: MerchantHold }).hold;
   }
 
+  /** Release a hold by its operation key (parent cancelled the pickup). Idempotent. */
+  async releaseHold(operationKey: string): Promise<MerchantHold | null> {
+    const r = await this.req(`/holds/${encodeURIComponent(operationKey)}/release`, { method: "POST", body: "{}" });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`releaseHold ${r.status}`);
+    return ((await r.json()) as { hold: MerchantHold }).hold;
+  }
+
   async listHolds(runId: string): Promise<MerchantHold[]> {
     const r = await this.req(`/holds?runId=${encodeURIComponent(runId)}`);
     if (!r.ok) throw new Error(`listHolds ${r.status}`);

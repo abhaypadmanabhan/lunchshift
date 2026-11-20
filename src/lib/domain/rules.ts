@@ -1,4 +1,5 @@
 // Deterministic hard rules. The only code allowed to decide eligibility.
+import { blockedTags, skuAllergenTags } from "./allergens";
 import type {
   Basket,
   BasketLine,
@@ -14,18 +15,37 @@ export function hardRestrictions(h: Household): HouseholdFact[] {
   return h.facts.filter((f) => f.kind === "hard_restriction" && f.active);
 }
 
-function blockingFact(h: Household, allergens: string[]): HouseholdFact | undefined {
-  return hardRestrictions(h).find((f) => (f.blocksAllergens ?? []).some((a) => allergens.includes(a)));
+/** Tags a fact blocks: from its normalized allergen when present, else its explicit list. */
+export function factBlocks(f: HouseholdFact): string[] {
+  return f.allergen ? blockedTags(f.allergen) : (f.blocksAllergens ?? []);
+}
+
+function blockingFact(h: Household, tags: Iterable<string>): HouseholdFact | undefined {
+  const set = new Set(tags);
+  return hardRestrictions(h).find((f) => factBlocks(f).some((a) => set.has(a)));
+}
+
+/** Custom (free-text) allergens the household declared, for name/label term matching. */
+export function customTerms(h: Household): { id: string; terms: string[] }[] {
+  return hardRestrictions(h)
+    .filter((f) => f.allergen?.id.startsWith("custom:"))
+    .map((f) => ({ id: f.allergen!.id, terms: f.allergen!.terms }));
+}
+
+/** Every allergen tag on this exact SKU (printed warnings + parsed label + custom-term matches). */
+export function tagsFor(h: Household, sku: Sku): Set<string> {
+  return skuAllergenTags({ name: sku.name, label: sku.label ?? { sourceText: "" } }, customTerms(h));
 }
 
 /** Exact-SKU check: label evidence, allergen warnings, stock. */
 export function checkSku(h: Household, sku: Sku, packsNeeded: number): CandidateDecision {
   const reasons: RejectReason[] = [];
-  let fact: HouseholdFact | undefined;
-  // Only an explicit "confirmed" counts as evidence. Anything else (missing, empty, unknown) blocks.
-  if (sku.label?.evidence === "conflicting") reasons.push("conflicting_label_evidence");
-  else if (sku.label?.evidence !== "confirmed") reasons.push("missing_label_evidence");
-  fact = blockingFact(h, Array.isArray(sku.label?.allergenWarnings) ? sku.label.allergenWarnings : []);
+  const restricted = hardRestrictions(h).length > 0;
+  // Only an explicit "confirmed" counts as evidence. Anything else (missing, empty, unknown) blocks
+  // whenever the household has any hard restriction to clear.
+  if (restricted && sku.label?.evidence === "conflicting") reasons.push("conflicting_label_evidence");
+  else if (restricted && sku.label?.evidence !== "confirmed") reasons.push("missing_label_evidence");
+  let fact = blockingFact(h, tagsFor(h, sku));
   if (fact) reasons.push("allergen_warning");
   if (sku.stock < packsNeeded) reasons.push("out_of_stock");
   // Missing evidence is never treated as "safe": cite the hard restriction it could not clear.
@@ -40,8 +60,8 @@ export function checkSku(h: Household, sku: Sku, packsNeeded: number): Candidate
     factId: fact?.id,
     factText: fact?.text,
     factRevision: fact?.revision,
-    labelVersion: sku.label.version,
-    labelText: sku.label.sourceText,
+    labelVersion: sku.label?.version,
+    labelText: sku.label?.sourceText,
     priceCents: sku.priceCents,
   };
 }

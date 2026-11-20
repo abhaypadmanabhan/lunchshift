@@ -1,10 +1,10 @@
 // npm run audit -- <runId>: replay the full decision for a run from the app store (ordered audit events).
 import { getStore, storeStatus } from "../src/lib/store";
-import { DEMO_RUN_ID } from "../src/worker/deps";
+import { runIdNow } from "../src/worker/deps";
 
 async function main() {
-  const runId = process.argv[2] ?? DEMO_RUN_ID;
   const store = await getStore();
+  const runId = process.argv[2] ?? (await runIdNow(store));
   const run = await store.getRun(runId);
   console.log(`store: ${(await storeStatus()).detail}`);
   if (!run) {

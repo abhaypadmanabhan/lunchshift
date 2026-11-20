@@ -35,7 +35,7 @@ const seeds: SkuSeed[] = [
   { id: "grapes-red", name: "Red Seedless Grapes", brand: "Orchard Co", role: "grapes", priceCents: 249, packQty: 4, unit: "portion", stock: 9,
     label: ok("grapes-red", "Fresh produce. No allergen statement required.") },
   { id: "pasta-rotini", name: "Rotini Pasta", brand: "Nonna", role: "pasta", priceCents: 129, packQty: 8, unit: "portion", stock: 15,
-    label: ok("pasta-rotini", "Contains: wheat.") },
+    label: ok("pasta-rotini", "Contains: wheat. May contain egg.") },
   { id: "tomato-cherry", name: "Cherry Tomatoes", brand: "Greenhouse", role: "tomato", priceCents: 199, packQty: 4, unit: "portion", stock: 10,
     label: ok("tomato-cherry", "Fresh produce. No allergen statement required.") },
   { id: "pita-mini", name: "Mini Pitas, 8 ct", brand: "Levant", role: "pita", priceCents: 199, packQty: 8, unit: "each", stock: 7,
@@ -52,6 +52,8 @@ const seeds: SkuSeed[] = [
     label: ok("beans-black", "No major allergens.") },
   { id: "corn-sweet", name: "Sweet Corn, 15 oz", brand: "Casa Verde", role: "corn", priceCents: 99, packQty: 3, unit: "portion", stock: 14,
     label: ok("corn-sweet", "No major allergens.") },
+  { id: "bread-gf", name: "Gluten-Free Sandwich Bread", brand: "Simple Oven", role: "gf_bread", priceCents: 449, packQty: 12, unit: "slice", stock: 6,
+    label: ok("bread-gf", "Gluten-free. Contains: egg. Made in a peanut-free facility.") },
   { id: "noodles-rice", name: "Rice Noodles", brand: "Lotus", role: "rice_noodles", priceCents: 229, packQty: 6, unit: "portion", stock: 6,
     label: ok("noodles-rice", "No major allergens.") },
   { id: "sauce-thai-peanut", name: "Thai Peanut Sauce", brand: "Lotus", role: "peanut_sauce", priceCents: 349, packQty: 6, unit: "portion", stock: 5,
@@ -86,6 +88,7 @@ export const USUAL_SKU_BY_ROLE: Record<string, string> = {
   black_beans: "beans-black",
   corn: "corn-sweet",
   rice_noodles: "noodles-rice",
+  gf_bread: "bread-gf",
   peanut_sauce: "sauce-thai-peanut",
 };
 
@@ -112,13 +115,29 @@ export const RECIPES: Recipe[] = [
   { id: "r-bean-quesadilla", name: "Bean-and-cheese quesadilla + apple", prepMinutes: 8, containsAllergens: [], tags: ["tortilla", "warm"],
     lines: [{ role: "tortilla", qty: 2 }, { role: "black_beans", qty: 1 }, { role: "cheddar", qty: 1 }, { role: "apple", qty: 1 }],
     description: "Black bean and cheddar quesadilla, apple on the side." },
+  { id: "r-turkey-rice-box", name: "Turkey and rice box + grapes", prepMinutes: 10, containsAllergens: [], tags: ["rice_box", "cold"],
+    lines: [{ role: "turkey", qty: 1 }, { role: "rice", qty: 1 }, { role: "carrot", qty: 1 }, { role: "grapes", qty: 1 }],
+    description: "Sliced turkey over jasmine rice with baby carrots, grapes on the side." },
+  { id: "r-veggie-pasta", name: "Veggie pasta + corn", prepMinutes: 12, containsAllergens: [], tags: ["pasta", "warm"],
+    lines: [{ role: "pasta", qty: 1 }, { role: "tomato", qty: 1 }, { role: "corn", qty: 1 }],
+    description: "Rotini with cherry tomatoes and sweet corn, no cheese." },
+  { id: "r-gf-sunbutter", name: "Gluten-free SunButter sandwich + apple", prepMinutes: 5, containsAllergens: [], tags: ["sandwich"],
+    lines: [{ role: "gf_bread", qty: 2 }, { role: "seed_butter", qty: 2 }, { role: "apple", qty: 1 }],
+    description: "Sunflower seed butter on gluten-free bread with apple slices." },
   { id: "r-peanut-noodles", name: "Thai peanut noodles + carrots", prepMinutes: 10, containsAllergens: ["peanut"], tags: ["noodles"],
     lines: [{ role: "rice_noodles", qty: 1 }, { role: "peanut_sauce", qty: 1 }, { role: "carrot", qty: 1 }],
     description: "Rice noodles in Thai peanut sauce with carrots." },
 ];
 
 /** Recipes that may replace a broken lunch (the planned five are not alternatives). */
-export const ALTERNATIVE_RECIPE_IDS = ["r-rice-bean-bowl", "r-bean-quesadilla", "r-peanut-noodles"];
+export const ALTERNATIVE_RECIPE_IDS = [
+  "r-rice-bean-bowl",
+  "r-bean-quesadilla",
+  "r-turkey-rice-box",
+  "r-veggie-pasta",
+  "r-gf-sunbutter",
+  "r-peanut-noodles",
+];
 
 export const HOUSEHOLD: Household = {
   id: HOUSEHOLD_ID,
@@ -136,7 +155,8 @@ export const HOUSEHOLD: Household = {
       revision: 1, confirmedBy: "parent", confirmedAt: "2026-11-01", active: true },
     { id: "fact-allergy-peanut", kind: "hard_restriction",
       text: "Maya is allergic to peanuts. Refuse any product with a peanut or peanut cross-contact warning.",
-      blocksAllergens: ["peanut", "peanut_cross_contact"], revision: 3, confirmedBy: "parent", confirmedAt: "2026-11-08", active: true },
+      blocksAllergens: ["peanut", "peanut_cross_contact"], revision: 3, confirmedBy: "parent", confirmedAt: "2026-11-08", active: true,
+      allergen: { id: "peanut", label: "Peanuts", terms: ["peanut", "peanuts"], crossContact: true } },
     { id: "fact-pref-rice", kind: "preference", text: "Maya has been asking for rice bowls.",
       revision: 1, confirmedBy: "parent", confirmedAt: "2026-11-08", active: true },
     { id: "fact-pref-variety", kind: "preference", text: "Avoid repeating the same lunch base twice in one week.",
@@ -155,6 +175,7 @@ export const HOUSEHOLD: Household = {
     expiresAt: "2026-12-31",
     revoked: false,
     approvedAt: "2026-11-08T19:12:00-08:00",
-    scopes: ["catalog:read", "quote:create", "hold:create", "hold:read"],
+    scopes: ["catalog:read", "quote:create", "hold:create", "hold:read", "hold:cancel"],
+    policyRevision: 3,
   },
 };

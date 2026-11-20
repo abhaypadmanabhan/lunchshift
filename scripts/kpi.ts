@@ -150,7 +150,7 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
       // Fake task model: says the peanut-warning bread is "peanut-free" (must NOT clear it) and flags the usual SunButter.
       w.deps.allergenScreen = {
         provider: "sie",
-        screen: async (items) =>
+        screen: async (items: { id: string; text: string }[]) =>
           new Map(
             items.map((i) => [
               i.id,

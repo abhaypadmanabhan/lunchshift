@@ -1,12 +1,14 @@
 // Demo operator actions (fixture and gate controls). Never counted as shopper clicks; each is audited as actor "operator".
 import { DEMO_STOCKOUT_SKU } from "../lib/domain/fixture";
-import { DEMO_RUN_ID, DEMO_WEEK, ensureSeeded, grocerOperator } from "./deps";
+import { HOUSEHOLD } from "../lib/domain/fixture";
+import { DEMO_WEEK, ensureSeeded, grocerOperator, runIdNow } from "./deps";
 
 export type OperatorAction = "reset" | "stockout" | "drop" | "run";
 
 export async function operatorAction(action: OperatorAction): Promise<{ ok: true; detail: string }> {
   const store = await ensureSeeded();
   const op = grocerOperator();
+  const DEMO_RUN_ID = await runIdNow(store);
   const note = async (summary: string) => {
     if (await store.getRun(DEMO_RUN_ID)) {
       await store.appendEvent({ runId: DEMO_RUN_ID, actor: "operator", type: "note", summary: `Demo operator: ${summary}`, data: { action } });
@@ -15,6 +17,7 @@ export async function operatorAction(action: OperatorAction): Promise<{ ok: true
   switch (action) {
     case "reset":
       await store.reset();
+      await store.saveHousehold(HOUSEHOLD); // back to the fixture household (peanut allergy, revision 3)
       await op.reset();
       return { ok: true, detail: "Store and app state reset to the clean fixture" };
     case "stockout":
