@@ -14,7 +14,8 @@
     "smoke:vendors": "tsx --env-file-if-exists=.env scripts/smoke-vendors.ts",
     "typecheck": "tsc --noEmit -p .",
     "demo": "tsx --env-file-if-exists=.env src/worker/operator.ts",
-    "audit": "tsx --env-file-if-exists=.env scripts/audit.ts"
+    "audit": "tsx --env-file-if-exists=.env scripts/audit.ts",
+    "stack": "node scripts/stack.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",

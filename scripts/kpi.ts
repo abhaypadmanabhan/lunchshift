@@ -132,6 +132,17 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
     },
   },
   {
+    name: "No stockout in suggest_only: waits for approval, no hold",
+    auto: false,
+    fn: async () => {
+      const w = await world("suggest_only");
+      const r = await w.run();
+      const holds = await w.client.listHolds(w.runId);
+      await w.grocer.close();
+      return { pass: r.run.status === "proposed" && holds.length === 0, detail: `status ${r.run.status}, holds ${holds.length}` };
+    },
+  },
+  {
     name: "Human sign-off: suggest_only proposal + one parent approval places one verified hold",
     auto: false,
     fn: async () => {

@@ -458,19 +458,21 @@ async function applyAndMaybeHold(
   finalPlan: Recipe[],
 ): Promise<ProcessResult> {
   const runId = ctx.run.id;
-  if (effective === "suggest_only" && proposal) {
-    // The cart stays as it was (v1); the repaired basket lives only in the proposal.
-    await ctx.deps.store.saveBasket(runId, proposal.before);
-    await save(ctx, { status: "proposed", basketVersion: proposal.before.version });
+  if (effective === "suggest_only") {
+    // Nothing changes at the store. The cart stays as it was; any repaired basket lives only in the proposal.
+    const cart = proposal ? proposal.before : basket;
+    await ctx.deps.store.saveBasket(runId, cart);
+    await save(ctx, { status: "proposed", basketVersion: cart.version });
     await ev(ctx, {
       runId,
       actor: "worker",
       type: "note",
-      summary: "suggest_only: proposal saved for the parent; cart and store untouched",
+      summary: proposal
+        ? "suggest_only: proposal saved for the parent; cart and store untouched"
+        : "suggest_only: basket ready; waiting for parent approval before any hold",
       data: { effective },
     });
-    // Measure the repaired basket the parent is asked to approve (the cart itself is untouched).
-    await computeKpis(ctx, proposal.after, byId, finalPlan, null);
+    await computeKpis(ctx, proposal ? proposal.after : basket, byId, finalPlan, null);
     return { run: ctx.run, proposal };
   }
   if (proposal) {
