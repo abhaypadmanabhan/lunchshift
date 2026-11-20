@@ -6,6 +6,7 @@ import { ChevronRight, X } from "lucide-react";
 import type { HouseholdUpdate, HouseholdUpdateResult, RunView } from "@/lib/domain/view";
 import { AutonomyControl } from "./autonomy";
 import { allergyChips, pickupWindow, type AllergyChip } from "./copy";
+import { FamilyEntries } from "./routines-view";
 import { AppButton, Notice, SectionTitle } from "./ui";
 import { postParent } from "./use-run-view";
 
@@ -42,7 +43,17 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   );
 }
 
-export function FamilyTab({ view, onRefresh, onSetup }: { view: RunView; onRefresh: () => Promise<void>; onSetup: () => void }) {
+export function FamilyTab({
+  view,
+  onRefresh,
+  onSetup,
+  onOpen,
+}: {
+  view: RunView;
+  onRefresh: () => Promise<void>;
+  onSetup: () => void;
+  onOpen?: (s: "routines" | "memory") => void;
+}) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(view));
   const [dirty, setDirty] = useState(false);
   const [entry, setEntry] = useState("");
@@ -234,6 +245,8 @@ export function FamilyTab({ view, onRefresh, onSetup }: { view: RunView; onRefre
           </p>
         </div>
       </section>
+
+      {onOpen ? <FamilyEntries view={view} onOpen={onOpen} /> : null}
 
       <button
         type="button"
