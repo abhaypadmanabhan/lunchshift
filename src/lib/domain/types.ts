@@ -36,6 +36,28 @@ export interface Sku {
   stock: number; // packs available at the store right now
   label: SkuLabel;
   catalogVersion: string;
+  /** Real-product provenance (Open Food Facts snapshot). Prices are demo prices. */
+  barcode?: string;
+  imageUrl?: string; // served from /public, e.g. "/products/<barcode>.jpg"
+  sourceUrl?: string; // OFF product page
+  allergenTags?: string[]; // raw OFF allergens_tags, e.g. ["en:gluten", "en:soybeans"]
+  traceTags?: string[]; // raw OFF traces_tags, e.g. ["en:peanuts"]
+}
+
+/** A sandbox order created from a verified hold. Pay at pickup: the agent never pays. */
+export interface Order {
+  orderId: string; // "LS-7F3A2C"
+  operationKey: string; // "order:<runId>" (idempotent)
+  holdId: string;
+  runId: string;
+  status: "placed" | "ready" | "picked_up" | "cancelled";
+  payment: "pay_at_pickup";
+  placedBy: "agent" | "parent";
+  lines: HoldLine[];
+  totalCents: number;
+  slot: string;
+  placedAt: string;
+  timeline: { step: "placed" | "held" | "ready" | "picked_up" | "cancelled"; at: string | null; label: string }[];
 }
 
 // ---------- Meals ----------

@@ -152,6 +152,9 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
     memory,
     proposal,
     proposals,
+    cart: null,
+    order: null,
+    orders: [],
     needsApproval:
       run?.status === "proposed"
         ? (([...events].reverse().find((e) => typeof e.data.approvalReason === "string")?.data.approvalReason as string | undefined) ??

@@ -9,6 +9,7 @@ import type {
   Mandate,
   MemoryRecall,
   Receipt,
+  Order,
   Run,
   SwapProposal,
 } from "./types";
@@ -56,6 +57,11 @@ export interface RunView {
   allergens: { id: string; label: string; examples: string[] }[];
   plan: PlanRow[];
   basket: Basket | null;
+  /** The parent's cart for this week: the draft the parent edits, else the agent's (proposed) basket. */
+  cart: CartView | null;
+  /** This week's order (after a verified hold) and the household's order history, newest first. */
+  order: Order | null;
+  orders: Order[];
   receipt: Receipt | null;
   kpis: KpiSet | null; // for this run
   kpiSuite: KpiSuiteResult | null; // latest `npm run kpi`
@@ -63,7 +69,29 @@ export interface RunView {
   integrations: IntegrationStatus[];
 }
 
+export interface CartLineView {
+  skuId: string;
+  name: string;
+  brand: string;
+  imageUrl?: string;
+  packs: number;
+  unitPriceCents: number;
+  lineCents: number;
+  usedBy: string[]; // lunch names that need this line
+}
+export interface CartView {
+  lines: CartLineView[];
+  totalCents: number;
+  budgetCents: number;
+  editable: boolean; // false once a hold exists (cancel the hold to edit)
+  source: "agent" | "parent_draft";
+  /** Products the parent can add, each pre-checked against the child's rules. */
+  catalog: { skuId: string; name: string; brand: string; priceCents: number; imageUrl?: string; safe: boolean; reason?: string }[];
+}
+
 // ---------- Parent app API (POST, JSON) ----------
+// POST /api/parent/cart   body: { skuId, packs }  -> { ok, reason?, cart }  (packs 0 removes; unsafe or over-budget items are refused with the reason)
+// POST /api/parent/order  -> { ok, order }        place this week's order from the verified hold (pay at pickup; idempotent)
 // POST /api/parent/household  body: HouseholdUpdate -> HouseholdUpdateResult
 //   Saves the child's allergies/budget, bumps the policy revision, re-seeds Cognee, and starts a fresh plan for the week.
 // POST /api/parent/plan        -> { ok }   "Plan my week now" (manual trigger; the worker picks it up within ~3 s)

@@ -259,6 +259,9 @@ const RECEIPT: Receipt = {
 const base = (): Omit<RunView, "run" | "mode" | "plan" | "basket" | "receipt" | "kpis" | "events" | "proposal" | "proposals" | "needsApproval"> => ({
   generatedAt: new Date().toISOString(),
   allergens: [],
+  cart: null,
+  order: null,
+  orders: [],
   household: { id: HOUSEHOLD.id, childName: HOUSEHOLD.childName, facts: HOUSEHOLD.facts, mandate: HOUSEHOLD.mandate },
   stockout: { skuId: "bread-harvest-ww", name: "Harvest Whole Wheat Bread" },
   refusals: REFUSALS,
