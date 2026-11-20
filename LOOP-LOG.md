@@ -15,3 +15,8 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - Suite: 11/11 (added parent sign-off scenario). All six green: unsafe 0 · completeness 100% · auto clicks 0 · duplicate holds 0 · budget kept · traced 100%.
 - Live run through the built UI stack (grocer :4100, worker, Next :3000): stockout event -> refusal citing Cognee fact r3 -> Claude-explained proposal -> parent approval -> store commits and drops the response -> read-back by key -> 1 verified hold, $26.97/$35.
 - Worst miss found live (not in the KPI suite): suggest_only showed the repaired cart as "unchanged". Change: suggest_only saves cart v1; repaired basket lives only in the proposal. Also labelled the parent sign-off click (expected in suggest_only) instead of "Missed".
+
+## Loop 4 · 11:42 PT
+- Suite: 13/13 (added: suggest_only with no stockout waits for approval; allergen classifier can only add refusals). All six KPIs green.
+- Worst miss found live: suggest_only with no stockout set the run to `swapped_waiting`. The new scenario was red on the old code; fixed.
+- Sponsors: SIE live as a task-model tool (zero-shot allergen classifier + reranker; fixed a latent position-based score mapping). Statsig config now readable live. SingleStore still fails DNS; URL parsing and no-db bootstrap are ready.
