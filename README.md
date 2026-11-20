@@ -71,6 +71,10 @@ Proof of an unattended full-auto run (schedule fired, verified hold 8 s later, n
 
 Base, measure, improve. A thin end-to-end slice came first, then `npm run kpi` and its scenarios. Each loop fixed the worst miss and reran the suite (`LOOP-LOG.md`). A cross-model review (Grok 4.7) found five guarantee gaps that the green suite had missed. Each finding became a scenario that failed on the old code before it was fixed.
 
+## Deploy (Railway)
+
+One service runs the whole stack (`npm run start:prod`: web app, worker and sandbox store) with a volume at `/app/.data`. Railway builds from the `deploy` branch (Railpack, `railway.json`). Set the API keys as service variables, plus `LUNCHSHIFT_CATALOG=off` (real products) and `LUNCHSHIFT_DB_NAME` (its own SingleStore database). Paid endpoints are rate limited per visitor and capped per day (`LUNCHSHIFT_PAID_DAILY_CAP`).
+
 ## Layout
 
 - `src/lib/domain`: contracts, fixture, deterministic rules (the only code that decides eligibility)
