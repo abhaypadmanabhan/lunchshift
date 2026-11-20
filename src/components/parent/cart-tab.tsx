@@ -20,7 +20,7 @@ function BudgetMeter({ totalCents, budgetCents }: { totalCents: number; budgetCe
   const left = budgetCents - totalCents;
   return (
     <section aria-label="Budget" className="rounded-xl bg-card p-5 shadow-[0_1px_0_var(--border)]">
-      <div className="flex items-baseline justify-between gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <p className="text-[2rem] font-semibold leading-none tracking-[-0.02em] tabular-nums">
           {money(Math.round(shown))}
           <span className="ml-2 text-base font-normal tracking-normal text-muted-foreground">of {money(budgetCents)}</span>
@@ -38,7 +38,10 @@ function BudgetMeter({ totalCents, budgetCents }: { totalCents: number; budgetCe
         className="mt-4 h-2 overflow-hidden rounded-full bg-foreground/10"
       >
         <div
-          className={cn("h-full rounded-full transition-[width] duration-[420ms] ease-[var(--ease-out)] motion-reduce:transition-none", over ? "bg-refuse" : "bg-primary")}
+          className={cn(
+            "h-full rounded-full transition-[width] duration-[420ms] ease-[var(--ease-out)] motion-reduce:transition-none",
+            over ? "bg-refuse" : "bg-primary",
+          )}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -51,7 +54,13 @@ function Stepper({ line, packs, disabled, onChange }: { line: CartLineView; pack
     "inline-flex size-11 items-center justify-center rounded-lg text-foreground transition-colors duration-[var(--dur-fast)] hover:bg-secondary active:bg-muted disabled:cursor-not-allowed disabled:opacity-40";
   return (
     <div className="inline-flex items-center rounded-xl border border-input/30 bg-background" role="group" aria-label={`Quantity of ${line.name}`}>
-      <button type="button" className={btn} disabled={disabled} onClick={() => onChange(packs - 1)} aria-label={packs <= 1 ? `Remove ${line.name}` : `One less ${line.name}`}>
+      <button
+        type="button"
+        className={btn}
+        disabled={disabled}
+        onClick={() => onChange(packs - 1)}
+        aria-label={packs <= 1 ? `Remove ${line.name}` : `One less ${line.name}`}
+      >
         {packs <= 1 ? <Trash2 className="size-[1.125rem]" aria-hidden /> : <Minus className="size-[1.125rem]" aria-hidden />}
       </button>
       <span className="w-7 text-center text-base font-medium tabular-nums" aria-live="polite">
@@ -127,11 +136,20 @@ function AddItemSheet({
                         </p>
                       </div>
                       {c.safe ? (
-                        <AppButton variant="secondary" className="min-w-[4.5rem]" busy={pending.has(c.skuId)} onClick={() => onAdd(c.skuId)} aria-label={`Add ${c.name}`}>
+                        <AppButton
+                          variant="secondary"
+                          className="min-w-[4.5rem]"
+                          busy={pending.has(c.skuId)}
+                          onClick={() => onAdd(c.skuId)}
+                          aria-label={`Add ${c.name}`}
+                        >
                           Add
                         </AppButton>
                       ) : (
-                        <span className="inline-flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-muted-foreground" aria-label={`${c.name} can't be added`}>
+                        <span
+                          className="inline-flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-muted-foreground"
+                          aria-label={`${c.name} can't be added`}
+                        >
                           Can&apos;t add
                         </span>
                       )}
@@ -194,7 +212,7 @@ function ReviewBar({ view, onRefresh, onOpenOrder }: { view: RunView; onRefresh:
   let body: ReactNode = null;
   if (view.order) {
     body = (
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <ShieldCheck className="size-6 shrink-0 text-primary" aria-hidden />
         <p className="min-w-0 flex-1 leading-snug">
           <span className="block text-base font-medium">Order placed</span>
@@ -205,7 +223,7 @@ function ReviewBar({ view, onRefresh, onOpenOrder }: { view: RunView; onRefresh:
     );
   } else if (status === "hold_verified") {
     body = (
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Lock className="size-5 shrink-0 text-primary" aria-hidden />
         <p className="min-w-0 flex-1 leading-snug">
           <span className="block text-base font-medium">Held automatically</span>
@@ -259,7 +277,10 @@ export function CartTab({
   const [adding, setAdding] = useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);
   const [busyCancel, setBusyCancel] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "alert"; text: string } | null>(null);
+  const [notice, setNotice] = useState<{
+    tone: "ok" | "alert";
+    text: string;
+  } | null>(null);
 
   // A fresh poll supersedes the last POST reply.
   useEffect(() => setReplyCart(null), [view.generatedAt]);
@@ -307,7 +328,10 @@ export function CartTab({
   const setPacks = async (skuId: string, packs: number) => {
     setOverrides((o) => ({ ...o, [skuId]: packs }));
     setLineMsg((m) => ({ ...m, [skuId]: "" }));
-    const res = await postParent<CartReply>("/api/parent/cart", { skuId, packs });
+    const res = await postParent<CartReply>("/api/parent/cart", {
+      skuId,
+      packs,
+    });
     setOverrides((o) => {
       const next = { ...o };
       delete next[skuId];
@@ -324,7 +348,10 @@ export function CartTab({
   const add = async (skuId: string) => {
     setAdding((s) => new Set(s).add(skuId));
     setAddRefusals((r) => ({ ...r, [skuId]: "" }));
-    const res = await postParent<CartReply>("/api/parent/cart", { skuId, packs: 1 });
+    const res = await postParent<CartReply>("/api/parent/cart", {
+      skuId,
+      packs: 1,
+    });
     setAdding((s) => {
       const n = new Set(s);
       n.delete(skuId);
@@ -337,7 +364,10 @@ export function CartTab({
     if (res.data.cart) setReplyCart(res.data.cart);
     setSheetOpen(false);
     const name = cart.catalog.find((c) => c.skuId === skuId)?.name ?? "Item";
-    setNotice({ tone: "ok", text: `${name} added. LunchShift checked the label first.` });
+    setNotice({
+      tone: "ok",
+      text: `${name} added. LunchShift checked the label first.`,
+    });
     await onRefresh();
   };
 
@@ -345,84 +375,104 @@ export function CartTab({
     setBusyCancel(true);
     const res = await postParent("/api/parent/cancel-hold");
     setBusyCancel(false);
-    setNotice(res.ok ? { tone: "ok", text: "Hold released. You can edit the cart now; nothing was paid." } : { tone: "alert", text: res.message });
+    setNotice(
+      res.ok
+        ? {
+            tone: "ok",
+            text: "Hold released. You can edit the cart now; nothing was paid.",
+          }
+        : { tone: "alert", text: res.message },
+    );
     if (res.ok) await onRefresh();
   };
 
   return (
-    <div className="space-y-8">
-      {live ? <ShoppingNow view={view} count={lines.length} /> : null}
-      <BudgetMeter totalCents={total} budgetCents={cart.budgetCents} />
-      {live ? null : <ReviewBar view={view} onRefresh={onRefresh} onOpenOrder={onOpenOrder} />}
+    /* Wide main column (desktop): the list on the left, the budget and review in a sticky summary on the right. */
+    <div className="space-y-8 @2xl:grid @2xl:grid-cols-[minmax(0,1fr)_18rem] @2xl:items-start @2xl:gap-x-8 @2xl:space-y-0">
+      <div className="space-y-8 @2xl:sticky @2xl:top-[calc(var(--ls-top)+2rem)] @2xl:col-start-2 @2xl:row-start-1">
+        {live ? <ShoppingNow view={view} count={lines.length} /> : null}
+        <BudgetMeter totalCents={total} budgetCents={cart.budgetCents} />
+        {live ? null : <ReviewBar view={view} onRefresh={onRefresh} onOpenOrder={onOpenOrder} />}
 
-      {locked && view.run?.status === "hold_verified" && !view.order ? (
-        <p className="-mt-5 px-1 text-[0.9375rem] text-muted-foreground">
-          Want to change something?{" "}
-          <AppButton variant="quiet" busy={busyCancel} onClick={() => void cancelHold()} className="text-[0.9375rem]">
-            Cancel the hold
-          </AppButton>{" "}
-          to edit.
-        </p>
-      ) : null}
+        {locked && view.run?.status === "hold_verified" && !view.order ? (
+          <p className="-mt-5 px-1 text-[0.9375rem] text-muted-foreground">
+            Want to change something?{" "}
+            <AppButton variant="quiet" busy={busyCancel} onClick={() => void cancelHold()} className="text-[0.9375rem]">
+              Cancel the hold
+            </AppButton>{" "}
+            to edit.
+          </p>
+        ) : null}
 
-      {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
+        {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
+      </div>
 
-      <section aria-labelledby="cart-title" className="space-y-3">
-        <SectionTitle aside={`${lines.length} item${lines.length === 1 ? "" : "s"}`}>
-          <span id="cart-title">{cart.source === "parent_draft" ? "Your cart" : "Picked by LunchShift"}</span>
-        </SectionTitle>
-        {lines.length ? (
-          <ul className={cn("divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]", firstPaint && "ls-stagger")}>
-            {lines.map((l) => (
-              <li key={l.skuId} className={cn("px-4 py-4", arrived.has(l.skuId) && "ls-arrive-in")}>
-                <div className="flex gap-3">
-                  <ProductTile src={l.imageUrl} name={l.name} brand={l.brand} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="min-w-0 text-base font-medium leading-snug">{l.name}</p>
-                      <p className="shrink-0 text-base font-medium tabular-nums">{money(l.lineCents)}</p>
+      <div className="space-y-8 @2xl:col-start-1 @2xl:row-start-1">
+        <section aria-labelledby="cart-title" className="space-y-3">
+          <SectionTitle aside={`${lines.length} item${lines.length === 1 ? "" : "s"}`}>
+            <span id="cart-title">{cart.source === "parent_draft" ? "Your cart" : "Picked by LunchShift"}</span>
+          </SectionTitle>
+          {lines.length ? (
+            <ul className={cn("divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]", firstPaint && "ls-stagger")}>
+              {lines.map((l) => (
+                <li key={l.skuId} className={cn("px-4 py-4", arrived.has(l.skuId) && "ls-arrive-in")}>
+                  <div className="flex gap-3">
+                    <ProductTile src={l.imageUrl} name={l.name} brand={l.brand} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="min-w-0 text-base font-medium leading-snug">{l.name}</p>
+                        <p className="shrink-0 text-base font-medium tabular-nums">{money(l.lineCents)}</p>
+                      </div>
+                      <p className="text-[0.9375rem] text-muted-foreground">{l.brand}</p>
+                      {l.usedBy.length ? <p className="mt-0.5 text-[0.9375rem] leading-snug text-muted-foreground">For {l.usedBy.join(", ")}</p> : null}
                     </div>
-                    <p className="text-[0.9375rem] text-muted-foreground">{l.brand}</p>
-                    {l.usedBy.length ? <p className="mt-0.5 text-[0.9375rem] leading-snug text-muted-foreground">For {l.usedBy.join(", ")}</p> : null}
                   </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3 pl-[4.75rem]">
-                  <p className="text-[0.9375rem] text-muted-foreground tabular-nums">{money(l.unitPriceCents)} each</p>
-                  {locked ? (
-                    l.packs > 1 ? <span className="shrink-0 text-[0.9375rem] text-muted-foreground tabular-nums">× {l.packs}</span> : null
-                  ) : (
-                    <Stepper line={l} packs={l.packs} disabled={l.skuId in overrides} onChange={(n) => void setPacks(l.skuId, Math.max(0, n))} />
-                  )}
-                </div>
-                {lineMsg[l.skuId] ? (
-                  <div className="mt-3">
-                    <Notice tone="alert">{lineMsg[l.skuId]}</Notice>
+                  <div className="mt-2 flex items-center justify-between gap-3 pl-[4.75rem]">
+                    <p className="text-[0.9375rem] text-muted-foreground tabular-nums">{money(l.unitPriceCents)} each</p>
+                    {locked ? (
+                      l.packs > 1 ? (
+                        <span className="shrink-0 text-[0.9375rem] text-muted-foreground tabular-nums">× {l.packs}</span>
+                      ) : null
+                    ) : (
+                      <Stepper line={l} packs={l.packs} disabled={l.skuId in overrides} onChange={(n) => void setPacks(l.skuId, Math.max(0, n))} />
+                    )}
                   </div>
-                ) : null}
-              </li>
-            ))}
-            {refused.map((r) => (
-              <li key={r.candidateId} className="flex items-center gap-3 bg-refuse-soft/60 px-4 py-3.5">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-card text-refuse" aria-hidden>
-                  <Ban className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-medium leading-snug text-foreground/80 line-through decoration-refuse/50">{refusalName(view, r)}</p>
-                  <p className="text-[0.9375rem] text-refuse">Refused · {cart.catalog.find((c) => c.skuId === r.candidateId)?.reason?.split(":")[0].toLowerCase() ?? refusalReason(r)}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyCard title="Your cart is empty" body="Add what the week's lunches need. LunchShift checks every label against your child's allergies." />
-        )}
-      </section>
+                  {lineMsg[l.skuId] ? (
+                    <div className="mt-3">
+                      <Notice tone="alert">{lineMsg[l.skuId]}</Notice>
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+              {refused.map((r) => (
+                <li key={r.candidateId} className="flex items-center gap-3 bg-refuse-soft/60 px-4 py-3.5">
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-card text-refuse" aria-hidden>
+                    <Ban className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-medium leading-snug text-foreground/80 line-through decoration-refuse/50">{refusalName(view, r)}</p>
+                    <p className="text-[0.9375rem] text-refuse">
+                      Refused ·{" "}
+                      {cart.catalog
+                        .find((c) => c.skuId === r.candidateId)
+                        ?.reason?.split(":")[0]
+                        .toLowerCase() ?? refusalReason(r)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyCard title="Your cart is empty" body="Add what the week's lunches need. LunchShift checks every label against your child's allergies." />
+          )}
+        </section>
 
-      {locked ? null : (
-        <AppButton variant="secondary" className="w-full" onClick={() => setSheetOpen(true)}>
-          <Plus className="size-[1.125rem]" aria-hidden /> Add item
-        </AppButton>
-      )}
+        {locked ? null : (
+          <AppButton variant="secondary" className="w-full" onClick={() => setSheetOpen(true)}>
+            <Plus className="size-[1.125rem]" aria-hidden /> Add item
+          </AppButton>
+        )}
+      </div>
 
       <AddItemSheet cart={cart} open={sheetOpen} onOpenChange={setSheetOpen} onAdd={(id) => void add(id)} pending={adding} refusals={addRefusals} />
     </div>

@@ -35,20 +35,39 @@ async function confirmFacts(facts: ProposedFact[], sample: boolean): Promise<Act
 const memoryName = (m: Saved[number]["memory"]) => (m === "cognee" ? "Cognee" : "local memory (Cognee offline)");
 
 /** One chip per fact the agent heard. Tap to confirm or un-confirm; the cross drops it. */
-export function FactChips({ facts, on, onToggle, onRemove }: { facts: ProposedFact[]; on: Set<string>; onToggle: (id: string) => void; onRemove: (id: string) => void }) {
+export function FactChips({
+  facts,
+  on,
+  onToggle,
+  onRemove,
+}: {
+  facts: ProposedFact[];
+  on: Set<string>;
+  onToggle: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
   return (
     <ul className="ls-stagger flex flex-wrap gap-2" aria-label="What LunchShift heard">
       {facts.map((f) => {
         const kept = on.has(f.id);
         return (
-          <li key={f.id} className={cn("inline-flex min-h-11 items-center rounded-full border pl-1 transition-colors duration-[var(--dur-fast)]", kept ? "border-primary/40 bg-ok-soft" : "border-input/30 bg-card")}>
+          <li
+            key={f.id}
+            className={cn(
+              "inline-flex min-h-11 items-center rounded-full border pl-1 transition-colors duration-[var(--dur-fast)]",
+              kept ? "border-primary/40 bg-ok-soft" : "border-input/30 bg-card",
+            )}
+          >
             <button
               type="button"
               aria-pressed={kept}
               onClick={() => onToggle(f.id)}
               className="inline-flex min-h-11 items-center gap-2 rounded-full pr-1 pl-2 text-left text-base leading-snug"
             >
-              <span className={cn("flex size-5 items-center justify-center rounded-full", kept ? "bg-primary text-primary-foreground" : "border border-input/60")} aria-hidden>
+              <span
+                className={cn("flex size-5 items-center justify-center rounded-full", kept ? "bg-primary text-primary-foreground" : "border border-input/60")}
+                aria-hidden
+              >
                 {kept ? <Check className="size-3.5" strokeWidth={3} /> : null}
               </span>
               <span className={cn(!kept && "text-muted-foreground")}>{f.label}</span>
@@ -112,7 +131,10 @@ function Composer({
     if (value.trim() && !busy) onSubmit();
   };
   return (
-    <form onSubmit={submit} className="flex items-end gap-2 rounded-[1.5rem] border border-input/40 bg-card p-1.5 pl-4 shadow-[0_1px_2px_oklch(0.27_0.015_60/0.06)] focus-within:border-ring">
+    <form
+      onSubmit={submit}
+      className="flex items-end gap-2 rounded-[1.5rem] border border-input/40 bg-card p-1.5 pl-4 shadow-[0_1px_2px_oklch(0.27_0.015_60/0.06)] focus-within:border-ring"
+    >
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
@@ -145,7 +167,12 @@ function Typing() {
     <p className="ls-enter flex items-center gap-1.5 py-2 text-base text-muted-foreground" role="status">
       <span className="sr-only">LunchShift is reading…</span>
       {[0, 1, 2].map((i) => (
-        <span key={i} className="size-1.5 animate-pulse rounded-full bg-muted-foreground motion-reduce:animate-none" style={{ animationDelay: `${i * 160}ms` }} aria-hidden />
+        <span
+          key={i}
+          className="size-1.5 animate-pulse rounded-full bg-muted-foreground motion-reduce:animate-none"
+          style={{ animationDelay: `${i * 160}ms` }}
+          aria-hidden
+        />
       ))}
     </p>
   );
@@ -175,7 +202,10 @@ export function ChatSetup({
   onRefresh: () => Promise<void>;
 }) {
   const [turns, setTurns] = useState<Turn[]>([
-    { from: "agent", text: "Hi, I'm LunchShift. Tell me about your kid: name, age, allergies, anything they won't eat, your weekly budget and pickup day." },
+    {
+      from: "agent",
+      text: "Hi, I'm LunchShift. Tell me about your kid: name, age, allergies, anything they won't eat, your weekly budget and pickup day.",
+    },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState<"send" | "save" | null>(null);
@@ -221,7 +251,13 @@ export function ChatSetup({
       return;
     }
     setSaved(res.data.saved);
-    setTurns((t) => [...t, { from: "agent", text: "Saved. I'll check every label against these, every week." }]);
+    setTurns((t) => [
+      ...t,
+      {
+        from: "agent",
+        text: "Saved. I'll check every label against these, every week.",
+      },
+    ]);
     await onRefresh();
   };
 
@@ -245,7 +281,11 @@ export function ChatSetup({
     <div className="flex min-h-[calc(100dvh-14rem)] flex-col">
       <div className="flex items-center justify-between gap-4 px-1">
         <span className="text-[0.9375rem] text-muted-foreground">Say it your way. Nothing is saved until you confirm.</span>
-        <button type="button" onClick={onUseForm} className="inline-flex min-h-11 shrink-0 items-center rounded-md px-1 text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground">
+        <button
+          type="button"
+          onClick={onUseForm}
+          className="inline-flex min-h-11 shrink-0 items-center rounded-md px-1 text-[0.9375rem] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
+        >
           Use a form instead
         </button>
       </div>
@@ -309,7 +349,18 @@ export function ChatSetup({
 }
 
 /** "Ask LunchShift…": a persistent composer on This week and Cart. Replies and fact chips open above it. */
-export function AskBar({ sample, onRefresh }: { sample: boolean; onRefresh: () => Promise<void> }) {
+/** `docked`: lives at the foot of the desktop right rail instead of floating above the bottom tabs. */
+export function AskBar({
+  sample,
+  onRefresh,
+  docked = false,
+  className,
+}: {
+  sample: boolean;
+  onRefresh: () => Promise<void>;
+  docked?: boolean;
+  className?: string;
+}) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState<"send" | "save" | null>(null);
   const [asked, setAsked] = useState<string | null>(null);
@@ -345,7 +396,10 @@ export function AskBar({ sample, onRefresh }: { sample: boolean; onRefresh: () =
   const save = async () => {
     if (!reply) return;
     setBusy("save");
-    const res = await confirmFacts(reply.facts.filter((f) => on.has(f.id)), sample);
+    const res = await confirmFacts(
+      reply.facts.filter((f) => on.has(f.id)),
+      sample,
+    );
     setBusy(null);
     if (!res.ok) {
       setErr(res.message);
@@ -357,10 +411,30 @@ export function AskBar({ sample, onRefresh }: { sample: boolean; onRefresh: () =
 
   const open = asked !== null;
   return (
-    <div className="sticky bottom-[4.1rem] z-10 -mx-1 mt-8 space-y-2 bg-gradient-to-t from-background via-background/95 to-transparent px-1 pt-4 pb-3">
+    <div
+      className={cn(
+        docked
+          ? "flex min-h-0 flex-col gap-2"
+          : "sticky bottom-[4.1rem] z-10 -mx-1 mt-8 space-y-2 bg-gradient-to-t from-background via-background/95 to-transparent px-1 pt-4 pb-3",
+        className,
+      )}
+    >
       {open ? (
-        <section className="ls-enter relative space-y-3 rounded-2xl bg-card p-4 pr-12 shadow-[0_1px_2px_oklch(0.27_0.015_60/0.06),0_12px_32px_-12px_oklch(0.27_0.015_60/0.22)]" aria-label="LunchShift's reply">
-          <button type="button" onClick={close} aria-label="Close" className="absolute top-1.5 right-1.5 inline-flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground">
+        <section
+          className={cn(
+            "ls-enter relative space-y-3 rounded-2xl bg-card p-4 pr-12",
+            docked
+              ? "min-h-0 overflow-y-auto overscroll-contain shadow-[0_1px_0_var(--border)] [scrollbar-width:thin]"
+              : "shadow-[0_1px_2px_oklch(0.27_0.015_60/0.06),0_12px_32px_-12px_oklch(0.27_0.015_60/0.22)]",
+          )}
+          aria-label="LunchShift's reply"
+        >
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Close"
+            className="absolute top-1.5 right-1.5 inline-flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+          >
             <X className="size-4" aria-hidden />
           </button>
           <p className="text-[0.9375rem] text-muted-foreground">“{asked}”</p>
@@ -385,6 +459,11 @@ export function AskBar({ sample, onRefresh }: { sample: boolean; onRefresh: () =
           {saved ? <SavedSteps saved={saved} /> : null}
           {err ? <Notice tone="alert">{err}</Notice> : null}
         </section>
+      ) : null}
+      {docked && !open ? (
+        <p className="px-1 text-[0.9375rem] leading-snug text-muted-foreground">
+          Tell it something new, like a food your child stopped eating. You confirm before it remembers.
+        </p>
       ) : null}
       <Composer value={input} onChange={setInput} onSubmit={() => void send()} busy={busy !== null} label="Ask LunchShift" placeholder="Ask LunchShift…" />
     </div>

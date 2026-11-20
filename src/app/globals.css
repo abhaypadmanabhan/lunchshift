@@ -58,8 +58,6 @@
   --color-meal-tomato-ink: var(--meal-tomato-ink);
   --color-meal-bean: var(--meal-bean);
   --color-meal-bean-ink: var(--meal-bean-ink);
-  /* Desktop stage: the phone app plus the "LunchShift at work" panel. */
-  --breakpoint-stage: 75rem;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
