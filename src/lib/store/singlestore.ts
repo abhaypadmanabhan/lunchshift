@@ -31,7 +31,13 @@ export function parseConnUrl(url: string, fallbackDb?: string): Conn {
   };
 }
 
+/** LUNCHSHIFT_DB_NAME keeps each deployment in its own database (e.g. the public demo vs a laptop). */
 export function readConn(env: NodeJS.ProcessEnv): Conn {
+  const c = readConnBase(env);
+  return env.LUNCHSHIFT_DB_NAME ? { ...c, database: env.LUNCHSHIFT_DB_NAME.replace(/[^A-Za-z0-9_]/g, "") } : c;
+}
+
+function readConnBase(env: NodeJS.ProcessEnv): Conn {
   if (env.SINGLESTORE_URL) return parseConnUrl(env.SINGLESTORE_URL, env.SINGLESTORE_DATABASE);
   // Tolerate a full connection URL pasted into SINGLESTORE_DATABASE.
   if (looksLikeUrl(env.SINGLESTORE_DATABASE)) return parseConnUrl(env.SINGLESTORE_DATABASE);
@@ -87,9 +93,15 @@ export class SingleStoreStore extends BaseStore {
     this.conn = readConn(env);
   }
 
-  private make(ca?: string): Pool {
+  /** The database we create and use when the connection names none (or LUNCHSHIFT_DB_NAME asks for its own). */
+  private dbToCreate(): string {
+    return this.conn.database ?? DEFAULT_DB;
+  }
+
+  private make(ca?: string, withoutDb = false): Pool {
     return mysql.createPool({
       ...this.conn,
+      database: withoutDb ? undefined : this.conn.database,
       ssl: { rejectUnauthorized: true, ...(ca ? { ca } : {}) },
       connectTimeout: 5000,
       connectionLimit: 4,
@@ -101,20 +113,21 @@ export class SingleStoreStore extends BaseStore {
   /** Connected pool, shared with the SingleStore vector ranker. */
   async getPool(): Promise<Pool> {
     if (this.pool) return this.pool;
-    if (!this.conn.database) {
-      // No database in the connection string: create ours, then use it.
-      const boot = this.make();
+    if (!this.conn.database || process.env.LUNCHSHIFT_DB_NAME) {
+      // No database named (or a deployment-specific one): create it if missing, then use it.
+      const target = this.dbToCreate();
+      const boot = this.make(undefined, true);
       try {
-        await boot.query(`CREATE DATABASE IF NOT EXISTS ${DEFAULT_DB}`);
+        await boot.query(`CREATE DATABASE IF NOT EXISTS ${target}`);
       } catch (e) {
         if (!isCertError(e)) throw e;
         await boot.end().catch(() => undefined);
-        const boot2 = this.make(await ensureCaBundle());
-        await boot2.query(`CREATE DATABASE IF NOT EXISTS ${DEFAULT_DB}`).finally(() => boot2.end().catch(() => undefined));
+        const boot2 = this.make(await ensureCaBundle(), true);
+        await boot2.query(`CREATE DATABASE IF NOT EXISTS ${target}`).finally(() => boot2.end().catch(() => undefined));
       } finally {
         await boot.end().catch(() => undefined);
       }
-      this.conn = { ...this.conn, database: DEFAULT_DB };
+      this.conn = { ...this.conn, database: target };
     }
     let pool = this.make();
     try {
