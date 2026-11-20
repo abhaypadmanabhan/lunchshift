@@ -67,7 +67,9 @@ const humanizeId = (id: string) =>
 export function refusalName(view: RunView, r: CandidateDecision): string {
   for (const e of view.events) {
     if (e.type !== "candidate_rejected" || e.data.candidateId !== r.candidateId) continue;
-    const m = e.summary.match(/^Refused (.+?):/);
+    const named = typeof e.data.skuName === "string" ? e.data.skuName : typeof e.data.recipeName === "string" ? e.data.recipeName : null;
+    if (named) return named;
+    const m = e.summary.match(/^Refused (?:the usual )?(?:whole lunch )?"?(.+?)"?(?: \(\$[\d.]+\))?:/);
     if (m) return m[1];
   }
   const planned = view.plan.find((p) => p.recipeId === r.candidateId);

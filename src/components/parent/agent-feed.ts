@@ -30,7 +30,20 @@ function productName(view: RunView, skuId: string): string {
 
 const shortRef = (id: string | null) => id?.match(/[0-9a-f]{8,}/i)?.[0].slice(0, 8).toUpperCase() ?? null;
 
-function line(e: AuditEvent, view: RunView): Omit<FeedLine, "key" | "at"> | null {
+const REASON_SHORT: Record<string, string> = {
+  allergen_warning: "label warning",
+  recipe_allergen: "recipe contains it",
+  missing_label_evidence: "no allergen label",
+  conflicting_label_evidence: "sources disagree",
+  classifier_flag: "label check flagged it",
+  out_of_stock: "sold out",
+  over_budget: "over budget",
+  mandate_limit: "outside your approval",
+};
+
+type Line = Omit<FeedLine, "key" | "at">;
+
+function line(e: AuditEvent, view: RunView): Line | Line[] | null {
   const d = e.data;
   const child = view.household.childName || "your child";
   switch (e.type) {
@@ -42,12 +55,15 @@ function line(e: AuditEvent, view: RunView): Omit<FeedLine, "key" | "at"> | null
       };
     }
     case "mode_observed":
-      return { sponsor: "Statsig", text: "Autonomy rule says", mono: str(d.mode) ?? undefined };
+      return { sponsor: "Statsig", text: "Autonomy rule says", mono: str(d.observed) ?? str(d.mode) ?? undefined };
     case "autonomy_changed":
       return { sponsor: "Statsig", text: "Autonomy changed to", mono: str(d.effective) ?? str(d.to) ?? undefined };
     case "memory_recalled": {
-      const m = e.summary.match(/^Recalled (.+)$/);
-      return { sponsor: "Cognee", text: m ? `Recalled ${child}'s ${m[1].replace(/\s*\(r\d+\)/g, "")}` : `Recalled ${child}'s allergy rules` };
+      const hard = Array.isArray(d.hardRestrictions) ? (d.hardRestrictions as { id: string }[]) : [];
+      const n = Array.isArray(d.factIds) ? d.factIds.length : 0;
+      const who = str(d.provider) === "cognee" ? ("Cognee" as const) : ("LunchShift" as const);
+      const allergies = hard.length === 1 ? "allergy" : `${hard.length} allergies`;
+      return { sponsor: who, text: `Remembered ${child}'s ${allergies}${n > hard.length ? ` and ${n - hard.length} preferences` : ""}` };
     }
     case "allergen_screened": {
       if (d.error) return { sponsor: "Superlinked SIE", text: "Label check offline · rules decide alone" };
@@ -68,26 +84,40 @@ function line(e: AuditEvent, view: RunView): Omit<FeedLine, "key" | "at"> | null
         const p = e.summary.match(/^Parent tried to add (.+?): refused/);
         return { sponsor: "LunchShift", text: `Kept ${p?.[1] ?? "an unsafe item"} out of your cart`, tone: "refuse" };
       }
-      const m = e.summary.match(/^Refused (.+?): (.+)$/);
-      return { sponsor: "LunchShift", text: m ? `Refused ${m[1]} · ${m[2]}` : "Refused an unsafe option", tone: "refuse" };
+      const name = str(d.skuName) ?? str(d.recipeName) ?? e.summary.match(/^Refused (.+?)(?: \(\$[\d.]+\))?:/)?.[1] ?? "an unsafe option";
+      const reasons = Array.isArray(d.reasons) ? (d.reasons as string[]) : [];
+      const why = reasons.filter((r) => r !== "out_of_stock" || reasons.length === 1).map((r) => REASON_SHORT[r] ?? r).slice(0, 2).join(", ");
+      const what = d.usual === true ? `Stopped using ${name}` : str(d.recipeName) ? `Ruled out ${name.toLowerCase()}` : `Refused ${name}`;
+      return { sponsor: "LunchShift", text: why ? `${what} · ${why}` : what, tone: "refuse" };
     }
     case "alternatives_ranked": {
       const provider = str(d.provider);
-      const n = Array.isArray(d.ranked) ? d.ranked.length : null;
-      return {
-        sponsor: provider === "sie" ? "Superlinked SIE" : provider === "local_vector" ? "LunchShift" : "SingleStore",
-        text: `Ranked ${n ?? "the"} safe lunch${n === 1 ? "" : "es"} for ${child}`,
-      };
+      const ranked = Array.isArray(d.ranked) ? (d.ranked as { score: number }[]) : [];
+      const n = ranked.length;
+      const inputs = (d.inputs ?? {}) as { shortlist?: { provider?: string } };
+      const lines: Line[] = [];
+      if (inputs.shortlist?.provider === "singlestore_vector") {
+        lines.push({ sponsor: "SingleStore", text: `Shortlisted ${n} safe lunch${n === 1 ? "" : "es"} by vector search` });
+      }
+      if (provider === "sie") lines.push({ sponsor: "Superlinked SIE", text: `Reranked them for ${child}`, mono: ranked[0] ? ranked[0].score.toFixed(2) : undefined });
+      else if (!lines.length) lines.push({ sponsor: provider === "singlestore_vector" ? "SingleStore" : "LunchShift", text: `Ranked ${n} safe lunch${n === 1 ? "" : "es"} for ${child}` });
+      return lines;
     }
     case "swap_proposed": {
       const day = str(d.affectedDay);
       const row = view.plan.find((p) => p.day === day);
-      const who: Sponsor = str(d.rationaleProvider) === "anthropic" ? "Claude" : "LunchShift";
+      const proposal = (d.proposal ?? {}) as { rationaleProvider?: string };
+      const who: Sponsor = (str(d.rationaleProvider) ?? proposal.rationaleProvider) === "anthropic" ? "Claude" : "LunchShift";
       return { sponsor: who, text: `Explained ${day ? (DAY_NAME[day] ?? day) : "the"} swap${row ? `: ${row.recipeName.replace(/ \+ .*$/, "").toLowerCase()}` : ""}` };
     }
     case "swap_applied": {
-      const t = num(d.totalCents);
-      return { sponsor: "LunchShift", text: "Swapped the lunch, kept the other four", mono: t === null ? undefined : money(t) };
+      const swaps = Array.isArray(d.swaps) ? d.swaps.length : 1;
+      const t = num(d.totalCents) ?? view.cart?.totalCents ?? null;
+      return {
+        sponsor: "LunchShift",
+        text: swaps === 1 ? "Swapped the lunch, kept the other four" : `Swapped ${swaps} lunches, kept the rest`,
+        mono: t === null ? undefined : money(t),
+      };
     }
     case "hold_dispatched":
       return { sponsor: "Store", text: "Asked the store to hold the pickup", mono: num(d.totalCents) === null ? undefined : money(num(d.totalCents)!) };
@@ -127,6 +157,7 @@ export function feedLines(view: RunView): FeedLine[] {
     .sort((a, b) => (a.at === b.at ? a.seq - b.seq : a.at.localeCompare(b.at)))
     .flatMap((e) => {
       const l = line(e, view);
-      return l ? [{ key: `${e.runId}:${e.seq}`, at: e.at, ...l }] : [];
+      const list = l === null ? [] : Array.isArray(l) ? l : [l];
+      return list.map((x, i) => ({ key: `${e.runId}:${e.seq}:${i}`, at: e.at, ...x }));
     });
 }
