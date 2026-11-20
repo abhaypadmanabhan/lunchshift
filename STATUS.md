@@ -19,4 +19,4 @@
 
 **Blockers:** none. Demo note: a Statsig console change takes about 20-40 s to reach the API, so flip `auto_swap` -> `auto_swap_and_hold` early in the segment.
 
-**Composio spend this session:** $0.00. SIE credits used: about 10 calls (1 credit each, from the response usage field).
+**Composio spend (running total, 12:36):** $0.00. Parent-app lane 1: $0 (skipped illustrations). Cart/orders UI lane: told no new art. Catalog lane: Open Food Facts directly, no Composio. Cap: assets at or under $1.00 combined, session total strictly under $2 including the ~3:30 ElevenLabs voiceover; check the price before every call, skip unknown prices. SIE credits: about 25 calls (1 credit each).
