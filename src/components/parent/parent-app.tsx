@@ -209,6 +209,11 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
         break;
       case 1:
         if (isSample) setSample("f");
+        // Live: the story starts with a brand-new family (no seed data).
+        else if (view?.household.onboarded !== false) {
+          await postParent("/api/family/new");
+          await refresh();
+        }
         open({ kind: "chat" });
         setChatCommand({ n: Date.now(), kind: "send" });
         break;
@@ -221,12 +226,18 @@ export function ParentApp({ demo = false }: { demo?: boolean }) {
         break;
       case 4:
         if (isSample) setSample("e");
+        else if (view?.run?.status === "proposed") {
+          await postParent("/api/parent/approve");
+          await refresh();
+        }
         go("cart");
         break;
       case 5:
         await placeOrder();
         break;
       case 6:
+        // The parent now trusts LunchShift to swap and hold on its own; next Sunday shows it.
+        if (!isSample) await postParent("/api/parent/autonomy", { mode: "auto_swap_and_hold" });
         await nextSunday();
         break;
       case 7:

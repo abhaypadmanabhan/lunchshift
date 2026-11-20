@@ -290,6 +290,7 @@ export async function confirmFacts(
   const store = await ensureSeeded();
   const h = await activeHousehold(store);
   if (!facts.length) return { ok: false, saved: [], reason: "Nothing to save" };
+  if (h.onboarded === false) mode = "onboarding"; // first-time setup: the parent presses "Plan this week" next
   const next = applyFacts(h, facts);
   next.factLog = [...(h.factLog ?? []), ...h.facts.filter((f) => !next.facts.some((n) => n.id === f.id && n.revision === f.revision)).map((f) => ({ ...f, active: false }))];
   const childName = next.childName;
