@@ -1,23 +1,25 @@
-# Unattended full-auto run, 2026-11-20 11:52 PT (npm run demo:fullauto)
-# Inputs after launch: none. Actors in the audit: worker, cognee, statsig, sie, grocer, ranker, llm. No parent or operator.
-[store] provider=sqlite
-store: SQLite fallback: SingleStore unavailable (DNS: host does not resolve (ENOTFOUND))
+# Unattended full-auto run on real Open Food Facts products, 2026-11-20 13:15 PT (LUNCHSHIFT_CATALOG=off npm run demo:fullauto)
+# Inputs after launch: none. Video: docs/proof/backup-fullauto.mp4 (50 s, 1440x900, no audio).
+[store] provider=singlestore
+store: SingleStore Helios, TLS verified (system)
 run run-2026-11-22 status=hold_verified observed=auto_swap_and_hold effective=auto_swap_and_hold key=hold:run-2026-11-22
-  1 19:52:04 worker   run_started          Weekly run started by schedule for week of 2026-11-22
-  2 19:52:09 cognee   memory_recalled      Recalled 5 household facts via cognee; 1 hard restriction(s) loaded from the household record
-  3 19:52:09 statsig  mode_observed        Run start: Statsig says auto_swap_and_hold (statsig); parent max auto_swap_and_hold; effective auto_swap_and_hold
-  4 19:52:10 sie      allergen_screened    SIE classifier screened 19 labels: 2 peanut-risk (bread-value-wheat 0.97, sauce-thai-peanut 0.95)
-  5 19:52:10 grocer   stockout_detected    Harvest Whole Wheat Bread is out of stock (store has 0, need 1)
-  6 19:52:10 worker   candidate_rejected   Refused Value Wheat Bread ($1.99): allergen_warning - fact fact-allergy-peanut r3
-  7 19:52:10 worker   candidate_rejected   Refused Artisan Sourdough Loaf ($4.99): missing_label_evidence - fact fact-allergy-peanut r3
-  8 19:52:10 worker   candidate_rejected   Ruled out whole lunch "Thai peanut noodles + carrots": recipe_allergen - fact fact-allergy-peanut r3
-  9 19:52:10 ranker   alternatives_ranked  Ranked 2 safe whole lunches via sie: r-rice-bean-bowl 0.989, r-bean-quesadilla 0.001
- 10 19:52:12 llm      swap_proposed        Proposed Mon: SunButter sandwich + apple -> Rice-and-bean bowl + apple ($29.48 -> $26.97)
- 11 19:52:12 worker   swap_applied         Applied Mon whole-lunch swap; basket v2 total $26.97
- 12 19:52:12 statsig  mode_observed        Pre-hold check: Statsig says auto_swap_and_hold (statsig); parent max auto_swap_and_hold; effective auto_swap_and_hold
- 13 19:52:12 worker   hold_dispatched      Placing one pickup hold, key hold:run-2026-11-22, total $26.97, slot Sun 2026-11-22 16:00-18:00
- 14 19:52:12 grocer   hold_readback        Store read-back by key: hold H-9A11116E active, 13 lines, $26.97, 1 active hold(s) for this run; matches our request
- 15 19:52:12 worker   hold_verified        Hold H-9A11116E verified: 13 lines, $26.97 of $35.00, pickup Sun 2026-11-22 16:00-18:00
- 16 19:52:12 worker   metrics_computed     KPIs: unsafe 0, complete 100%, clicks 0, dup holds 0, budget kept, traced 100%; Statsig weekly_run_metrics sent
-receipt: H-9A11116E matched=true active=1 total=$26.97
-kpis: {"unsafeItemsInCart":0,"mealCompletenessPct":100,"humanClicksPerOrder":0,"duplicateHolds":0,"budgetKept":{"kept":true,"totalCents":2697,"budgetCents":3500},"swapsTracedPct":100}
+  1 21:15:09 worker   run_started          Weekly run started by schedule for week of 2026-11-22
+  2 21:15:14 cognee   memory_recalled      Recalled 6 household facts via cognee; 1 hard restriction(s) loaded from the household record
+  3 21:15:14 statsig  mode_observed        Run start: Statsig says auto_swap_and_hold (statsig); parent max auto_swap_and_hold; effective auto_swap_and_hold
+  4 21:15:17 sie      allergen_screened    SIE classifier screened 33 labels for Peanuts: 2 flagged (off-00772471 0.95, off-8850643026217 0.96)
+  5 21:15:18 grocer   stockout_detected    100% Whole Wheat Bread is out of stock (store has 0, need 1)
+  6 21:15:18 worker   candidate_rejected   Refused Dakota Style 12-Grain Bread ($2.99): allergen_warning - fact fact-allergy-peanut r3
+  7 21:15:18 worker   candidate_rejected   Refused Whole wheat bread ($3.49): missing_label_evidence - fact fact-allergy-peanut r3
+  8 21:15:18 worker   candidate_rejected   Refused whole lunch "Gluten-free SunButter sandwich + apple": over_budget
+  9 21:15:18 worker   candidate_rejected   Refused whole lunch "Thai peanut noodles + carrots": recipe_allergen - fact fact-allergy-peanut r3
+ 10 21:15:19 ranker   alternatives_ranked  Mon: ranked 4 safe whole lunches via sie: r-rice-bean-bowl 0.989, r-turkey-rice-box 0.086, r-veggie-pasta 0.003, r-bean-quesadilla 0.001
+ 11 21:15:21 llm      swap_proposed        Proposed Mon: SunButter sandwich + apple -> Rice-and-bean bowl + apple ($34.97 -> $30.36)
+ 12 21:15:21 worker   swap_applied         Applied Mon whole-lunch swap; basket v2 total $30.36
+ 13 21:15:21 statsig  mode_observed        Pre-hold check: Statsig says auto_swap_and_hold (statsig); parent max auto_swap_and_hold; effective auto_swap_and_hold
+ 14 21:15:22 worker   hold_dispatched      Placing one pickup hold, key hold:run-2026-11-22, total $30.36, slot Sun 2026-11-22 16:00-18:00
+ 15 21:15:22 grocer   hold_readback        Store read-back by key: hold H-BA62B5C8 active, 13 lines, $30.36, 1 active hold(s) for this run; matches our request
+ 16 21:15:22 worker   hold_verified        Hold H-BA62B5C8 verified: 13 lines, $30.36 of $35.00, pickup Sun 2026-11-22 16:00-18:00
+ 17 21:15:22 worker   metrics_computed     KPIs: unsafe 0, complete 100%, clicks 0, dup holds 0, budget kept, traced 100%; Statsig weekly_run_metrics sent
+ 18 21:15:22 worker   order_placed         Order LS-D8540D placed by LunchShift: pay at pickup, $30.36, Sun 2026-11-22 16:00-18:00
+receipt: H-BA62B5C8 matched=true active=1 total=$30.36
+kpis: {"budgetKept":{"budgetCents":3500,"kept":true,"totalCents":3036},"duplicateHolds":0,"humanClicksPerOrder":0,"mealCompletenessPct":100,"swapsTracedPct":100,"unsafeItemsInCart":0}
