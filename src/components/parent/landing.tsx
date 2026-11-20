@@ -40,7 +40,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
         <AppButton className="ls-enter min-h-14 w-full rounded-xl text-[1.0625rem] [animation-delay:160ms]" onClick={onStart}>
           Set up my family
         </AppButton>
-        <p className="text-center text-[0.9375rem] text-muted-foreground md:text-left">It holds, never pays. You pay at pickup.</p>
+        <p className="text-center text-[0.9375rem] text-muted-foreground md:text-left">It holds the groceries. The agent never pays. You approve payment.</p>
       </div>
     </div>
   );

@@ -227,7 +227,7 @@ export function Onboarding({ view, onDone, onRefresh }: { view: RunView; onDone:
             <div className="rounded-xl bg-sunken px-5 py-4">
               <p className="text-base font-medium">What happens next</p>
               <p className="mt-1 text-base text-muted-foreground">
-                Every Sunday LunchShift plans {child === "your child" ? "the" : `${child}'s`} lunches, refuses anything unsafe and holds the groceries for pickup. It never pays: you pay at the store.
+                Every Sunday LunchShift plans {child === "your child" ? "the" : `${child}'s`} lunches, refuses anything unsafe and holds the groceries for pickup. The agent never pays. You approve payment.
               </p>
             </div>
           </div>

@@ -130,7 +130,7 @@ export function AgentPanel({ view, offlineSince, className }: { view: RunView | 
         </ol>
       )}
 
-      <p className="border-t border-border/70 px-6 py-3 text-[0.9375rem] text-muted-foreground">Never pays. You pay at pickup.</p>
+      <p className="border-t border-border/70 px-6 py-3 text-[0.9375rem] text-muted-foreground">The agent never pays. You approve payment.</p>
     </aside>
   );
 }

@@ -104,7 +104,7 @@ export function OrderCard({ view, onOpen, onRefresh }: { view: RunView; onOpen: 
       <AppButton className="mt-5 min-h-12 w-full text-[1.0625rem]" busy={busy} onClick={() => void place()}>
         Place order · pay at pickup
       </AppButton>
-      <p className="mt-3 text-center text-[0.9375rem] text-muted-foreground">LunchShift never pays. You pay at the store.</p>
+      <p className="mt-3 text-center text-[0.9375rem] text-muted-foreground">The agent never pays. You approve payment.</p>
       {err ? (
         <div className="mt-4">
           <Notice tone="alert">{err}</Notice>
@@ -245,7 +245,7 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
       </section>
 
       <p className="rounded-xl bg-sunken px-5 py-4 text-base">
-        <span className="font-medium">LunchShift never pays: you pay at the store.</span>{" "}
+        <span className="font-medium">The agent never pays. You approve payment.</span>{" "}
         <span className="text-muted-foreground">It can hold and place orders within your rules, and nothing else.</span>
       </p>
 
@@ -302,7 +302,7 @@ export function OrdersTab({ view, onOpen }: { view: RunView; onOpen: (o: Order) 
           );
         })}
       </ul>
-      <p className="px-1 text-[0.9375rem] text-muted-foreground">Every order is pay at pickup.</p>
+      <p className="px-1 text-[0.9375rem] text-muted-foreground">Pay at pickup, or by card when you choose. The agent never pays. You approve payment.</p>
     </section>
   );
 }

@@ -88,7 +88,7 @@ function StatusCard({ view, onRefresh }: { view: RunView; onRefresh: () => Promi
         {head.body ? <p className="mt-1 text-base text-muted-foreground tabular-nums">{head.body}</p> : null}
         {holdActive && holdRef ? (
           <p className="mt-1 text-[0.9375rem] text-muted-foreground">
-            Pay at pickup · ref <span className="font-mono text-foreground">{holdRef}</span>
+            {view.payment?.status === "paid" ? "Paid (test)" : "Pay at pickup"} · ref <span className="font-mono text-foreground">{holdRef}</span>
           </p>
         ) : null}
       </div>
