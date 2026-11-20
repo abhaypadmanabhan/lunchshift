@@ -67,9 +67,16 @@ async function parseWithClaude(message: string, mode: string, h: Household): Pro
 }
 
 /** Deterministic fallback when the model is unavailable: kids, allergies, budget, skip days. */
-function parseWithRules(message: string): Parsed {
+/** The fallback when Claude is unavailable: plain patterns, so every stated fact still becomes a chip. */
+export function parseWithRules(message: string): Parsed {
   const m = message;
   const kids = [...m.matchAll(/\b([A-Z][a-z]+) is (\d{1,2})\b/g)].map((x) => ({ name: x[1], age: Number(x[2]) }));
+  const onlyChild = kids.length === 1 ? kids[0].name : undefined;
+  const dislikes = [...m.matchAll(/\b(?:hates?|dislikes?|won't eat|doesn't like|does not like)\s+([a-z][a-z' -]{1,30}?)(?=\s*(?:[,.;!]|\band\b|$))/gi)].map(
+    (x) => ({ child: onlyChild, text: x[1].trim() }),
+  );
+  const day = m.match(/\bpick ?up (?:on |is )?(mon|tues|wednes|thurs|fri|satur|sun)day\b/i);
+  const pickupDay = day ? `${day[1][0].toUpperCase()}${day[1].slice(1).toLowerCase()}day` : undefined;
   const allergies: Parsed["allergies"] = [];
   for (const part of m.split(/[,.;]| and /)) {
     const a = part.match(/(?:allergic to|allergy to|allergies? (?:to )?)\s*([a-z -]+)|([a-z -]+?)\s+allerg/i);
@@ -84,6 +91,8 @@ function parseWithRules(message: string): Parsed {
     allergies,
     budgetDollars: budget ? Number(budget[1]) : undefined,
     skipDays: skip,
+    dislikes,
+    pickupDay,
   };
 }
 

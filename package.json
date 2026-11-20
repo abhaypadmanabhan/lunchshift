@@ -22,7 +22,8 @@
     "diag:singlestore": "tsx --env-file-if-exists=.env scripts/diag-singlestore.ts",
     "test:allergens": "LUNCHSHIFT_SHOP_PACE_MS=0 tsx scripts/test-allergens.ts",
     "smoke:sie-screen": "tsx --env-file-if-exists=.env scripts/smoke-sie-screen.ts",
-    "start:prod": "node scripts/stack.mjs"
+    "start:prod": "node scripts/stack.mjs",
+    "test:chat": "tsx scripts/test-chat-rules.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",
