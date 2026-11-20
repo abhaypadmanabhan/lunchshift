@@ -21,7 +21,8 @@
     "demo:fullauto": "node scripts/fullauto.mjs",
     "diag:singlestore": "tsx --env-file-if-exists=.env scripts/diag-singlestore.ts",
     "test:allergens": "tsx scripts/test-allergens.ts",
-    "smoke:sie-screen": "tsx --env-file-if-exists=.env scripts/smoke-sie-screen.ts"
+    "smoke:sie-screen": "tsx --env-file-if-exists=.env scripts/smoke-sie-screen.ts",
+    "try:chat": "tsx --env-file-if-exists=.env /private/tmp/claude-501/-Users-abhayp-hackathon-lunchshift/4a18632b-979c-439b-8280-cf878d653f9d/scratchpad/chat-try.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",

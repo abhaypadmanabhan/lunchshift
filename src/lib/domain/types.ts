@@ -96,6 +96,8 @@ export interface HouseholdFact {
   confirmedBy: string; // "parent"
   confirmedAt: string; // ISO date
   active: boolean;
+  /** Which kid a fact is about (allergy, dislike). Absent = the whole family. */
+  child?: string;
   /** For allergy facts: the normalized allergen (canonical id like "milk", or "custom:kiwi"). */
   allergen?: { id: string; label: string; terms: string[]; crossContact: boolean };
 }
@@ -126,6 +128,10 @@ export interface Household {
   policyRevision: number;
   /** False for a brand-new family until the parent finishes onboarding. */
   onboarded?: boolean;
+  /** Every kid this family packs lunches for. One shared menu, packed once per kid; every product must be safe for every kid. */
+  children?: { name: string; age?: number }[];
+  /** Days with no school this week ("Fri"): no lunch planned. */
+  skipDays?: string[];
 }
 
 // ---------- Basket ----------

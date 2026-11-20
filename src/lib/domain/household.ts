@@ -68,3 +68,14 @@ export function applyHouseholdUpdate(
     normalized: normalized.map((n) => ({ input: n.input, id: n.id, label: n.label, custom: n.custom })),
   };
 }
+
+/** How many kids the week's lunches are packed for (at least one). */
+export function kidCount(h: Pick<Household, "children">): number {
+  return Math.max(1, h.children?.length ?? 1);
+}
+
+/** The week's lunch days after school skips. */
+export function activePlan<T extends Pick<Household, "plan" | "skipDays">>(h: T): T["plan"] {
+  const skip = new Set(h.skipDays ?? []);
+  return h.plan.filter((p) => !skip.has(p.day));
+}

@@ -3,6 +3,7 @@
 // only marked confirmed after an independent read-back.
 import { ALTERNATIVE_RECIPE_IDS } from "../lib/domain/fixture";
 import { activeCatalog } from "../lib/domain/catalog";
+import { activePlan, kidCount } from "../lib/domain/household";
 import {
   buildBasket,
   checkRecipe,
@@ -251,7 +252,11 @@ async function lastProposal(store: AppStore, runId: string): Promise<SwapProposa
 }
 
 async function fullPass(ctx: Ctx): Promise<ProcessResult> {
-  const { deps, household } = ctx;
+  const { deps } = ctx;
+  // This week's lunch days (school skips removed); every lunch is packed once per kid.
+  const household = { ...ctx.household, plan: activePlan(ctx.household) };
+  const servings = kidCount(household);
+  const serve = (rs: Recipe[]) => (servings > 1 ? rs.flatMap((r) => Array.from({ length: servings }, () => r)) : rs);
   const runId = ctx.run.id;
 
   // 1. Memory recall (Cognee) resolved against the authoritative household record.
@@ -260,6 +265,14 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
     recall = await deps.memory.recall(household.id, `What food allergies and lunch preferences does ${household.childName}'s household have?`);
   } catch (e) {
     recall = { provider: "fallback", query: "household recall", factIds: [], snippets: [], error: String(e) };
+  }
+  if (recall.provider === "fallback") {
+    // Backup memory for any family: the household's own confirmed facts (never another family's sample data).
+    recall = {
+      ...recall,
+      factIds: household.facts.map((f) => f.id),
+      snippets: household.facts.map((f) => `[${f.id} r${f.revision}] ${f.text}`),
+    };
   }
   const hard = hardRestrictions(household);
   const recalledHard = hard.filter((f) => recall.factIds.includes(f.id));
@@ -295,13 +308,13 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
   const recipeById = new Map(recipes.map((r) => [r.id, r]));
   const planRecipes = household.plan.map((p) => recipeById.get(p.recipeId)).filter((r): r is Recipe => Boolean(r));
 
-  const needs = roleNeeds(planRecipes);
+  const needs = roleNeeds(serve(planRecipes));
   const usual = new Map<string, Sku>();
   for (const role of needs.keys()) {
     const s = byId.get(activeCatalog().usualByRole[role]);
     if (s) usual.set(role, s);
   }
-  const original = buildBasket(planRecipes, usual, 1).basket;
+  const original = buildBasket(serve(planRecipes), usual, 1).basket;
 
   // 4. Second opinion: the SIE allergen classifier reads every exact-SKU label line once per run.
   let screen = new Map<string, ScreenResult>();
@@ -395,7 +408,7 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
     }
   }
   if (brokenRoles.size === 0) {
-    const fixed = buildBasket(planRecipes, chosen, 2).basket;
+    const fixed = buildBasket(serve(planRecipes), chosen, 2).basket;
     await deps.store.saveBasket(runId, fixed);
     return applyAndMaybeHold(ctx, effective, fixed, [], byId, planRecipes);
   }
@@ -431,7 +444,7 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
         const map = new Map(chosen);
         for (const l of alt.lines) map.set(l.role, skuForRole(l.role)!);
         const newPlan = currentPlan.map((r, i) => (i === idx ? alt : r));
-        basket = buildBasket(newPlan, map, 2).basket;
+        basket = buildBasket(serve(newPlan), map, 2).basket;
         if (basket.lines.some((l) => (byId.get(l.skuId)?.stock ?? 0) < l.packs)) d.reasons.push("out_of_stock");
         if (basket.totalCents > household.mandate.budgetCents) d.reasons.push("over_budget");
         d.eligible = d.reasons.length === 0;
@@ -520,7 +533,7 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
     prev = after;
   }
   for (const r of brokenRoles) chosen.delete(r);
-  const built = buildBasket(currentPlan, chosen, 2);
+  const built = buildBasket(serve(currentPlan), chosen, 2);
   if (built.missingRoles.length) return escalate(ctx, `No safe product for ${built.missingRoles.join(", ")}`);
   const finalBasket = built.basket;
   if (finalBasket.totalCents > household.mandate.budgetCents) return escalate(ctx, `Repaired week costs $${(finalBasket.totalCents / 100).toFixed(2)}, over the $${(household.mandate.budgetCents / 100).toFixed(2)} budget`);
@@ -603,7 +616,7 @@ async function applyAndMaybeHold(
 /** The week's plan after every proposed swap in this run. */
 async function planAfter(ctx: Ctx, proposals: SwapProposal[]): Promise<Recipe[]> {
   const recipes = new Map((await ctx.deps.store.getRecipes()).map((r) => [r.id, r]));
-  return ctx.household.plan.map((p) => {
+  return activePlan(ctx.household).map((p) => {
     const sw = proposals.find((x) => x.affectedDay === p.day);
     return recipes.get(sw ? sw.toRecipeId : p.recipeId)!;
   });
@@ -707,7 +720,7 @@ async function reconcileHold(ctx: Ctx, reqIn?: HoldRequest, byIdIn?: Map<string,
   const proposal = await lastProposal(ctx.deps.store, runId);
   const finalPlan =
     planIn ??
-    ctx.household.plan.map((p) => (proposal && p.day === proposal.affectedDay ? recipes.get(proposal.toRecipeId)! : recipes.get(p.recipeId)!));
+    activePlan(ctx.household).map((p) => (proposal && p.day === proposal.affectedDay ? recipes.get(proposal.toRecipeId)! : recipes.get(p.recipeId)!));
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const hold = await ctx.deps.grocer.readHold(req.operationKey).catch(() => null);
@@ -799,7 +812,9 @@ async function computeKpis(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fin
   const parentClicks = events.filter((e) => e.actor === "parent" && e.data.approved === true).length;
   const k: KpiSet = {
     unsafeItemsInCart: unsafeLines(h, basket, byId).length,
-    mealCompletenessPct: Math.round((completeLunches(finalPlan, basket, byId) / h.plan.length) * 100),
+    mealCompletenessPct: Math.round(
+      (completeLunches(finalPlan.flatMap((r) => Array.from({ length: kidCount(h) }, () => r)), basket, byId) / Math.max(1, activePlan(h).length * kidCount(h))) * 100,
+    ),
     humanClicksPerOrder: parentClicks,
     duplicateHolds: activeHolds === null ? 0 : Math.max(0, activeHolds - Math.max(1, h.mandate.maxHoldsPerWeek)),
     budgetKept: { kept: basket.totalCents <= h.mandate.budgetCents, totalCents: basket.totalCents, budgetCents: h.mandate.budgetCents },

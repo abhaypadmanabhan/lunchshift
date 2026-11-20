@@ -5,7 +5,8 @@ import { blankFamily, currentWeekOf, readPointer, writePointer } from "../lib/do
 import { activeCatalog } from "../lib/domain/catalog";
 import { HOUSEHOLD } from "../lib/domain/fixture";
 import type { AppStore, Run } from "../lib/domain/types";
-import type { HouseholdUpdate, HouseholdUpdateResult } from "../lib/domain/view";
+import type { HouseholdUpdate, HouseholdUpdateResult, ProposedFact } from "../lib/domain/view";
+import type { Household } from "../lib/domain/types";
 import { getMemory } from "../lib/memory";
 import { activeHousehold, ensureSeeded, grocerClient, grocerOperator } from "./deps";
 import { checkSku, hardRestrictions } from "../lib/domain/rules";
@@ -200,4 +201,105 @@ export async function nextWeek(): Promise<{ ok: boolean; weekOf: string }> {
   await op.setStock(activeCatalog().stockoutSku, 0);
   void store;
   return { ok: true, weekOf: currentWeekOf() };
+}
+
+/** Pure: the household after the parent's confirmed facts. Used by the chat route and the scenario suite. */
+export function applyFacts(h: Household, facts: ProposedFact[]): Household {
+  // Kids
+  const startKids: { name: string; age?: number }[] = h.children ?? (h.childName ? h.childName.split(" and ").map((name) => ({ name })) : []);
+  const kids = new Map(startKids.map((k) => [k.name.toLowerCase(), k]));
+  for (const f of facts.filter((x) => x.kind === "child")) {
+    const name = String(f.value.name ?? "").trim();
+    if (name) kids.set(name.toLowerCase(), { name, age: typeof f.value.age === "number" ? f.value.age : undefined });
+  }
+  const children = [...kids.values()];
+  const childName = children.map((k) => k.name).join(" and ") || h.childName;
+
+  // Allergies: current list (+ who has each), then removals and additions
+  type A = { text: string; crossContact: boolean; who: Set<string> };
+  const allergies = new Map<string, A>();
+  for (const f of h.facts.filter((x) => x.kind === "hard_restriction" && x.allergen)) {
+    allergies.set(f.allergen!.id, { text: f.allergen!.label, crossContact: f.allergen!.crossContact, who: new Set(f.child ? f.child.split(" and ") : []) });
+  }
+  let allergyChanged = false;
+  for (const f of facts.filter((x) => x.kind === "allergy")) {
+    const id = String(f.value.id ?? "");
+    if (f.value.remove) {
+      allergyChanged = allergies.delete(id) || allergyChanged;
+      continue;
+    }
+    const prev = allergies.get(id);
+    const cc = f.value.crossContact !== false;
+    const who = new Set(prev?.who ?? []);
+    if (typeof f.value.child === "string" && f.value.child) who.add(f.value.child);
+    if (!prev || prev.crossContact !== cc || who.size !== prev.who.size) allergyChanged = true;
+    allergies.set(id, { text: String(f.value.text ?? id), crossContact: prev ? prev.crossContact || cc : cc, who });
+  }
+
+  let next: Household = { ...h, children, childName };
+  if (allergyChanged || !h.onboarded) {
+    const r = applyHouseholdUpdate(next, { childName, allergies: [...allergies.values()].map((a) => ({ text: a.text, crossContact: a.crossContact })) });
+    next = r.household;
+    // Attribute each allergy to its kid(s); the safety gate still applies every allergy to every product (shared pantry).
+    next.facts = next.facts.map((f) => {
+      if (f.kind !== "hard_restriction" || !f.allergen) return f;
+      const a = allergies.get(f.allergen.id);
+      const who = a && a.who.size ? [...a.who].join(" and ") : undefined;
+      if (!who) return f;
+      return { ...f, child: who, text: f.text.replace(childName, who).replace(/^(.+?) is allergic/, `${who} ${a!.who.size > 1 ? "are" : "is"} allergic`) };
+    });
+  } else {
+    next = { ...next, policyRevision: h.policyRevision + 1, mandate: { ...next.mandate, policyRevision: h.policyRevision + 1 } };
+  }
+  if (!h.onboarded) next.mandate = { ...next.mandate, policyRevision: next.policyRevision }; // onboarding is the first approval
+
+  // Preferences, budget, pickup, store, plan changes
+  const today = new Date().toISOString().slice(0, 10);
+  for (const f of facts.filter((x) => x.kind === "preference")) {
+    next.facts.push({ id: `fact-pref-${Date.now().toString(36)}-${next.facts.length}`, kind: "preference", text: String(f.value.text ?? f.label), revision: next.policyRevision, confirmedBy: "parent", confirmedAt: today, active: true, child: typeof f.value.child === "string" ? f.value.child : undefined });
+  }
+  for (const f of facts) {
+    if (f.kind === "budget" && typeof f.value.cents === "number") next.mandate = { ...next.mandate, budgetCents: f.value.cents };
+    if (f.kind === "pickup" && f.value.day) next.mandate = { ...next.mandate, window: `${String(f.value.day).slice(0, 3)} 16:00-18:00` };
+    if (f.kind === "store" && f.value.store) next.mandate = { ...next.mandate, storeId: String(f.value.store) };
+    if (f.kind === "plan_change" && typeof f.value.skip === "string") next.skipDays = [...new Set([...(next.skipDays ?? []), f.value.skip])];
+    if (f.kind === "plan_change" && typeof f.value.day === "string" && typeof f.value.recipeId === "string") {
+      next.plan = next.plan.map((p) => (p.day === f.value.day ? { ...p, recipeId: String(f.value.recipeId) } : p));
+    }
+    if (f.kind === "cart_change") {
+      next.facts.push({ id: `fact-extra-${Date.now().toString(36)}-${next.facts.length}`, kind: "preference", text: `Also buy for the family: ${String(f.value.text)}.`, revision: next.policyRevision, confirmedBy: "parent", confirmedAt: today, active: true });
+    }
+  }
+  if (!next.facts.some((f) => f.kind === "member") && children.length) {
+    next.facts.unshift({ id: "fact-members", kind: "member", text: `${children.map((k) => `${k.name}${k.age ? ` (${k.age})` : ""}`).join(" and ")} take a packed school lunch Monday to Friday.`, revision: next.policyRevision, confirmedBy: "parent", confirmedAt: today, active: true });
+  }
+  next.onboarded = true;
+
+  return next;
+}
+
+/**
+ * Apply facts the parent confirmed in chat. Allergy changes bump the policy revision (the agent re-plans and waits
+ * for approval before acting alone); plan-only changes (skip a day, swap a lunch) re-plan without re-approval.
+ */
+export async function confirmFacts(
+  facts: ProposedFact[],
+  mode: "onboarding" | "assistant" = "assistant",
+): Promise<{ ok: boolean; saved: { label: string; memory: "cognee" | "fallback" }[]; runId?: string; reason?: string }> {
+  const store = await ensureSeeded();
+  const h = await activeHousehold(store);
+  if (!facts.length) return { ok: false, saved: [], reason: "Nothing to save" };
+  const next = applyFacts(h, facts);
+  const childName = next.childName;
+  // Replace this week's plan (release any hold), save, and re-plan unless this is first-time onboarding.
+  const oldRun = await store.getRun(currentRunId(h, currentWeekOf()));
+  if (oldRun && oldRun.status !== "superseded") await supersede(store, oldRun, `Parent updated ${childName}'s family through chat; this plan is replaced`);
+  await store.saveHousehold(next);
+  const runId = currentRunId(next, currentWeekOf());
+  if (mode === "assistant" || oldRun) await scheduleRun(store, runId, "manual", next.id);
+  void getMemory()
+    .seed(next)
+    .catch(() => undefined);
+  const memory = process.env.COGNEE_API_KEY && process.env.COGNEE_BASE_URL ? ("cognee" as const) : ("fallback" as const);
+  return { ok: true, saved: facts.map((f) => ({ label: f.label, memory })), runId };
 }

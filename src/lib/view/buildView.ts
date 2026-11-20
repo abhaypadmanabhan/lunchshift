@@ -1,7 +1,7 @@
 // Builds the one RunView the page reads, from the app store (audit, run, basket, receipt, KPIs)
 // and the latest KPI suite file. Server-only.
 import { readFile } from "node:fs/promises";
-import { HOUSEHOLD, RECIPES } from "../domain/fixture";
+import { RECIPES } from "../domain/fixture";
 import { MAJOR_ALLERGENS } from "../domain/allergens";
 import type { AuditEvent, CandidateDecision, MemoryRecall, Order, Sku, SwapProposal } from "../domain/types";
 import type { CartView } from "../domain/view";
