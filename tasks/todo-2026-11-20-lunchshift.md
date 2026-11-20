@@ -25,3 +25,6 @@
 - Headless Chrome under 500 px wide crops; use CDP emulation for phone shots.
 
 **Load first:** staff-engineer-workflow, product-design (UI copy), abhay-language (reports).
+
+## Update 14:26 PT (takeover session)
+Steps 1-4 done: public URL verified (Maya and a chat-made family), SIE query fix 1e90f14, DEMO.md rewritten, video re-recorded against the public URL, README and STATUS current, deploy pushed. Left: Abhay makes the repo public and submits.
