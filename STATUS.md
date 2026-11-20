@@ -1,6 +1,9 @@
 # LunchShift status
 
-**Updated 13:17 PT. Milestone:** rehearsal passed on real products with the live Statsig flip (edited cart held, lost reply recovered, agent placed order LS-5425D4). Backup video of the unattended run: docs/proof/backup-fullauto.mp4. Next: Abhay records the narrated take (DEMO.md); before that, set Statsig back to auto_swap and press Reset demo.
+**Updated 13:30 PT. Direction (Abhay via captain, 13:22):** a real end-to-end product for ANY family. Plan: docs/PRODUCT_FLOW.md. Summary:
+- Lifecycle: landing -> chat onboarding (Claude extracts kids, allergies with cross-contact tolerance, dislikes, budget, store, pickup; parent confirms chips; saved per household to the record + Cognee) -> autonomy setting (sent to Statsig as custom.autonomy_pref; Statsig = ceiling) -> plan this week (live shopping over real OFF products, safety gate, SingleStore shortlist, SIE rerank, Claude explains) -> cart -> approve or auto hold -> pay-at-pickup order.
+- Day to day: the agent chat is the main interface (allergy diagnosed, no school Friday, sick of sandwiches, add milk and eggs); Settings for direct edits with fact history; Routines (weekly plan time, stock/label watch, school skips, budget alert) run by the worker with next/last run; Inbox of what the agent did and what needs the parent.
+- In by 3:30: chat agent with tools, several kids (union safety gate), no seed data needed, simple routines, the autonomy control (done). Partial: inbox. Out: live OFF search at runtime (local OFF snapshot instead), real auth, reorder.
 
 **Latest checks**
 - `npm run kpi`: **21/21 scenarios**. Unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept · swaps traced 100%. New: two-allergy child (peanut + sesame); full-auto pay-at-pickup order with a dropped reply (exactly 1 order); payment still 403.
