@@ -1,5 +1,25 @@
 # LunchShift status
 
+## Submission fields (paste-ready; Abhay submits and makes the repo public)
+
+**Title:** LunchShift
+
+**One-liner:** A grocery agent for kids with food allergies that refuses every unsafe label, fixes the week on its own, and never pays.
+
+**Description (about 150 words):**
+Parents of kids with food allergies read every label, every week, and a store's substitution can quietly undo it. LunchShift is a personal agent that plans school lunches, shops real Open Food Facts products, and holds a pay-at-pickup order. The parent describes their child once in chat; Claude turns it into facts the parent confirms, saved to the household record and Cognee memory. Every product passes a deterministic safety gate: labels, allergen tags, "may contain" warnings and missing labels decide, never the model. A Superlinked classifier can only add refusals, SingleStore shortlists safe lunches with vector SQL and keeps an append-only audit, Superlinked reranks them, and Claude explains the pick. Statsig caps how far the agent may act alone. When the usual bread sells out, LunchShift refuses the peanut-risk substitute, swaps the whole lunch and re-holds the order with zero clicks. 27 scenarios pass with zero unsafe items and zero duplicate holds.
+
+**Public URL:** https://lunchshift-web-production.up.railway.app (guided demo: /demo, evidence console: /console)
+
+**Video:** docs/proof/final-demo.mp4 (2:52, narrated); thumbnail docs/proof/final-demo-thumb.png
+
+**Repo:** github.com/abhaypadmanabhan/lunchshift (make it public at submission)
+
+**Sponsor prizes to select:** Cognee, SingleStore, Statsig, Superlinked
+
+---
+
+
 **Updated 14:25 PT. Ready for submission.** Public: https://lunchshift-web-production.up.railway.app (`/demo` guided story, `/console`). Railway service `lunchshift-web` builds from branch `deploy` (pushes to main are guarded; deploy = secscan, then push HEAD to `deploy`).
 
 **Verified on the public URL (14:16-14:22):**
