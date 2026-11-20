@@ -115,38 +115,35 @@ export function allergyChips(facts: HouseholdFact[]): AllergyChip[] {
     });
 }
 
-/** Headline for the status card, in plain words. */
+/** Headline for the status card: at most 8 words. The sentence-length "why" lives in the Why sheet. */
 export function statusHeadline(view: RunView): { title: string; tone: "ok" | "wait" | "plain" | "alert"; body?: string } {
   const run = view.run;
   const m = view.household.mandate;
   const total = view.receipt?.hold.totalCents ?? view.basket?.totalCents ?? null;
   const spend = total === null ? "" : `${money(total)} of ${money(m.budgetCents)}`;
-  if (!run) return { title: "Nothing planned yet this week", tone: "plain", body: "LunchShift plans every Sunday. You can start this week's plan now." };
+  if (!run) return { title: "Nothing planned yet", tone: "plain", body: "LunchShift plans every Sunday" };
   const n = Math.max(view.proposals.length, 1);
   const byStatus: Record<RunStatus, { title: string; tone: "ok" | "wait" | "plain" | "alert"; body?: string }> = {
-    scheduled: { title: "Planning your week…", tone: "plain", body: "Checking the store for this week's lunches." },
-    running: { title: "Planning your week…", tone: "plain", body: "Checking the store for this week's lunches." },
-    proposed: {
-      title: `Waiting for you: approve ${n} change${n === 1 ? "" : "s"}`,
-      tone: "wait",
-      body: view.needsApproval ?? "Nothing in your cart changes until you approve.",
-    },
-    swapped_waiting: {
-      title: "Lunches fixed · pickup not held yet",
-      tone: "plain",
-      body: `Your cart is ready${spend ? ` at ${spend}` : ""}. Your approval lets LunchShift swap lunches, not hold the order.`,
-    },
-    hold_pending: { title: "Confirming your pickup with the store…", tone: "plain", body: "The store's reply was slow, so LunchShift is checking it directly. It never places two holds." },
+    scheduled: { title: "Planning your week…", tone: "plain", body: "Checking the store" },
+    running: { title: "Planning your week…", tone: "plain", body: "Checking the store" },
+    proposed: { title: `Approve ${n} change${n === 1 ? "" : "s"}`, tone: "wait", body: "Nothing changes until you approve" },
+    swapped_waiting: { title: "Lunches fixed · waiting to hold pickup", tone: "plain", body: spend ? `Cart ${spend}` : undefined },
+    hold_pending: { title: "Confirming your pickup…", tone: "plain", body: "Never places two holds" },
     hold_verified: {
-      title: "Pickup held",
+      title: `Pickup held · ${pickupWindow(m.window).replace(/ (am|pm)$/, "")}${total === null ? "" : ` · ${money(total)}`}`,
       tone: "ok",
-      body: spend ? `${pickupWindow(m.window)} · ${spend}` : pickupWindow(m.window),
     },
-    escalated: { title: "Needs you", tone: "alert", body: "LunchShift couldn't confirm the pickup hold and stopped. Nothing was paid." },
-    superseded: { title: "Re-planning with your new rules…", tone: "plain", body: "Your updated rules replaced the earlier plan." },
-    failed: { title: "This week's plan didn't go through", tone: "alert", body: "Nothing was held or paid. You can try again." },
+    escalated: { title: "Needs you · nothing was paid", tone: "alert", body: "The store hold couldn't be confirmed" },
+    superseded: { title: "Re-planning with your new rules…", tone: "plain" },
+    failed: { title: "Plan didn't go through", tone: "alert", body: "Nothing was held or paid" },
   };
   return byStatus[run.status];
+}
+
+/** A few words under a swapped lunch on what broke it. What it replaced lives in the Why sheet. */
+export function swapReasonShort(view: RunView): string {
+  if (view.stockout) return `${view.stockout.name.split(" ").slice(-1)[0].toLowerCase()} sold out`;
+  return "didn't fit the rules";
 }
 
 const ACTOR_PLAIN: Record<AuditEvent["actor"], string> = {

@@ -88,6 +88,7 @@ const REFUSALS: CandidateDecision[] = [
     labelVersion: valueBread.label.version,
     labelText: valueBread.label.sourceText,
     priceCents: valueBread.priceCents,
+    screen: { label: "peanut", score: 0.96, risk: true, model: "sie-allergen-zs" },
   },
   {
     candidateId: sourdough.id,
@@ -155,6 +156,7 @@ const ALL_EVENTS: (Omit<AuditEvent, "runId" | "seq">)[] = [
   { at: T("16:00:00"), actor: "worker", type: "run_started", summary: "Sunday run started on schedule", data: { runId: RUN_ID, trigger: "schedule", weekOf: "2026-11-22" } },
   { at: T("16:00:01"), actor: "statsig", type: "mode_observed", summary: "autonomy_mode read: {mode}", data: { config: "autonomy_mode", ruleId: "{rule}", source: "statsig" } },
   { at: T("16:00:02"), actor: "cognee", type: "memory_recalled", summary: "Recalled peanut allergy (r3) and 3 preferences", data: { datasetId: MEMORY.datasetId, factIds: MEMORY.factIds, query: MEMORY.query } },
+  { at: T("16:00:03"), actor: "sie", type: "allergen_screened", summary: "SIE classifier screened 3 labels for Peanuts: 1 flagged (bread-value-wheat 0.96)", data: { model: "sie-allergen-zs", results: { "bread-value-wheat": { label: "peanut", score: 0.96, risk: true }, "bread-artisan-sour": { label: "other ingredients", score: 0.71, risk: false }, "seed-butter-sun": { label: "other ingredients", score: 0.88, risk: false } } } },
   { at: T("16:00:03"), actor: "grocer", type: "stockout_detected", summary: "Harvest Whole Wheat Bread out of stock", data: { skuId: "bread-harvest-ww", stock: 0, catalogVersion: CATALOG_VERSION } },
   { at: T("16:00:04"), actor: "worker", type: "candidate_rejected", summary: "Refused Value Wheat Bread: peanut cross-contact", data: { ...REFUSALS[0] } },
   { at: T("16:00:04"), actor: "worker", type: "candidate_rejected", summary: "Refused Artisan Sourdough: no label evidence", data: { ...REFUSALS[1] } },
@@ -168,6 +170,7 @@ const ALL_EVENTS: (Omit<AuditEvent, "runId" | "seq">)[] = [
   { at: T("16:02:16"), actor: "worker", type: "hold_readback", summary: "Reading hold back by operation key", data: { operationKey: OPERATION_KEY, attempt: 1 } },
   { at: T("16:02:17"), actor: "grocer", type: "hold_verified", summary: "1 active hold matches lines, total and slot", data: { holdId: "hold_7f3a9c2e41b8", operationKey: OPERATION_KEY, matched: true, activeHoldsForRun: 1 } },
   { at: T("16:02:18"), actor: "worker", type: "metrics_computed", summary: "Six run metrics computed and sent to Statsig", data: { unsafeItemsInCart: 0, mealCompletenessPct: 100, humanClicksPerOrder: 0, duplicateHolds: 0, totalCents: AFTER.totalCents, swapsTracedPct: 100 } },
+  { at: T("16:02:19"), actor: "grocer", type: "order_placed", summary: "Order LS-7F3A2C placed for pickup (pay at pickup)", data: { orderId: "LS-7F3A2C", operationKey: `order:${RUN_ID}`, totalCents: AFTER.totalCents } },
 ];
 
 function events(upToType: AuditEvent["type"], mode: AutonomyMode, ruleId: string, skipModeChange: boolean): AuditEvent[] {
@@ -434,7 +437,7 @@ export function sampleRunView(state: SampleState): RunView {
         orders: [ORDER_NOW, ...PAST_ORDERS],
         receipt: RECEIPT,
         kpis: VERIFIED_KPIS,
-        events: events("metrics_computed", "auto_swap", "rule-demo-household", false),
+        events: events("order_placed", "auto_swap", "rule-demo-household", false),
       };
     case "e":
       return {
