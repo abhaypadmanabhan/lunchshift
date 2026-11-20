@@ -142,11 +142,11 @@ export class CogneeMemory implements MemoryProvider {
         body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(timeoutMs),
       });
-      const text = await r.text();
       if (!r.ok) {
         const hint = r.status === 402 ? " (payment required: stop, free tier exhausted)" : "";
-        return { ok: false as const, error: `HTTP ${r.status}${hint}: ${text.slice(0, 200)}` };
+        return { ok: false as const, error: `HTTP ${r.status}${hint}` };
       }
+      const text = await r.text();
       return { ok: true as const, body: text ? (JSON.parse(text) as Json) : null };
     } catch (e) {
       return { ok: false as const, error: errText(e) };
@@ -233,4 +233,4 @@ function findStatusValue(x: object): string | undefined {
   return undefined;
 }
 
-const errText = (e: unknown) => (e instanceof Error ? `${e.name}: ${e.message}` : String(e));
+const errText = (e: unknown) => e instanceof Error && e.name === "TimeoutError" ? "request timed out" : "request failed";

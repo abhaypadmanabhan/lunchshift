@@ -2,18 +2,20 @@
 import { NextResponse } from "next/server";
 import { updateCart } from "@/worker/parent";
 import { buildView } from "@/lib/view/buildView";
+import { cartInput } from "@/lib/http/inputs";
+import { jsonBody } from "@/lib/http/jsonBody";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const b = await jsonBody(req, cartInput, 1024);
+  if (b instanceof NextResponse) return b;
   try {
-    const b = (await req.json()) as { skuId?: unknown; packs?: unknown };
-    if (typeof b.skuId !== "string" || typeof b.packs !== "number") return NextResponse.json({ ok: false, reason: "skuId and packs required" }, { status: 400 });
     const r = await updateCart(b.skuId, b.packs);
     const cart = (await buildView()).cart;
     return NextResponse.json({ ok: r.ok, reason: r.reason, cart }, { status: r.ok ? 200 : 422 });
-  } catch (e) {
-    return NextResponse.json({ ok: false, reason: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ ok: false, reason: "Could not update the cart" }, { status: 500 });
   }
 }

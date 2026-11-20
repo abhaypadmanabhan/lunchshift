@@ -41,6 +41,7 @@ import {
 import { hashFingerprint, slotEnd } from "../grocer/server";
 import type { GrocerClient } from "../grocer/client";
 import type { AllergenScreen, ScreenResult } from "../lib/allergen";
+import { templateRationale, topEligible } from "../lib/llm/template";
 
 export interface WorkerDeps {
   store: AppStore;
@@ -126,8 +127,8 @@ async function readMode(ctx: Ctx, why: string, logUnchanged = true): Promise<{ r
       autonomy_pref: ctx.household.mandate.maxAutonomy,
       household: ctx.household.id,
     });
-  } catch (e) {
-    reading = { mode: "suggest_only", source: "default", fetchedAt: new Date().toISOString(), error: String(e) };
+  } catch {
+    reading = { mode: "suggest_only", source: "default", fetchedAt: new Date().toISOString(), error: "autonomy provider unavailable" };
   }
   // ...and again after the (slow) Statsig read, so a revocation that landed meanwhile is seen before any write.
   const latest = await ctx.deps.store.getHousehold(ctx.household.id);
@@ -265,8 +266,8 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
   let recall: MemoryRecall;
   try {
     recall = await deps.memory.recall(household.id, `What food allergies and lunch preferences does ${household.childName}'s household have?`);
-  } catch (e) {
-    recall = { provider: "fallback", query: "household recall", factIds: [], snippets: [], error: String(e) };
+  } catch {
+    recall = { provider: "fallback", query: "household recall", factIds: [], snippets: [], error: "memory provider unavailable" };
   }
   if (recall.provider === "fallback") {
     // Backup memory for any family: the household's own confirmed facts (never another family's sample data).
@@ -331,8 +332,8 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
         summary: `SIE classifier screened ${screen.size} labels for ${hard.map((f) => f.allergen?.label ?? f.id).join(", ")}: ${flagged.length} flagged (${flagged.map((f) => `${f.skuId} ${f.score.toFixed(2)}`).join(", ")})`,
         data: { model: [...screen.values()][0]?.model ?? null, results: Object.fromEntries([...screen].map(([k, v]) => [k, { label: v.label, score: v.score, risk: v.risk }])) },
       });
-    } catch (e) {
-      await ev(ctx, { runId, actor: "sie", type: "allergen_screened", summary: `SIE classifier unavailable; structured rules alone decide (${e instanceof Error ? e.message : String(e)})`, data: { error: String(e) } });
+    } catch {
+      await ev(ctx, { runId, actor: "sie", type: "allergen_screened", summary: "SIE classifier unavailable. Structured rules decide.", data: { error: "SIE classifier unavailable" } });
     }
   }
   /** Structured rules decide; the classifier can only add a refusal on top. */
@@ -508,8 +509,8 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
     let ranking;
     try {
       ranking = await deps.ranker.rank(q, pool);
-    } catch (e) {
-      ranking = { provider: "local_vector" as const, query: q.text, ranked: pool.map((r, i) => ({ id: r.id, score: 0, rank: i + 1 })), inputs: {}, fallbackReason: String(e) };
+    } catch {
+      ranking = { provider: "local_vector" as const, query: q.text, ranked: pool.map((r, i) => ({ id: r.id, score: 0, rank: i + 1 })), inputs: {}, fallbackReason: "ranking provider unavailable" };
     }
     await ev(ctx, {
       runId,
@@ -518,15 +519,17 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
       summary: `${slot.day}: ranked ${pool.length} safe whole lunches via ${ranking.provider}: ${ranking.ranked.map((r) => `${r.id} ${r.score.toFixed(3)}`).join(", ")}`,
       data: { ...ranking, day: slot.day },
     });
+    const explainInput = { affectedDay: slot.day, fromRecipe, eligible: pool, ranking, refusals, preferenceFacts: prefFacts };
     let choice;
     try {
-      choice = await deps.explainer.explain({ affectedDay: slot.day, fromRecipe, eligible: pool, ranking, refusals, preferenceFacts: prefFacts });
+      choice = await deps.explainer.explain(explainInput);
     } catch {
       choice = null;
     }
-    const choiceId = choice && altBaskets.has(choice.choiceId) && pool.some((r) => r.id === choice.choiceId) ? choice.choiceId : ranking.ranked[0].id;
-    const toRecipe = recipeById.get(choiceId)!;
-    const after = altBaskets.get(choiceId)!;
+    const modelRecipe = choice && pool.find((r) => r.id === choice.choiceId);
+    const explanation = modelRecipe ? choice : null;
+    const toRecipe = modelRecipe || topEligible(explainInput)!;
+    const after = altBaskets.get(toRecipe.id)!;
     const diff = diffBaskets(prev, after);
     const proposal: SwapProposal = {
       affectedDay: slot.day,
@@ -538,8 +541,8 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
       before: prev,
       after,
       ranking,
-      rationale: choice?.rationale ?? `Ranked first among safe complete lunches.`,
-      rationaleProvider: choice?.provider ?? "template",
+      rationale: explanation?.rationale ?? templateRationale(explainInput, toRecipe),
+      rationaleProvider: explanation?.provider ?? "template",
     };
     const brokenHere = fromRecipe.lines.map((l) => l.role).filter((r) => brokenRoles.has(r));
     const why = refusals.find((r) => r.factId && (r.kind === "sku_substitute" ? brokenHere.includes(byId.get(r.candidateId)?.role ?? "") : false)) ?? refusals.find((r) => r.factId);
@@ -881,7 +884,7 @@ async function computeKpis(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fin
         },
       },
     ])
-    .catch((e: unknown) => ({ ok: false, error: String(e) }));
+    .catch(() => ({ ok: false, error: "analytics provider unavailable" }));
   await ev(ctx, {
     runId: ctx.run.id,
     actor: "worker",

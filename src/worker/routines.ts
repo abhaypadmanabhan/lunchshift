@@ -2,6 +2,7 @@
 // State (on/off, settings, last run) lives on the household record, so it persists per family.
 import type { AppStore, Household, KpiSet } from "../lib/domain/types";
 import type { RoutineView } from "../lib/domain/view";
+import { z } from "zod";
 
 export type RoutineId = RoutineView["id"];
 export interface RoutineState {
@@ -12,14 +13,31 @@ export interface RoutineState {
 export type Routines = Record<RoutineId, RoutineState>;
 
 const DAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+const weekday = z.enum(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+export const routineConfig = {
+  weekly_plan: z.strictObject({
+    day: z.enum(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]).optional(),
+    time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).optional(),
+  }),
+  stock_watch: z.strictObject({}),
+  school_skips: z.strictObject({ days: z.array(weekday).max(5).optional() }),
+  budget_alert: z.strictObject({ withinCents: z.number().int().min(100).max(2000).optional() }),
+};
+
+function readRoutine(id: RoutineId, saved: RoutineState | undefined, defaults: Record<string, unknown>): RoutineState {
+  const config = routineConfig[id].safeParse(saved?.config);
+  return { ...saved, enabled: saved?.enabled !== false, config: { ...defaults, ...(config.success ? config.data : {}) } };
+}
 
 export function routinesOf(h: Household): Routines {
   const r = (h as Household & { routines?: Partial<Routines> }).routines ?? {};
+  const day = h.mandate.window?.slice(0, 3) ?? "Sun";
+  const days = Array.isArray(h.skipDays) ? h.skipDays.filter((d) => weekday.safeParse(d).success) : [];
   return {
-    weekly_plan: r.weekly_plan ?? { enabled: true, config: { day: (h.mandate.window ?? "Sun").slice(0, 3), time: "16:00" } },
-    stock_watch: r.stock_watch ?? { enabled: true, config: {} },
-    school_skips: r.school_skips ?? { enabled: true, config: { days: h.skipDays ?? [] } },
-    budget_alert: r.budget_alert ?? { enabled: true, config: { withinCents: 300 } },
+    weekly_plan: readRoutine("weekly_plan", r.weekly_plan, { day: Object.hasOwn(DAY_INDEX, day) ? day : "Sun", time: "16:00" }),
+    stock_watch: readRoutine("stock_watch", r.stock_watch, {}),
+    school_skips: readRoutine("school_skips", r.school_skips, { days }),
+    budget_alert: readRoutine("budget_alert", r.budget_alert, { withinCents: 300 }),
   };
 }
 

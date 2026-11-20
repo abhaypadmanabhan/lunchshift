@@ -1,6 +1,6 @@
 // Parent actions from the app. Each one is a recorded parent event; the background worker stays the only writer
 // of plans and holds (these functions only record intent, supersede a stale run, or release a hold).
-import { applyHouseholdUpdate, currentRunId } from "../lib/domain/household";
+import { applyHouseholdUpdate, currentRunId, nextPolicyRevision } from "../lib/domain/household";
 import { checkBudget, markRun, routinesOf, withRoutines, type RoutineId } from "./routines";
 import { blankFamily, currentWeekOf, readPointer, writePointer } from "../lib/domain/families";
 import { activeCatalog } from "../lib/domain/catalog";
@@ -251,7 +251,8 @@ export function applyFacts(h: Household, facts: ProposedFact[]): Household {
       return { ...f, child: who, text: f.text.replace(childName, who).replace(/^(.+?) is allergic/, `${who} ${a!.who.size > 1 ? "are" : "is"} allergic`) };
     });
   } else {
-    next = { ...next, policyRevision: h.policyRevision + 1, mandate: { ...next.mandate, policyRevision: h.policyRevision + 1 } };
+    const revision = nextPolicyRevision(h);
+    next = { ...next, policyRevision: revision, mandate: { ...next.mandate, policyRevision: revision } };
   }
   if (h.onboarded === false) next.mandate = { ...next.mandate, policyRevision: next.policyRevision }; // onboarding is the first approval
 
@@ -264,7 +265,10 @@ export function applyFacts(h: Household, facts: ProposedFact[]): Household {
     if (f.kind === "budget" && typeof f.value.cents === "number") next.mandate = { ...next.mandate, budgetCents: f.value.cents };
     if (f.kind === "pickup" && f.value.day) next.mandate = { ...next.mandate, window: `${String(f.value.day).slice(0, 3)} 16:00-18:00` };
     if (f.kind === "store" && f.value.store) next.mandate = { ...next.mandate, storeId: String(f.value.store) };
-    if (f.kind === "plan_change" && typeof f.value.skip === "string") next.skipDays = [...new Set([...(next.skipDays ?? []), f.value.skip])];
+    if (f.kind === "plan_change" && typeof f.value.skip === "string") {
+      const days = Array.isArray(next.skipDays) ? next.skipDays : [];
+      next.skipDays = [...new Set([...days, f.value.skip])];
+    }
     if (f.kind === "plan_change" && typeof f.value.day === "string" && typeof f.value.recipeId === "string") {
       next.plan = next.plan.map((p) => (p.day === f.value.day ? { ...p, recipeId: String(f.value.recipeId) } : p));
     }
@@ -409,11 +413,17 @@ export async function confirmPayment(sessionId: string): Promise<{ ok: boolean; 
   const h = await activeHousehold(store);
   const runId = currentRunId(h, currentWeekOf());
   const events = await store.listEvents(runId);
-  if (events.some((e) => e.type === "payment_confirmed")) return { ok: true, paid: true };
   if (!events.some((e) => e.type === "payment_started" && e.data.sessionId === sessionId)) return { ok: false, reason: "Unknown payment session" };
+  if (events.some((e) => e.type === "payment_confirmed" && e.data.sessionId === sessionId)) return { ok: true, paid: true };
   const r = await retrieveSession(sessionId);
   if (!r.ok) return { ok: false, reason: r.error };
-  if (r.runId !== runId) return { ok: false, reason: "Payment belongs to another week" };
+  const order = events.find((e) => e.type === "order_placed")?.data.order as Order | undefined;
+  const metadata = r.metadata;
+  if (!order || metadata.app !== "lunchshift" || metadata.run_id !== runId || metadata.household_id !== h.id ||
+      metadata.hold_ref !== order.holdId || metadata.order_id !== order.orderId ||
+      r.amountCents !== order.totalCents || r.currency !== "usd") {
+    return { ok: false, reason: "Payment does not match this order" };
+  }
   if (!r.paid) return { ok: true, paid: false };
   await store.appendEvent({
     runId,

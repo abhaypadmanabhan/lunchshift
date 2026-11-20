@@ -404,6 +404,38 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
     },
   },
   {
+    name: "First allergy edit for a chat-built family starts a fresh run and needs approval",
+    auto: false,
+    fn: async () => {
+      const weekOf = "2026-11-29";
+      const onboarded = applyFacts(blankFamily(3), toFacts({ kids: [{ name: "Ivy", age: 5 }], budgetDollars: 50 }));
+      const before = { ...onboarded, mandate: { ...onboarded.mandate, maxAutonomy: "auto_swap_and_hold" as const } };
+      const w = await world("auto_swap_and_hold", before);
+      try {
+        const oldId = currentRunId(before, weekOf);
+        const run = (runId: string) => processRun(w.deps, { runId, householdId: before.id, weekOf, trigger: "manual" });
+        const first = await run(oldId);
+        const next = applyFacts(before, toFacts({ allergies: [{ child: "Ivy", allergen: "milk" }] }));
+        await w.client.releaseHold(`hold:${oldId}`);
+        await w.store.upsertRun({ ...first.run, status: "superseded" });
+        await w.store.saveHousehold(next);
+        const newId = currentRunId(next, weekOf);
+        const revised = await run(newId);
+        const oldHolds = await w.client.listHolds(oldId);
+        const newHolds = await w.client.listHolds(newId);
+        const refusals = await w.store.listEvents(newId);
+        const milkRefused = refusals.some((event) => event.type === "candidate_rejected" && event.data.factId === "fact-allergy-milk");
+        return {
+          pass: first.run.status === "hold_verified" && oldId !== newId && revised.run.status === "proposed" &&
+            oldHolds.every((hold) => hold.status === "released") && newHolds.length === 0 && milkRefused,
+          detail: `first ${first.run.status}, distinct revision run ${oldId !== newId}, revised ${revised.run.status}, milk refused ${milkRefused}, new holds ${newHolds.length}`,
+        };
+      } finally {
+        await w.grocer.close();
+      }
+    },
+  },
+  {
     name: "Routines: school calendar skips Friday; budget alert fires once near the cap",
     auto: true,
     fn: async () => {

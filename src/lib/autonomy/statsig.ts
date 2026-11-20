@@ -23,7 +23,7 @@ export class StatsigAutonomy implements AutonomyProvider {
       const ruleId = typeof body.rule_id === "string" && body.rule_id ? body.rule_id : undefined;
       const mode = body.value?.mode;
       if (!isAutonomyMode(mode)) {
-        const why = mode === undefined ? `config ${AUTONOMY_CONFIG} missing or has no value.mode` : `invalid mode ${JSON.stringify(mode)}`;
+        const why = mode === undefined ? `config ${AUTONOMY_CONFIG} missing or has no value.mode` : "config contains an invalid mode";
         return { ...defaultReading(fetchedAt, why), ...(ruleId ? { ruleId } : {}) };
       }
       return { mode, source: "statsig", ruleId, fetchedAt };

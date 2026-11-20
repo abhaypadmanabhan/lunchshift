@@ -13,6 +13,18 @@ export function stripeStatus(): StripeStatus {
 
 const base = () => (process.env.STRIPE_API_BASE || "https://api.stripe.com").replace(/\/$/, "");
 
+/** Use the configured public origin, or a loopback request URL for local runs. */
+export function checkoutOrigin(requestUrl: string): string | null {
+  const configured = process.env.PUBLIC_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "");
+  const url = URL.parse(configured || requestUrl);
+  if (!url || url.username || url.password) return null;
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (!configured && !local) return null;
+  if (url.protocol !== "https:" && !(local && url.protocol === "http:")) return null;
+  if (configured && (url.pathname !== "/" || url.search || url.hash)) return null;
+  return url.origin;
+}
+
 export interface CheckoutLine {
   name: string;
   unitCents: number;
@@ -31,7 +43,7 @@ export interface CheckoutRequest {
 
 export type CheckoutResult = { ok: true; sessionId: string; url: string } | { ok: false; error: string };
 export type SessionResult =
-  | { ok: true; paid: boolean; paymentIntentId: string | null; amountCents: number; runId: string | null }
+  | { ok: true; paid: boolean; paymentIntentId: string | null; amountCents: number | null; currency: string | null; metadata: Record<string, string> }
   | { ok: false; error: string };
 
 function form(r: CheckoutRequest): URLSearchParams {
@@ -63,24 +75,24 @@ export async function createCheckout(r: CheckoutRequest): Promise<CheckoutResult
     "content-type": "application/x-www-form-urlencoded",
     "idempotency-key": `checkout:hold:${r.runId}`,
   };
-  let last = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(`${base()}/v1/checkout/sessions`, { method: "POST", headers, body, signal: AbortSignal.timeout(10000) });
-      const j = (await res.json()) as { id?: string; url?: string; error?: { message?: string } };
-      if (!res.ok || !j.id || !j.url) return { ok: false, error: `Stripe HTTP ${res.status}: ${j.error?.message ?? "no session"}` };
+      if (!res.ok) return { ok: false, error: `Stripe Checkout unavailable (HTTP ${res.status})` };
+      const j = (await res.json()) as { id?: string; url?: string };
+      if (!j.id || !j.url) return { ok: false, error: "Stripe returned no Checkout Session" };
       return { ok: true, sessionId: j.id, url: j.url };
-    } catch (e) {
-      last = e instanceof Error ? e.message : String(e); // reply lost: same key, same body, once
+    } catch {
+      // A reply may have been lost after checkout creation. Retry once with the same key and body.
     }
   }
-  return { ok: false, error: `No reply from Stripe (${last})` };
+  return { ok: false, error: "No reply from Stripe" };
 }
 
 export async function retrieveSession(sessionId: string): Promise<SessionResult> {
   const s = stripeStatus();
   if (!s.enabled) return { ok: false, error: s.reason };
-  if (!/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return { ok: false, error: "Not a Checkout Session id" };
+  if (sessionId.length > 160 || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return { ok: false, error: "Not a Checkout Session id" };
   try {
     const res = await fetch(`${base()}/v1/checkout/sessions/${sessionId}`, {
       headers: { authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}` },
@@ -90,13 +102,13 @@ export async function retrieveSession(sessionId: string): Promise<SessionResult>
       payment_status?: string;
       payment_intent?: string | { id: string } | null;
       amount_total?: number;
+      currency?: string;
       metadata?: Record<string, string>;
-      error?: { message?: string };
     };
-    if (!res.ok) return { ok: false, error: `Stripe HTTP ${res.status}: ${j.error?.message ?? ""}` };
+    if (!res.ok) return { ok: false, error: `Stripe payment verification unavailable (HTTP ${res.status})` };
     const pi = typeof j.payment_intent === "string" ? j.payment_intent : (j.payment_intent?.id ?? null);
-    return { ok: true, paid: j.payment_status === "paid", paymentIntentId: pi, amountCents: Number(j.amount_total ?? 0), runId: j.metadata?.run_id ?? null };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    return { ok: true, paid: j.payment_status === "paid", paymentIntentId: pi, amountCents: j.amount_total ?? null, currency: j.currency ?? null, metadata: j.metadata ?? {} };
+  } catch {
+    return { ok: false, error: "No payment verification reply from Stripe" };
   }
 }

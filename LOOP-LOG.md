@@ -69,3 +69,8 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - New scenarios: a family from scratch via chat (2 kids, 3 allergies); a mid-week allergy change via chat; routines (school skip, budget alert once); two weeks for a chat-built family (week 2 zero clicks). 25/25.
 - Two bugs found by the new scenarios and fixed: a preset family with no `onboarded` flag was treated as brand new (skipped re-approval); "Ask me" families could never get a hold even after approval (explicit approval now authorizes that order, with a good config read and a live mandate).
 - Live proof: a brand-new family (Noah 7: tree nuts + eggs; Ivy 5: sesame) built from one chat message -> plan -> 5 refusals -> approve -> held -> order LS-2D621E -> next Sunday stockout.
+
+## Loop 14 · public walkthrough and security review
+
+- The public demo verified an edited week-one order, a repeatable Stripe test checkout, and a zero-click week-two swap and hold. The milk allergy saved, but the deployed run stayed superseded. Reset restored the default fixture after each run.
+- The first allergy edit now gets a distinct run ID. That scenario failed on the old code and passed with the fix. The 27 KPI scenarios and allergy suite passed locally. The branch also bounds public input and restricts test Checkout to the configured origin. Deployment waits on the orchestrator.

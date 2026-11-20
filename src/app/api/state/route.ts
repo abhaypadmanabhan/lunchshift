@@ -8,6 +8,11 @@ export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   const param = new URL(req.url).searchParams.get("state");
-  const view = isSampleState(param) ? sampleRunView(param) : await buildView();
-  return NextResponse.json(view, { headers: { "cache-control": "no-store" } });
+  const headers = { "cache-control": "no-store" };
+  try {
+    const view = isSampleState(param) ? sampleRunView(param) : await buildView();
+    return NextResponse.json(view, { headers });
+  } catch {
+    return NextResponse.json({ ok: false, reason: "Could not load the demo state" }, { headers, status: 500 });
+  }
 }
