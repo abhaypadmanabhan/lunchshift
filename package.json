@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "grocer": "tsx --env-file-if-exists=.env src/grocer/main.ts",
+    "worker": "tsx --env-file-if-exists=.env src/worker/main.ts",
+    "kpi": "tsx --env-file-if-exists=.env scripts/kpi.ts",
+    "smoke:store": "tsx --env-file-if-exists=.env scripts/smoke-store.ts",
+    "smoke:vendors": "tsx --env-file-if-exists=.env scripts/smoke-vendors.ts",
+    "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",
@@ -25,7 +31,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22.20.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
