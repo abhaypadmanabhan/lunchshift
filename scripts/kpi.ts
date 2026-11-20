@@ -171,6 +171,95 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
     },
   },
   {
+    name: "Label with no evidence value is never held (only 'confirmed' counts as evidence)",
+    auto: false,
+    fn: async () => {
+      const w = await world("auto_swap_and_hold");
+      const real = w.client.catalog.bind(w.client);
+      w.client.catalog = async () => {
+        const c = await real();
+        return { ...c, skus: c.skus.map((s) => (s.id === "bread-harvest-ww" ? { ...s, label: { ...s.label, evidence: undefined as unknown as "confirmed" } } : s)) };
+      };
+      const r = await w.run();
+      const holds = await w.client.listHolds(w.runId);
+      const held = holds.some((h) => h.lines.some((l) => l.skuId === "bread-harvest-ww"));
+      await w.grocer.close();
+      return { pass: !held, detail: `status ${r.run.status}, unlabeled bread held ${held}` };
+    },
+  },
+  {
+    name: "Parent click never exceeds the parent's own maximum, or a failed config read",
+    auto: false,
+    fn: async () => {
+      const out: string[] = [];
+      let ok = true;
+      for (const variant of ["max_auto_swap", "read_timeout"] as const) {
+        const hh = variant === "max_auto_swap" ? { ...HOUSEHOLD, mandate: { ...HOUSEHOLD.mandate, maxAutonomy: "auto_swap" as const } } : HOUSEHOLD;
+        const w = await world("suggest_only", hh);
+        await w.op.setStock(DEMO_STOCKOUT_SKU, 0);
+        await w.run();
+        if (variant === "read_timeout") w.autonomy.mode = "timeout";
+        const r = await approveProposal(w.deps, w.runId);
+        const holds = await w.client.listHolds(w.runId);
+        ok = ok && holds.length === 0;
+        out.push(`${variant}: ${r.run.status}, holds ${holds.length}`);
+        await w.grocer.close();
+      }
+      return { pass: ok, detail: out.join("; ") };
+    },
+  },
+  {
+    name: "Weekly limits: maxHoldsPerWeek 0 places nothing; a second run the same week cannot add a hold",
+    auto: false,
+    fn: async () => {
+      const w0 = await world("auto_swap_and_hold", { ...HOUSEHOLD, mandate: { ...HOUSEHOLD.mandate, maxHoldsPerWeek: 0 } });
+      const r0 = await w0.run();
+      const h0 = (await w0.client.listHolds(w0.runId)).length;
+      await w0.grocer.close();
+      const w = await world("auto_swap_and_hold");
+      await w.run();
+      const second = `${w.runId}-b`;
+      const r2 = await processRun(w.deps, { runId: second, householdId: HOUSEHOLD.id, weekOf: "2026-11-22", trigger: "manual" });
+      const h2 = (await w.client.listHolds(w.runId)).length + (await w.client.listHolds(second)).length;
+      await w.grocer.close();
+      return { pass: h0 === 0 && h2 === 1, detail: `max0: ${r0.run.status} holds ${h0}; second run ${r2.run.status}, week holds ${h2}` };
+    },
+  },
+  {
+    name: "Parent revokes mid-run: the pre-hold check sees it and places nothing",
+    auto: false,
+    fn: async () => {
+      const w = await world("auto_swap_and_hold");
+      await w.op.setStock(DEMO_STOCKOUT_SKU, 0);
+      const realRead = w.autonomy.read.bind(w.autonomy);
+      let calls = 0;
+      w.autonomy.read = async () => {
+        calls++;
+        if (calls === 2) await w.store.saveHousehold({ ...HOUSEHOLD, mandate: { ...HOUSEHOLD.mandate, revoked: true } });
+        return realRead();
+      };
+      const r = await w.run();
+      const holds = await w.client.listHolds(w.runId);
+      await w.grocer.close();
+      return { pass: holds.length === 0, detail: `status ${r.run.status}, effective ${r.run.effectiveMode}, holds ${holds.length}` };
+    },
+  },
+  {
+    name: "Read-back must match line by line, not just the fingerprint",
+    auto: false,
+    fn: async () => {
+      const w = await world("auto_swap_and_hold");
+      const real = w.client.readHold.bind(w.client);
+      w.client.readHold = async (k: string) => {
+        const h = await real(k);
+        return h ? { ...h, lines: h.lines.map((l, i) => (i === 0 ? { ...l, skuId: "bread-value-wheat" } : l)) } : h;
+      };
+      const r = await w.run();
+      await w.grocer.close();
+      return { pass: r.run.status !== "hold_verified", detail: `status ${r.run.status}` };
+    },
+  },
+  {
     name: "Human sign-off: suggest_only proposal + one parent approval places one verified hold",
     auto: false,
     fn: async () => {

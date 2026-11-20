@@ -22,9 +22,10 @@ function blockingFact(h: Household, allergens: string[]): HouseholdFact | undefi
 export function checkSku(h: Household, sku: Sku, packsNeeded: number): CandidateDecision {
   const reasons: RejectReason[] = [];
   let fact: HouseholdFact | undefined;
-  if (sku.label.evidence === "missing") reasons.push("missing_label_evidence");
-  if (sku.label.evidence === "conflicting") reasons.push("conflicting_label_evidence");
-  fact = blockingFact(h, sku.label.allergenWarnings);
+  // Only an explicit "confirmed" counts as evidence. Anything else (missing, empty, unknown) blocks.
+  if (sku.label?.evidence === "conflicting") reasons.push("conflicting_label_evidence");
+  else if (sku.label?.evidence !== "confirmed") reasons.push("missing_label_evidence");
+  fact = blockingFact(h, Array.isArray(sku.label?.allergenWarnings) ? sku.label.allergenWarnings : []);
   if (fact) reasons.push("allergen_warning");
   if (sku.stock < packsNeeded) reasons.push("out_of_stock");
   // Missing evidence is never treated as "safe": cite the hard restriction it could not clear.

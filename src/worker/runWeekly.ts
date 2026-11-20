@@ -118,11 +118,18 @@ async function readMode(ctx: Ctx, why: string, logUnchanged = true): Promise<{ r
   } catch (e) {
     reading = { mode: "suggest_only", source: "default", fetchedAt: new Date().toISOString(), error: String(e) };
   }
+  // Re-read the authoritative household so a revocation or budget change made mid-run is seen before any write.
+  const fresh = await ctx.deps.store.getHousehold(ctx.household.id);
+  if (fresh) ctx.household = fresh;
   const m = ctx.household.mandate;
   const mandateLive = !m.revoked && new Date(m.expiresAt).getTime() > Date.now();
   const cap = mandateLive ? m.maxAutonomy : "suggest_only";
-  // A parent's explicit approval of this run's proposal authorizes this one order, within a live mandate.
-  const effective = ctx.parentApproved && mandateLive ? "auto_swap_and_hold" : minMode(reading.mode, cap);
+  // A failed or defaulted read never authorizes anything. A parent's approval of this run's proposal requests
+  // a hold for this one order, but the parent's own maximum still caps it.
+  const readOk = reading.source === "statsig" && !reading.error;
+  const remote: AutonomyMode = readOk ? reading.mode : "suggest_only";
+  const requested: AutonomyMode = ctx.parentApproved && readOk ? "auto_swap_and_hold" : remote;
+  const effective = minMode(requested, cap);
   const changed = effective !== ctx.run.effectiveMode || reading.mode !== ctx.run.observedMode;
   if (!changed && !logUnchanged) return { reading, effective };
   await ev(ctx, {
@@ -580,9 +587,16 @@ async function dispatchHold(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fi
     await computeKpis(ctx, basket, byId, finalPlan, null);
     return ctx.run;
   }
-  const unsafe = unsafeLines(h, basket, byId);
+  const hh = ctx.household;
+  const unsafe = unsafeLines(hh, basket, byId);
   if (unsafe.length) return (await escalate(ctx, `unsafe lines blocked at hold gate: ${unsafe.join(", ")}`)).run;
-  if (basket.totalCents > h.mandate.budgetCents) return (await escalate(ctx, "over budget at hold gate")).run;
+  // Mandate: at most N holds per week across all of this household's runs for the week.
+  const weekRuns = (await ctx.deps.store.listRuns(hh.id)).filter((r) => r.weekOf === ctx.run.weekOf && r.id !== runId);
+  const weekHolds = weekRuns.filter((r) => r.status === "hold_verified" || r.status === "hold_pending").length;
+  if (weekHolds + 1 > hh.mandate.maxHoldsPerWeek) {
+    return (await escalate(ctx, `mandate allows ${hh.mandate.maxHoldsPerWeek} hold(s) per week; ${weekHolds} already placed for ${ctx.run.weekOf}`)).run;
+  }
+  if (basket.totalCents > hh.mandate.budgetCents) return (await escalate(ctx, "over budget at hold gate")).run;
 
   const catalogVersion = [...byId.values()][0]?.catalogVersion ?? "unknown";
   const req = holdRequestFor(ctx.run, basket, catalogVersion);
@@ -639,9 +653,13 @@ async function reconcileHold(ctx: Ctx, reqIn?: HoldRequest, byIdIn?: Map<string,
     const hold = await ctx.deps.grocer.readHold(req.operationKey).catch(() => null);
     const fp = hashFingerprint(req.lines, req.totalCents, req.slot);
     if (hold) {
-      const matched = hold.status === "active" && hold.fingerprint === fp && hold.totalCents === req.totalCents && hold.slot === req.slot;
+      const canon = (ls: { skuId: string; packs: number; unitPriceCents: number }[]) =>
+        [...ls].sort((a, b) => a.skuId.localeCompare(b.skuId)).map((l) => `${l.skuId}:${l.packs}:${l.unitPriceCents}`).join("|");
+      const linesMatch = canon(hold.lines) === canon(req.lines);
+      const fpMatch = hold.fingerprint === fp && (!ctx.run.requestFingerprint || ctx.run.requestFingerprint === fp);
       const all = await ctx.deps.grocer.listHolds(runId);
       const active = all.filter((x) => x.status === "active").length;
+      const matched = hold.status === "active" && linesMatch && fpMatch && hold.totalCents === req.totalCents && hold.slot === req.slot && active === 1;
       await ev(ctx, {
         runId,
         actor: "grocer",
@@ -649,7 +667,10 @@ async function reconcileHold(ctx: Ctx, reqIn?: HoldRequest, byIdIn?: Map<string,
         summary: `Store read-back by key: hold ${hold.holdId} ${hold.status}, ${hold.lines.length} lines, $${(hold.totalCents / 100).toFixed(2)}, ${active} active hold(s) for this run; ${matched ? "matches" : "DOES NOT match"} our request`,
         data: { hold, matched, activeHoldsForRun: active, expectedFingerprint: fp },
       });
-      if (!matched) return (await escalate(ctx, "merchant record does not match the request")).run;
+      if (!matched) {
+        const why = active !== 1 ? `${active} active holds for this run` : !linesMatch ? "lines differ" : !fpMatch ? "fingerprint differs" : "total, slot or status differs";
+        return (await escalate(ctx, `merchant record does not match the request (${why})`)).run;
+      }
       await ctx.deps.store.saveReceipt({
         runId,
         operationKey: req.operationKey,
@@ -669,7 +690,14 @@ async function reconcileHold(ctx: Ctx, reqIn?: HoldRequest, byIdIn?: Map<string,
       await ctx.deps.analytics
         .log(ctx.analyticsUser, [{ eventName: "hold_verified", value: hold.totalCents, metadata: { runId, holdRef: hold.holdId } }])
         .catch(() => undefined);
-      await computeKpis(ctx, basket, byId, finalPlan, active);
+      // Measure what the merchant actually holds (fresh catalog labels), not our own request.
+      const fresh = new Map((await ctx.deps.grocer.catalog()).skus.map((x) => [x.id, x]));
+      const held: Basket = {
+        version: basket.version,
+        lines: hold.lines.map((l) => ({ skuId: l.skuId, name: fresh.get(l.skuId)?.name ?? l.skuId, packs: l.packs, unitPriceCents: l.unitPriceCents, lineCents: l.packs * l.unitPriceCents, usedBy: [] })),
+        totalCents: hold.totalCents,
+      };
+      await computeKpis(ctx, held, fresh, finalPlan, active);
       return ctx.run;
     }
     if (attempt === 1) break;
@@ -707,7 +735,7 @@ async function computeKpis(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fin
     unsafeItemsInCart: unsafeLines(h, basket, byId).length,
     mealCompletenessPct: Math.round((completeLunches(finalPlan, basket, byId) / h.plan.length) * 100),
     humanClicksPerOrder: parentClicks,
-    duplicateHolds: activeHolds === null ? 0 : Math.max(0, activeHolds - 1),
+    duplicateHolds: activeHolds === null ? 0 : Math.max(0, activeHolds - Math.max(1, h.mandate.maxHoldsPerWeek)),
     budgetKept: { kept: basket.totalCents <= h.mandate.budgetCents, totalCents: basket.totalCents, budgetCents: h.mandate.budgetCents },
     swapsTracedPct: swaps.length === 0 && proposals.length === 0 ? 100 : Math.round((traced / Math.max(1, proposals.length)) * 100),
   };
