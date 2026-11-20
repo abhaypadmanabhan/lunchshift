@@ -64,11 +64,7 @@ export function AutonomyControl({ view, onRefresh, compact = false }: { view: Ru
           );
         })}
       </div>
-      {compact ? (
-        capped ? (
-          <p className="text-[0.9375rem] text-wait">Statsig allows up to {modeLabel(view.mode.observed)}</p>
-        ) : null
-      ) : (
+      {compact ? null : (
         <>
           <p className="text-base">{detail}</p>
           {capped ? (

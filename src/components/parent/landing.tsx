@@ -4,11 +4,11 @@ import { ShieldCheck } from "lucide-react";
 import { AppButton } from "./ui";
 
 const WEEK = [
-  { day: "Mon", field: "bg-meal-wheat", ink: "text-meal-wheat-ink" },
-  { day: "Tue", field: "bg-meal-leaf", ink: "text-meal-leaf-ink" },
-  { day: "Wed", field: "bg-meal-tomato", ink: "text-meal-tomato-ink" },
-  { day: "Thu", field: "bg-meal-bean", ink: "text-meal-bean-ink" },
-  { day: "Fri", field: "bg-meal-leaf", ink: "text-meal-leaf-ink" },
+  { day: "Mon", meal: "Rice bowl", field: "bg-meal-wheat", ink: "text-meal-wheat-ink" },
+  { day: "Tue", meal: "Quesadilla", field: "bg-meal-leaf", ink: "text-meal-leaf-ink" },
+  { day: "Wed", meal: "Pasta salad", field: "bg-meal-tomato", ink: "text-meal-tomato-ink" },
+  { day: "Thu", meal: "Hummus box", field: "bg-meal-bean", ink: "text-meal-bean-ink" },
+  { day: "Fri", meal: "Turkey pita", field: "bg-meal-leaf", ink: "text-meal-leaf-ink" },
 ];
 
 /** The first frame: what LunchShift is, in one line, and one way in. */
@@ -22,8 +22,11 @@ export function Landing({ onStart }: { onStart: () => void }) {
         <ul className="ls-stagger flex gap-2" aria-hidden>
           {WEEK.map((d) => (
             <li key={d.day} className={`flex h-20 flex-1 flex-col justify-between rounded-xl p-2.5 md:h-28 md:p-3.5 ${d.field}`}>
-              <span className={`text-[0.9375rem] font-medium ${d.ink}`}>{d.day}</span>
-              <ShieldCheck className={`size-5 ${d.ink}`} strokeWidth={1.8} />
+              <span className={`flex items-center justify-between text-[0.9375rem] font-medium ${d.ink}`}>
+                {d.day}
+                <ShieldCheck className="size-[1.125rem]" strokeWidth={1.8} />
+              </span>
+              <span className={`text-[0.9375rem] font-medium leading-tight tracking-[-0.01em] ${d.ink}`}>{d.meal}</span>
             </li>
           ))}
         </ul>

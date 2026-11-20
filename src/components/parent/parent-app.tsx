@@ -201,12 +201,8 @@ function Sidebar({
         >
           <span className="block text-[0.9375rem] text-muted-foreground">LunchShift may</span>
           <span className="block text-base font-medium">{modeLabel(view.mode.effective)}</span>
-          {view.mode.effective !== view.mode.parentMax ? (
-            <span className="block text-[0.9375rem] leading-snug text-wait">
-              {MODE_ORDER[view.mode.effective] > MODE_ORDER[view.mode.parentMax]
-                ? "You approved this week's order"
-                : `You chose ${modeLabel(view.mode.parentMax)}; Statsig allows up to ${modeLabel(view.mode.observed)}`}
-            </span>
+          {MODE_ORDER[view.mode.effective] > MODE_ORDER[view.mode.parentMax] ? (
+            <span className="block text-[0.9375rem] leading-snug text-wait">You approved this week&apos;s order</span>
           ) : null}
         </button>
       ) : null}

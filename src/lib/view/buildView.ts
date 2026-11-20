@@ -275,7 +275,10 @@ async function familiesView(store: Awaited<ReturnType<typeof ensureSeeded>>) {
       onboarded: h.onboarded !== false,
     });
   }
-  return out;
+  // The guided demo makes its own "Maya" through the chat; show it instead of the sample Maya, not beside it.
+  const presetIds = new Set(PRESETS.map((p) => p.id));
+  const madeNames = new Set(out.filter((f) => !presetIds.has(f.id) && f.onboarded).map((f) => f.childName.toLowerCase()));
+  return out.filter((f) => f.active || !presetIds.has(f.id) || !madeNames.has(f.childName.toLowerCase()));
 }
 
 function weekView() {
