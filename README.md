@@ -1,3 +1,5 @@
+<img src="docs/brand/logo.png" alt="LunchShift" width="480">
+
 # LunchShift
 
 **A grocery agent for parents of kids with food allergies. Set the rules once; every Sunday it plans five school lunches, refuses anything unsafe, swaps whole lunches when something sells out, and holds a pay-at-pickup order. It never pays.**

@@ -20,6 +20,10 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
+  // Absolute links for the link-preview image; Railway sets RAILWAY_PUBLIC_DOMAIN.
+  metadataBase: new URL(
+    process.env.PUBLIC_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "http://localhost:3000"),
+  ),
   title: "LunchShift",
   description:
     "A parent's school-lunch grocery agent: refuses unsafe substitutes, swaps the whole lunch, and verifies one pickup hold.",
