@@ -1,8 +1,8 @@
 # LunchShift status
 
-**Updated 11:43 PT. Milestone:** slice 1 done. The live stack (`npm run stack`: grocer :4100, worker, UI :3000) has been driven end to end with real sponsors. Next: the live Statsig flip rehearsal, SingleStore once its host resolves, then polish and rehearsal.
+**Updated 11:53 PT. Milestone:** slice 1 done, and the live Statsig flip is proven (Abhay flipped it in the console, then dropped reply, read-back, one hold, about 15 s from his message). Next: SingleStore once its host resolves, then the full-auto scheduled run with zero inputs, polish and rehearsal.
 
-**Latest KPIs (`npm run kpi`, loop 5, 18/18 scenarios; cross-model review findings fixed):** unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept ($29.48 max / $35) · swaps traced 100%.
+**Latest KPIs (`npm run kpi`, loop 6, 19/19 scenarios; cross-model review findings fixed):** unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept ($29.48 max / $35) · swaps traced 100%.
 
 **Sponsors**
 
