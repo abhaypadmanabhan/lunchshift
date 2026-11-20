@@ -5,6 +5,17 @@ import { HOUSEHOLD, RECIPES } from "../domain/fixture";
 import type { AuditEvent, CandidateDecision, MemoryRecall, SwapProposal } from "../domain/types";
 import type { IntegrationStatus, KpiSuiteResult, PlanRow, RunView } from "../domain/view";
 import { storeStatus } from "../store";
+import { getAutonomy } from "../autonomy";
+import type { AutonomyReading } from "../domain/types";
+
+// Before a run exists, show what Statsig says right now (cached briefly; the page polls every 1.5 s).
+let liveRead: { at: number; reading: AutonomyReading } | null = null;
+async function liveMode(userId: string): Promise<AutonomyReading> {
+  if (liveRead && Date.now() - liveRead.at < 3000) return liveRead.reading;
+  const reading = await getAutonomy().read(userId);
+  liveRead = { at: Date.now(), reading };
+  return reading;
+}
 import { DEMO_RUN_ID, ensureSeeded, grocerClient } from "../../worker/deps";
 
 const recipeName = (id: string) => RECIPES.find((r) => r.id === id)?.name ?? id;
@@ -72,7 +83,7 @@ export async function buildView(runId = DEMO_RUN_ID): Promise<RunView> {
     { name: "SingleStore", status: ss.provider === "singlestore" ? "live" : "fallback", detail: ss.provider === "singlestore" ? "System of record + vector SQL" : "SQLite stand-in (SingleStore unreachable)" },
     {
       name: "Statsig",
-      status: modeEv ? (modeEv.data.source === "statsig" ? "live" : "fallback") : process.env.STATSIG_SERVER_SECRET ? "live" : "missing",
+      status: modeEv ? (modeEv.data.source === "statsig" ? "live" : "fallback") : !run && liveRead ? (liveRead.reading.source === "statsig" ? "live" : "fallback") : process.env.STATSIG_SERVER_SECRET ? "live" : "missing",
       detail: modeEv
         ? modeEv.data.source === "statsig"
           ? `autonomy_mode read live (rule ${String(modeEv.data.ruleId ?? "default")})`
@@ -106,14 +117,30 @@ export async function buildView(runId = DEMO_RUN_ID): Promise<RunView> {
     generatedAt: new Date().toISOString(),
     household: { id: household.id, childName: household.childName, facts: household.facts, mandate: household.mandate },
     run,
-    mode: {
-      observed: run?.observedMode ?? "suggest_only",
-      effective: run?.effectiveMode ?? "suggest_only",
-      parentMax: household.mandate.maxAutonomy,
-      source: (modeEv?.data.source as "statsig" | "default" | undefined) ?? "default",
-      ruleId: (modeEv?.data.ruleId as string | null | undefined) ?? undefined,
-      fetchedAt: String(modeEv?.data.fetchedAt ?? new Date().toISOString()),
-    },
+    mode: run
+      ? {
+          observed: run.observedMode,
+          effective: run.effectiveMode,
+          parentMax: household.mandate.maxAutonomy,
+          source: (modeEv?.data.source as "statsig" | "default" | undefined) ?? "default",
+          ruleId: (modeEv?.data.ruleId as string | null | undefined) ?? undefined,
+          fetchedAt: String(modeEv?.data.fetchedAt ?? new Date().toISOString()),
+        }
+      : await (async () => {
+          const r = await liveMode(household.id);
+          const m = household.mandate;
+          const cap = !m.revoked && Date.parse(m.expiresAt) > Date.now() ? m.maxAutonomy : "suggest_only";
+          const observed = r.source === "statsig" && !r.error ? r.mode : "suggest_only";
+          const rank = { suggest_only: 0, auto_swap: 1, auto_swap_and_hold: 2 } as const;
+          return {
+            observed,
+            effective: rank[observed] <= rank[cap] ? observed : cap,
+            parentMax: m.maxAutonomy,
+            source: r.source,
+            ruleId: r.ruleId,
+            fetchedAt: r.fetchedAt,
+          };
+        })(),
     stockout: stockEv
       ? { skuId: String(stockEv.data.skuId), name: stockEv.summary.replace(/ is out of stock.*$/, "") }
       : null,
