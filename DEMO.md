@@ -1,33 +1,37 @@
 # LunchShift demo runbook (3 minutes)
 
-Screen: http://localhost:3000/?onboarding=0 at 1440x900 (parent app on the left, "LunchShift at work" on the right). Second tab: the Statsig console. Third tab: http://localhost:3000/console. `npm run build && npm run stack` must be running.
+Screen: https://lunchshift-web-production.up.railway.app/demo in a desktop browser at 1440x900. The web app has a sidebar (This week, Cart, Orders, Routines, Inbox, Memory, Family), the main view, and the "LunchShift at work" rail on the right. The bar at the top is the demo stepper: **Next step** (or the right arrow key) runs what the parent's own button would. Second tab: `/console`.
 
-## Pre-roll (about 1 minute, before recording)
+Backup if anything breaks live: `docs/proof/backup-story.mp4` (the same eight steps, recorded against the public URL, no audio).
 
-1. Statsig: `autonomy_mode` = `{"mode":"auto_swap"}`.
-2. Console tab, Demo operator: **Reset demo**, then **Inject bread stockout**. Wait about 12 s for "Lunches fixed · waiting to hold pickup".
-3. Demo operator: **Drop next store response** (the store will commit the hold, then lose its reply).
-4. Back to the app tab, scroll to the top, start recording.
+## Pre-roll (30 seconds, before recording)
+
+1. `/console`, Demo operator: **Reset demo**. This clears the store and hides families made in earlier runs.
+2. Open `/demo`. It starts on the landing page. Start recording.
 
 ## Script
 
-| Time | Screen | Say |
+| Step | Screen | Say |
 | --- | --- | --- |
-| 0:00-0:30 | This week: **Kept Maya safe** | "Maya is 8 and allergic to peanuts. On Sunday her usual bread sold out, and the cheapest replacement's exact label says *may contain peanuts*. LunchShift refused it. It never reached the cart. The allergy is the one her parent confirmed, recalled from **Cognee** memory, and a small **Superlinked SIE** classifier read the same label and agreed, 0.96. On the right, the agent is working on its own." |
-| 0:30-1:05 | Lunch list, then **Why?**, then the **Cart** tab | "It didn't just swap bread. With no safe bread there's no sandwich, so it replaced the whole Monday lunch and kept the other four. **SingleStore** shortlisted safe lunches with vector search, SIE reranked them, and **Claude** explains the pick. Code enforces every rule. In the cart, $26.97 of a $35 budget. If I try to add that bread myself..." *(Add item: Value Wheat is greyed out)* "...it's blocked, with the reason." *(Add a second pack of apples.)* |
-| 1:05-1:35 | Statsig console, then **Family** | "How far it may act on its own is a live **Statsig** setting, capped by what the parent approved once. Right now it fixes lunches but may not hold. I'll allow holds." *(Flip to `auto_swap_and_hold`; it takes 20-40 s, so keep talking.)* "Family is where the parent sets the rules: any allergy in plain words, the budget, and one line that matters: LunchShift can hold, never pay." |
-| 1:35-2:15 | The right panel, then **This week** and **Orders** | "There it is: Statsig changed the mode, the agent rechecked it right before the only write, and asked the store to hold the cart, including my extra apples. The store's reply was lost, so it read the hold back by key instead of retrying blindly: one hold, verified. Then it placed the order, pay at pickup." *(Open the order: number, Sunday 4-6, timeline.)* |
-| 2:15-2:40 | Family: add **sesame** *(optional if time)* | "Rules change? Add sesame. LunchShift re-plans the week, refuses the hummus, and waits for my approval, because the rules changed since I last said yes." |
-| 2:40-3:00 | `/console` | "Under the hood: every decision is in an append-only audit in SingleStore. Six outcomes are measured on every run: zero unsafe items, every lunch complete, zero clicks in auto mode, zero duplicate holds, on budget, every swap traced. `npm run kpi` runs 21 scenarios, and the allergy suite covers all nine major allergens plus anything typed in." |
+| 1 Landing | "Your kid's school lunches, planned and safe" | "Packing lunch for a kid with a food allergy means reading every label, every week. LunchShift is an agent that does the shopping and never lets an unsafe product into the cart." |
+| 2 Chat setup | The chat; the message types itself | "A parent describes their family in plain words. **Claude** picks out the facts: Maya is 8, peanut allergy, avoid may-contain, hates mushrooms, $35 a week, Sunday pickup. They come back as chips for the parent to confirm. Nothing is saved yet." |
+| 3 Save to memory | Chips turn to "Saved to memory" | "Confirmed facts go to the household record, which is the authority, and to **Cognee** memory, so the agent recalls them in every later session." |
+| 4 Plan this week | Cart fills item by item; the rail streams steps | "Now it shops real Open Food Facts products. For each item it compares options and refuses unsafe ones with the reason: this bread says *may contain peanuts*, so it never reaches the cart. A **Superlinked SIE** classifier reads the same labels and can only add refusals. Code enforces every rule; the model never decides what is safe." |
+| 5 Review and hold | Cart, budget meter | "Under budget. The parent approves once, and LunchShift asks the store to hold the cart for Sunday pickup. One hold, read back by key so a lost reply never makes two. It can hold. It can never pay." |
+| 6 Order placed | Order with number, pickup window and timeline | "The order is placed. The parent pays at pickup." |
+| 7 Next Sunday | Autonomy set to Swap and hold; the clock jumps a week | "The parent now trusts it to act alone. How far it may go is capped live by **Statsig**. A week later, Maya's usual bread is sold out." |
+| 8 Payoff | This week: Monday swapped, pickup held, zero clicks | "No safe bread means no sandwich, so it swapped the whole Monday lunch. **SingleStore** shortlisted safe lunches with vector search, SIE reranked them, Claude explained the pick, and it held the pickup on its own. Zero clicks." |
+| Close | `/console` (Open console) | "Every decision is in an append-only audit in SingleStore. Six outcomes are measured on every run: zero unsafe items, every lunch complete, zero clicks in auto mode, zero duplicate holds, on budget, every swap traced. `npm run kpi` runs 25 scenarios; the allergy suite covers all nine major allergens plus anything a parent types." |
 
 ## If something goes wrong
 
-- The flip hasn't shown after 45 s: Statsig is still propagating. Keep talking over the Family tab; the panel line "Autonomy changed to auto_swap_and_hold" lands when it arrives.
-- A sponsor shows "fallback" on the console: the run still completes on the labelled stand-in. Say so.
-- Start over: Statsig back to `auto_swap`, then repeat the pre-roll.
+- A step is slow: the rail shows the agent working; keep talking. Live shopping takes about 20 seconds.
+- A sponsor shows "fallback" on `/console`: the run still completes on a labelled stand-in. Say so. Cognee shows fallback on a brand-new family's first plan while it builds the memory graph (about 30 seconds).
+- Start over: **Reset demo** on `/console`, reload `/demo`.
+- The site is down: play `docs/proof/backup-story.mp4`.
 
-## Backup proof
+## Proof to point at
 
-- `docs/proof/fullauto-run.txt` and `docs/proof/fullauto-screen.png`: the unattended Sunday run (zero inputs, verified hold in 8 s).
-- `npm run kpi` (21 scenarios, about 4 s) and `npm run test:allergens` (all nine allergens, custom ones, 32 label edge cases).
-- `npm run audit`: replays the run's full decision from SingleStore.
+- `npm run kpi`: 25 scenarios, about 4 seconds. `npm run test:allergens`: all nine allergens, custom ones, 32 label edge cases.
+- `npm run audit`: replays a run's full decision from SingleStore.
+- `docs/proof/backup-story.mp4`: the eight steps above, unattended.
