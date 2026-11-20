@@ -3,9 +3,9 @@
 import { useEffect, useId, useState } from "react";
 import { cn } from "cn";
 import { ChevronRight, X } from "lucide-react";
-import { MODE_RANK } from "@/lib/domain/types";
 import type { HouseholdUpdate, HouseholdUpdateResult, RunView } from "@/lib/domain/view";
-import { MODE_STEPS, allergyChips, pickupWindow, type AllergyChip } from "./copy";
+import { AutonomyControl } from "./autonomy";
+import { allergyChips, pickupWindow, type AllergyChip } from "./copy";
 import { AppButton, Notice, SectionTitle } from "./ui";
 import { postParent } from "./use-run-view";
 
@@ -98,7 +98,6 @@ export function FamilyTab({ view, onRefresh, onSetup }: { view: RunView; onRefre
   const suggestions = (view.allergens.length ? view.allergens.map((a) => a.label) : FALLBACK_SUGGESTIONS)
     .filter((s) => !draft.allergies.some((a) => a.label.toLowerCase() === s.toLowerCase()))
     .slice(0, 6);
-  const maxRank = MODE_RANK[view.mode.parentMax];
   const m = view.household.mandate;
 
   return (
@@ -225,32 +224,13 @@ export function FamilyTab({ view, onRefresh, onSetup }: { view: RunView; onRefre
 
       <section className="space-y-3" aria-labelledby="approval-title">
         <SectionTitle>
-          <span id="approval-title">What LunchShift may do on its own</span>
+          <span id="approval-title">How much can LunchShift do?</span>
         </SectionTitle>
         <div className="rounded-xl bg-card p-5 shadow-[0_1px_0_var(--border)]">
-          <div role="radiogroup" aria-label="Standing approval" aria-readonly="true" className="grid grid-cols-3 gap-1 rounded-lg bg-sunken p-1">
-            {MODE_STEPS.map((s, i) => {
-              const selected = MODE_RANK[s.mode] === maxRank;
-              return (
-                <div
-                  key={s.mode}
-                  role="radio"
-                  aria-checked={selected}
-                  aria-disabled="true"
-                  className={cn(
-                    "flex min-h-11 items-center justify-center rounded-md px-2 text-center text-[0.9375rem] leading-tight",
-                    selected ? "bg-card font-medium text-foreground shadow-sm" : i < maxRank ? "text-foreground/70" : "text-muted-foreground",
-                  )}
-                >
-                  {s.label}
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-base">{MODE_STEPS.find((s) => MODE_RANK[s.mode] === maxRank)?.detail}</p>
-          <p className="mt-3 text-base font-medium">LunchShift can hold, never pay.</p>
+          <AutonomyControl view={view} onRefresh={onRefresh} />
+          <p className="mt-4 text-base font-medium">LunchShift can hold, never pay.</p>
           <p className="mt-1 text-[0.9375rem] text-muted-foreground">
-            Up to {m.maxSwapsPerWeek} swap{m.maxSwapsPerWeek === 1 ? "" : "s"} and {m.maxHoldsPerWeek} hold a week. Changing this level comes in a later version.
+            Up to {m.maxSwapsPerWeek} swap{m.maxSwapsPerWeek === 1 ? "" : "s"} and {m.maxHoldsPerWeek} hold a week.
           </p>
         </div>
       </section>
@@ -261,8 +241,8 @@ export function FamilyTab({ view, onRefresh, onSetup }: { view: RunView; onRefre
         className="flex w-full items-center gap-4 rounded-xl bg-card px-5 py-4 text-left shadow-[0_1px_0_var(--border)] hover:bg-secondary/60"
       >
         <span className="min-w-0 flex-1">
-          <span className="block text-base font-medium">Run setup again</span>
-          <span className="block text-[0.9375rem] text-muted-foreground">Name, allergies, budget and pickup in three short steps</span>
+          <span className="block text-base font-medium">Tell LunchShift something new</span>
+          <span className="block text-[0.9375rem] text-muted-foreground">Set up again in a short chat</span>
         </span>
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </button>

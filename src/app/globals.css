@@ -215,6 +215,13 @@
 @utility ls-arrive {
   animation: ls-arrive 4s var(--ease-out) both;
 }
+/* A cart line the agent just added: slides in and keeps a soft green wash for a moment. */
+@utility ls-arrive-in {
+  animation: ls-enter var(--dur-slow) var(--ease-out) both, ls-arrive 4s var(--ease-out) both;
+  @media (prefers-reduced-motion: reduce) {
+    animation: ls-arrive 4s linear both;
+  }
+}
 
 /* Parent app: one type step up for the projector (body 17px, section titles 20px). Scoped so /console keeps its scale. */
 .ls-parent {

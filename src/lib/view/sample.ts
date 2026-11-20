@@ -20,9 +20,10 @@ import type { CartView, IntegrationStatus, KpiSuiteResult, PlanRow, RunView } fr
 
 // a: proposal waiting · b: swapped, cart editable · c: hold pending · d: hold verified + order placed by the agent
 // e: hold verified, order not placed yet (parent places it) · f: first run, no allergies set (onboarding)
-export type SampleState = "a" | "b" | "c" | "d" | "e" | "f";
+// g: the agent shopping live (cart fills over time) · h: next Sunday, stockout swapped and held with zero clicks
+export type SampleState = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h";
 export const isSampleState = (v: unknown): v is SampleState =>
-  v === "a" || v === "b" || v === "c" || v === "d" || v === "e" || v === "f";
+  v === "a" || v === "b" || v === "c" || v === "d" || v === "e" || v === "f" || v === "g" || v === "h";
 
 const RUN_ID = "run-2026-11-22";
 const OPERATION_KEY = `hold:${RUN_ID}`;
@@ -470,6 +471,33 @@ export function sampleRunView(state: SampleState): RunView {
         receipt: RECEIPT,
         kpis: VERIFIED_KPIS,
         events: events("metrics_computed", "auto_swap", "rule-demo-household", false),
+      };
+    case "g": {
+      // Shopping in progress: the cart grows by one line every 1.5 s and loops, so the arrival animation shows.
+      const all = cartView(BEFORE, true);
+      const n = all.lines.length;
+      const shown = 2 + (Math.floor(Date.now() / 1500) % Math.max(1, n - 1));
+      const lines = all.lines.slice(0, Math.min(n, shown));
+      return {
+        ...base(),
+        stockout: null,
+        needsApproval: null,
+        run: run("running", "auto_swap_and_hold", T("16:00:04")),
+        mode: mode("auto_swap_and_hold", "rule-demo-household", T("16:00:01")),
+        proposal: null,
+        proposals: [],
+        plan: plan("kept"),
+        basket: null,
+        cart: { ...all, lines, totalCents: lines.reduce((t, l) => t + l.lineCents, 0) },
+        receipt: null,
+        kpis: null,
+        events: events("candidate_rejected", "auto_swap_and_hold", "rule-demo-household", true).filter((e) => e.type !== "stockout_detected"),
+      };
+    }
+    case "h":
+      return {
+        ...sampleRunView("d"),
+        week: { weekOf: "2026-11-29", label: "Next Sunday · Nov 29", index: 1 },
       };
     case "f":
       return {

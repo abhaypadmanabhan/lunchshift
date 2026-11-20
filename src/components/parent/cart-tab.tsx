@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "cn";
-import { Lock, Minus, Plus, Search, Trash2 } from "lucide-react";
+import { Ban, Lock, Minus, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
+import type { Order } from "@/lib/domain/types";
 import type { CartLineView, CartView, RunView } from "@/lib/domain/view";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { money } from "./copy";
+import { money, refusalName, refusalReason } from "./copy";
 import { AppButton, EmptyCard, Notice, ProductTile, SectionTitle, useTween } from "./ui";
 import { postParent } from "./use-run-view";
 
@@ -154,7 +155,102 @@ function AddItemSheet({
   );
 }
 
-export function CartTab({ view, onRefresh, onPlan }: { view: RunView; onRefresh: () => Promise<void>; onPlan: () => void }) {
+const shopping = (view: RunView) => view.run?.status === "running" || view.run?.status === "scheduled";
+
+/** "Shopping for Maya's week": shown while the agent fills the cart, live. */
+function ShoppingNow({ view, count }: { view: RunView; count: number }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-ok-soft px-5 py-4" role="status" aria-live="polite">
+      <span className="relative flex size-3 shrink-0" aria-hidden>
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/50 motion-reduce:animate-none" />
+        <span className="relative inline-flex size-3 rounded-full bg-primary" />
+      </span>
+      <p className="min-w-0 flex-1 text-base">
+        <span className="font-medium">Shopping for {view.household.childName || "your child"}&apos;s week</span>
+      </p>
+      <span className="shrink-0 text-[0.9375rem] text-muted-foreground tabular-nums">{count} so far</span>
+    </div>
+  );
+}
+
+/** Review: one next step for this week's cart, depending on what the agent may do on its own. */
+function ReviewBar({ view, onRefresh, onOpenOrder }: { view: RunView; onRefresh: () => Promise<void>; onOpenOrder: (o: Order) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const status = view.run?.status;
+  const act = async (path: string) => {
+    setBusy(true);
+    setErr(null);
+    const res = await postParent<{ ok: boolean; order?: Order }>(path);
+    setBusy(false);
+    if (!res.ok) {
+      setErr(res.message);
+      return;
+    }
+    await onRefresh();
+    if (res.data.order) onOpenOrder(res.data.order);
+  };
+
+  let body: ReactNode = null;
+  if (view.order) {
+    body = (
+      <div className="flex items-center gap-3">
+        <ShieldCheck className="size-6 shrink-0 text-primary" aria-hidden />
+        <p className="min-w-0 flex-1 leading-snug">
+          <span className="block text-base font-medium">Order placed</span>
+          <span className="block text-[0.9375rem] text-muted-foreground">Pay at pickup</span>
+        </p>
+        <AppButton onClick={() => view.order && onOpenOrder(view.order)}>View order</AppButton>
+      </div>
+    );
+  } else if (status === "hold_verified") {
+    body = (
+      <div className="flex items-center gap-3">
+        <Lock className="size-5 shrink-0 text-primary" aria-hidden />
+        <p className="min-w-0 flex-1 leading-snug">
+          <span className="block text-base font-medium">Held automatically</span>
+          <span className="block text-[0.9375rem] text-muted-foreground">Nothing paid yet</span>
+        </p>
+        <AppButton busy={busy} onClick={() => void act("/api/parent/order")}>
+          Place order
+        </AppButton>
+      </div>
+    );
+  } else if (view.needsApproval && status === "proposed") {
+    body = (
+      <div className="space-y-3">
+        <p className="text-base text-muted-foreground">{view.needsApproval}</p>
+        <AppButton className="w-full" busy={busy} onClick={() => void act("/api/parent/approve")}>
+          Approve this cart
+        </AppButton>
+      </div>
+    );
+  } else if (status === "hold_pending") {
+    body = <p className="text-base text-muted-foreground">Holding your pickup with the store…</p>;
+  } else {
+    return null;
+  }
+  return (
+    <section aria-label="Review" className="ls-enter space-y-3 rounded-xl bg-card p-4 shadow-[0_1px_0_var(--border)]">
+      {body}
+      {err ? <Notice tone="alert">{err}</Notice> : null}
+    </section>
+  );
+}
+
+export function CartTab({
+  view,
+  onRefresh,
+  onPlan,
+  onOpenOrder,
+}: {
+  view: RunView;
+  onRefresh: () => Promise<void>;
+  onPlan: () => void;
+  onOpenOrder: (o: Order) => void;
+}) {
+  // Lines already on screen; anything new that arrives with a poll slides in with the "just arrived" wash.
+  const seenLines = useRef<Set<string> | null>(null);
   // Optimistic quantities while a change is in flight, and the server's own cart from the last reply.
   const [overrides, setOverrides] = useState<Record<string, number>>({});
   const [replyCart, setReplyCart] = useState<CartView | null>(null);
@@ -169,6 +265,21 @@ export function CartTab({ view, onRefresh, onPlan }: { view: RunView; onRefresh:
   useEffect(() => setReplyCart(null), [view.generatedAt]);
 
   const cart = replyCart ?? view.cart;
+  const firstPaint = seenLines.current === null;
+  const arrived = new Set(firstPaint ? [] : (cart?.lines ?? []).map((l) => l.skuId).filter((id) => !seenLines.current?.has(id)));
+  useEffect(() => {
+    seenLines.current = new Set((cart?.lines ?? []).map((l) => l.skuId));
+  });
+  const live = shopping(view);
+  const refused = view.refusals.filter((r) => !r.eligible && r.kind === "sku_substitute");
+  if (!cart && live) {
+    return (
+      <div className="space-y-6">
+        <ShoppingNow view={view} count={0} />
+        <EmptyCard title="Starting at the store" body="Items appear here as LunchShift picks them." />
+      </div>
+    );
+  }
   if (!cart) {
     return (
       <EmptyCard
@@ -240,21 +351,18 @@ export function CartTab({ view, onRefresh, onPlan }: { view: RunView; onRefresh:
 
   return (
     <div className="space-y-8">
+      {live ? <ShoppingNow view={view} count={lines.length} /> : null}
       <BudgetMeter totalCents={total} budgetCents={cart.budgetCents} />
+      {live ? null : <ReviewBar view={view} onRefresh={onRefresh} onOpenOrder={onOpenOrder} />}
 
-      {locked ? (
-        <div className="flex items-start gap-3 rounded-xl bg-wait-soft px-5 py-4">
-          <Lock className="mt-0.5 size-5 shrink-0 text-wait" aria-hidden />
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-medium">Your pickup is held.</p>
-            <p className="text-[0.9375rem] text-muted-foreground">Cancel the hold to edit. Nothing has been paid.</p>
-          </div>
-          {view.run?.status === "hold_verified" && !view.order ? (
-            <AppButton variant="secondary" busy={busyCancel} onClick={() => void cancelHold()} className="shrink-0">
-              Cancel hold
-            </AppButton>
-          ) : null}
-        </div>
+      {locked && view.run?.status === "hold_verified" && !view.order ? (
+        <p className="-mt-5 px-1 text-[0.9375rem] text-muted-foreground">
+          Want to change something?{" "}
+          <AppButton variant="quiet" busy={busyCancel} onClick={() => void cancelHold()} className="text-[0.9375rem]">
+            Cancel the hold
+          </AppButton>{" "}
+          to edit.
+        </p>
       ) : null}
 
       {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
@@ -264,9 +372,9 @@ export function CartTab({ view, onRefresh, onPlan }: { view: RunView; onRefresh:
           <span id="cart-title">{cart.source === "parent_draft" ? "Your cart" : "Picked by LunchShift"}</span>
         </SectionTitle>
         {lines.length ? (
-          <ul className="ls-stagger divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+          <ul className={cn("divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]", firstPaint && "ls-stagger")}>
             {lines.map((l) => (
-              <li key={l.skuId} className="px-4 py-4">
+              <li key={l.skuId} className={cn("px-4 py-4", arrived.has(l.skuId) && "ls-arrive-in")}>
                 <div className="flex gap-3">
                   <ProductTile src={l.imageUrl} name={l.name} brand={l.brand} />
                   <div className="min-w-0 flex-1">
@@ -291,6 +399,17 @@ export function CartTab({ view, onRefresh, onPlan }: { view: RunView; onRefresh:
                     <Notice tone="alert">{lineMsg[l.skuId]}</Notice>
                   </div>
                 ) : null}
+              </li>
+            ))}
+            {refused.map((r) => (
+              <li key={r.candidateId} className="flex items-center gap-3 bg-refuse-soft/60 px-4 py-3.5">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-card text-refuse" aria-hidden>
+                  <Ban className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-medium leading-snug text-foreground/80 line-through decoration-refuse/50">{refusalName(view, r)}</p>
+                  <p className="text-[0.9375rem] text-refuse">Refused · {cart.catalog.find((c) => c.skuId === r.candidateId)?.reason?.split(":")[0].toLowerCase() ?? refusalReason(r)}</p>
+                </div>
               </li>
             ))}
           </ul>

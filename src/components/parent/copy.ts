@@ -39,7 +39,7 @@ export function pickupWindow(window: string): string {
 }
 
 export const MODE_STEPS: { mode: AutonomyMode; label: string; detail: string }[] = [
-  { mode: "suggest_only", label: "Suggest only", detail: "Asks you before changing anything." },
+  { mode: "suggest_only", label: "Ask me", detail: "Asks you before changing anything." },
   { mode: "auto_swap", label: "Swap for me", detail: "Fixes the lunches, then waits for you to hold the order." },
   { mode: "auto_swap_and_hold", label: "Swap and hold", detail: "Fixes the lunches and holds your pickup. You still pay at the store." },
 ];
