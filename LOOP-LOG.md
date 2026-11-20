@@ -21,7 +21,7 @@ Each `npm run kpi` loop: time, the six KPI values, the worst miss, the change ma
 - Worst miss found live: suggest_only with no stockout set the run to `swapped_waiting`. The new scenario was red on the old code; fixed.
 - Sponsors: SIE live as a task-model tool (zero-shot allergen classifier + reranker; fixed a latent position-based score mapping). Statsig config now readable live. SingleStore still fails DNS; URL parsing and no-db bootstrap are ready.
 
-## Loop 5 · cross-model review (Grok 4.7) · 11:55 PT
+## Loop 5 · cross-model review (Grok 4.7) · 11:44 PT
 - Review verdict CHANGES, with 7 findings. Each finding was reproduced as a scenario first; all five new scenarios were red on the old code.
 - Fixed: only `evidence: "confirmed"` counts (an unlabelled SKU was held); a parent click is capped by the parent's max, and a failed config read never authorizes; the household is re-read before each mode check, so a mid-run revocation is seen; `maxHoldsPerWeek` is enforced across the week's runs; read-back requires an exact line match, the stored fingerprint and exactly one active hold; the unsafe KPI is measured from the merchant's held lines against a fresh catalog.
 - Suite now 18/18; all six KPIs green. Not done: the cross-run `maxSwapsPerWeek` count (one run per week in the demo), and KPIs on escalated runs (shown as pending).
