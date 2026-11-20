@@ -31,7 +31,7 @@ async function resolve(): Promise<Resolved> {
   if (isSingleStoreConfigured()) {
     const ss = new SingleStoreStore();
     try {
-      await withTimeout(ss.ping(), 5000);
+      await withTimeout(ss.ping(), 15000); // first connect may CREATE DATABASE
       await withTimeout(ss.init(), 15000);
       console.log("[store] provider=singlestore");
       return { store: ss, status: { provider: "singlestore", detail: `SingleStore Helios, TLS verified (${ss.tlsTrust})` } };

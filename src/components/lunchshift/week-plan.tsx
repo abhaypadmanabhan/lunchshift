@@ -116,12 +116,27 @@ export function WeekPlan({ view, onApprove }: { view: RunView; onApprove?: () =>
 
           <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-[1.15fr_1fr] border-t pt-5">
             <div>
-              <p className="text-sm text-muted-foreground">{PROVIDER_LABEL[proposal.ranking.provider]}</p>
-              {proposal.ranking.provider === "singlestore_vector" ? (
-                <Code className="mt-1 block text-[0.8125rem] leading-snug text-muted-foreground">
-                  SELECT recipe_id, vec &lt;*&gt; :query AS score FROM ls_rank_vec ORDER BY score DESC
-                </Code>
-              ) : null}
+              {(() => {
+                const sl = proposal.ranking.inputs.shortlist as { provider?: string; ranked?: { id: string; score: number }[] } | undefined;
+                const inSingleStore = sl?.provider === "singlestore_vector";
+                return (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      {inSingleStore
+                        ? proposal.ranking.provider === "sie"
+                          ? "Shortlisted in SingleStore by vector SQL, then reranked by a Superlinked SIE model"
+                          : PROVIDER_LABEL.singlestore_vector
+                        : PROVIDER_LABEL[proposal.ranking.provider]}
+                    </p>
+                    {inSingleStore ? (
+                      <Code className="mt-1 block text-[0.8125rem] leading-snug text-muted-foreground">
+                        SELECT recipe_id, vec &lt;*&gt; :query AS score FROM ls_rank_vec ORDER BY score DESC
+                        {sl?.ranked ? `  ->  ${sl.ranked.map((r) => `${r.id.replace(/^r-/, "")} ${r.score.toFixed(3)}`).join(", ")}` : ""}
+                      </Code>
+                    ) : null}
+                  </>
+                );
+              })()}
               <ul className="mt-3 space-y-3">
                 {proposal.ranking.ranked.map((r) => {
                   const chosen = r.id === proposal.toRecipeId;

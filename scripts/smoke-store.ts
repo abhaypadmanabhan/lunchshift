@@ -79,7 +79,10 @@ async function main() {
 
   assert.equal(result.ranked[0]?.id, "r-rice-bean-bowl", "rice bowl must rank first");
   assert.ok(prefGap > 0 && otherGap < 0, "the gap comes from preferences, not from price/prep");
-  assert.equal(result.provider, store.provider === "singlestore" ? "singlestore_vector" : "local_vector");
+  const shortlist = result.inputs.shortlist as { provider: string; ranked: { id: string; score: number }[] };
+  console.log(`shortlist provider=${shortlist.provider}: ${shortlist.ranked.map((r) => `${r.id}=${r.score.toFixed(3)}`).join(" ")}`);
+  assert.equal(shortlist.provider, store.provider === "singlestore" ? "singlestore_vector" : "local_vector");
+  assert.equal(result.provider, process.env.SIE_API_KEY ? "sie" : shortlist.provider);
   console.log("OK: all assertions passed");
   process.exit(0);
 }
