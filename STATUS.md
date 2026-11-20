@@ -1,6 +1,6 @@
 # LunchShift status
 
-**Updated 12:32 PT. Milestone:** the end-to-end parent product is under way. Engine, any-allergy support, parent app (`/`) and the cart/orders backend are done and proven live; `/console` is the operator view. Tag `demo-safe` = last commit before the product expansion. Lanes running: real Open Food Facts catalog (Codex) and parent Cart / Order / Orders / Onboarding UI (Opus). Then: design pass, DEMO.md rewrite, 2 rehearsals, backup recording (3:00-3:45).
+**Updated 12:48 PT. Milestone:** parent product integrated and live: parent app (This week, Cart, Orders, Family, onboarding) on the real engine, `/console` for operators. Fixed live: an approval-gate leak across ticks (red-first scenario) and an SIE classifier false positive. Running: design pass (Opus, until 2:15) and the real Open Food Facts catalog (Codex). Then DEMO.md, 2 rehearsals, backup recording, README, scan (3:00-3:45).
 
 **Latest checks**
 - `npm run kpi`: **21/21 scenarios**. Unsafe in cart 0 · meal completeness 100% · clicks per auto order 0 · duplicate holds 0 · budget kept · swaps traced 100%. New: two-allergy child (peanut + sesame); full-auto pay-at-pickup order with a dropped reply (exactly 1 order); payment still 403.
@@ -19,4 +19,4 @@
 
 **Blockers:** none. Demo note: a Statsig console change takes about 20-40 s to reach the API, so flip `auto_swap` -> `auto_swap_and_hold` early in the segment.
 
-**Composio spend (running total, 12:36):** $0.00. Parent-app lane 1: $0 (skipped illustrations). Cart/orders UI lane: told no new art. Catalog lane: Open Food Facts directly, no Composio. Cap: assets at or under $1.00 combined, session total strictly under $2 including the ~3:30 ElevenLabs voiceover; check the price before every call, skip unknown prices. SIE credits: about 25 calls (1 credit each).
+**Composio spend (running total, 12:36):** $0.00. Parent-app lane 1: $0 (skipped illustrations). Cart/orders UI lane: $0 (no art). Design-pass lane: allowed up to 8 Higgsfield stills at <=$0.01 each, total under $0.25 (will report exact spend). Catalog lane: Open Food Facts directly, no Composio. Cap: assets at or under $1.00 combined, session total strictly under $2 including the ~3:30 ElevenLabs voiceover; check the price before every call, skip unknown prices. SIE credits: about 25 calls (1 credit each).
