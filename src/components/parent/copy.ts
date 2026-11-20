@@ -281,3 +281,19 @@ export function skuName(view: RunView, skuId: string): string {
   const hit = c?.lines.find((l) => l.skuId === skuId)?.name ?? c?.catalog.find((x) => x.skuId === skuId)?.name ?? view.basket?.lines.find((l) => l.skuId === skuId)?.name;
   return hit ?? skuId.replace(/-/g, " ").replace(/^\w/, (x) => x.toUpperCase());
 }
+
+/**
+ * The part of a label a parent needs: the sentences that carry an allergen statement ("Contains: ...",
+ * "May contain: ...", "shared equipment ..."), not the whole ingredient list. Falls back to a trimmed start.
+ */
+export function labelExcerpt(text: string, max = 160): string {
+  const parts = text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const key = parts.filter((x) => /^(contains|may contain)|may contain|traces?|shared|facility|processes|free\b/i.test(x) && x.length < 200);
+  const pick = key.length ? key.join(" ") : parts[0] ?? text;
+  const clean = pick.length > text.length * 0.9 && text.length > max ? `${text.slice(0, max).replace(/\s+\S*$/, "")}…` : pick;
+  // Labels in all caps read as shouting on a projector; sentence-case them.
+  return clean === clean.toUpperCase() ? clean.charAt(0) + clean.slice(1).toLowerCase() : clean;
+}

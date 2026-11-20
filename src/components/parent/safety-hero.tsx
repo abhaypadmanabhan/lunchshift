@@ -5,6 +5,7 @@ import { ChevronRight, ShieldCheck } from "lucide-react";
 import type { CandidateDecision } from "@/lib/domain/types";
 import type { RunView } from "@/lib/domain/view";
 import { allergyChips, money, refusalName } from "./copy";
+import { labelExcerpt } from "./copy";
 import { ProductTile } from "./ui";
 
 /** The refusal worth showing: a store product refused for an allergy, else any refusal tied to an allergy rule. */
@@ -77,7 +78,7 @@ export function SafetyHero({ view, onWhy }: { view: RunView; onWhy: () => void }
           </div>
         </div>
         {r.labelText ? (
-          <p className="mt-3 text-[1rem] leading-relaxed text-foreground/90">“{highlight(r.labelText, terms)}”</p>
+          <p className="mt-3 text-[1rem] leading-relaxed text-foreground/90">“{highlight(labelExcerpt(r.labelText), terms)}”</p>
         ) : null}
         {r.screen?.risk ? (
           <p className="mt-1 text-[0.9375rem] text-muted-foreground tabular-nums">

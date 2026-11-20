@@ -7,6 +7,7 @@ import type { Order, SwapProposal } from "@/lib/domain/types";
 import type { PlanRow, RunView } from "@/lib/domain/view";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DAY_NAME, money, refusalName, refusalReason, statusHeadline, swapReasonShort, timeOfDay } from "./copy";
+import { labelExcerpt } from "./copy";
 import { MealTile } from "./meal-tile";
 import { SafetyHero } from "./safety-hero";
 import { OrderCard } from "./order-view";
@@ -181,7 +182,7 @@ function WhySheet({ view, proposal, row, open, onOpenChange }: { view: RunView; 
                       <li key={r.candidateId} className="px-4 py-3">
                         <p className="font-medium">{refusalName(view, r)}</p>
                         <p className="text-[0.9375rem] text-muted-foreground">Because {refusalReason(r)}.</p>
-                        {r.labelText ? <blockquote className="mt-2 border-l-2 border-refuse/50 pl-3 text-[0.9375rem]">“{r.labelText}”</blockquote> : null}
+                        {r.labelText ? <blockquote className="mt-2 border-l-2 border-refuse/50 pl-3 text-[0.9375rem]">“{labelExcerpt(r.labelText, 220)}”</blockquote> : null}
                       </li>
                     ))}
                   </ul>
