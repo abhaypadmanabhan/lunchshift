@@ -788,7 +788,8 @@ async function computeKpis(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fin
     const t = e.data.trace as Record<string, unknown> | undefined;
     return Boolean(t && t.fromRecipeId && t.toRecipeId && t.originalSkuId && t.catalogVersion && t.labelVersions && t.factId && t.factRevision && t.eligibility && t.rankProvider);
   }).length;
-  const parentClicks = events.filter((e) => e.actor === "parent").length;
+  // Clicks the order NEEDED from the parent (approvals). Voluntary cart edits or refused add attempts are not required.
+  const parentClicks = events.filter((e) => e.actor === "parent" && e.data.approved === true).length;
   const k: KpiSet = {
     unsafeItemsInCart: unsafeLines(h, basket, byId).length,
     mealCompletenessPct: Math.round((completeLunches(finalPlan, basket, byId) / h.plan.length) * 100),

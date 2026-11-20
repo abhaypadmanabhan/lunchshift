@@ -156,8 +156,15 @@ function line(e: AuditEvent, view: RunView): Line | Line[] | null {
 
 /** Oldest first, so the newest step lands at the bottom of the panel. */
 export function feedLines(view: RunView): FeedLine[] {
-  return [...view.events]
-    .sort((a, b) => (a.at === b.at ? a.seq - b.seq : a.at.localeCompare(b.at)))
+  const sorted = [...view.events].sort((a, b) => (a.at === b.at ? a.seq - b.seq : a.at.localeCompare(b.at)));
+  // While a Statsig change propagates, reads can disagree for a few seconds; show only the last of a run of mode reads.
+  const isMode = (e: AuditEvent) => e.type === "autonomy_changed" || e.type === "mode_observed";
+  const collapsed = sorted.filter((e, i) => {
+    if (!isMode(e)) return true;
+    const later = sorted.slice(i + 1).find((x) => !(x.type === "note" && x.actor !== "parent"));
+    return !(later && isMode(later));
+  });
+  return collapsed
     .flatMap((e) => {
       const l = line(e, view);
       const list = l === null ? [] : Array.isArray(l) ? l : [l];
