@@ -578,7 +578,6 @@ function holdRequestFor(run: Run, basket: Basket, catalogVersion: string): HoldR
 
 async function dispatchHold(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, finalPlan: Recipe[]): Promise<Run> {
   const runId = ctx.run.id;
-  const h = ctx.household;
   // Final gates right before the only write.
   const { effective } = await readMode(ctx, "Pre-hold check");
   if (effective !== "auto_swap_and_hold") {
