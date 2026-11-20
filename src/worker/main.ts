@@ -1,7 +1,8 @@
 // Background worker: runs with the browser closed. Triggers: the Sunday schedule, store stockout
 // events, and re-checks of waiting runs (so a live Statsig flip is observed on the next tick).
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { HOUSEHOLD, USUAL_SKU_BY_ROLE } from "../lib/domain/fixture";
+import { HOUSEHOLD } from "../lib/domain/fixture";
+import { activeCatalog } from "../lib/domain/catalog";
 import { DEMO_WEEK, liveDeps, runIdNow } from "./deps";
 import { processRun } from "./runWeekly";
 
@@ -10,7 +11,7 @@ const TICK_MS = Number(process.env.WORKER_TICK_MS ?? 3000);
 const SCHEDULE_AT = process.env.WORKER_SCHEDULE_AT ?? "";
 const STATE = ".data/worker-state.json";
 const WAITING = new Set(["scheduled", "running", "proposed", "swapped_waiting", "hold_pending"]);
-const WATCHED_SKUS = new Set(Object.values(USUAL_SKU_BY_ROLE));
+const WATCHED_SKUS = new Set(Object.values(activeCatalog().usualByRole));
 
 type State = { lastStockEventSeq: number };
 const load = (): State => {

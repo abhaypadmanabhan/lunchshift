@@ -1,5 +1,5 @@
 // Demo operator actions (fixture and gate controls). Never counted as shopper clicks; each is audited as actor "operator".
-import { DEMO_STOCKOUT_SKU } from "../lib/domain/fixture";
+import { activeCatalog } from "../lib/domain/catalog";
 import { HOUSEHOLD } from "../lib/domain/fixture";
 import { DEMO_WEEK, ensureSeeded, grocerOperator, runIdNow } from "./deps";
 
@@ -21,7 +21,7 @@ export async function operatorAction(action: OperatorAction): Promise<{ ok: true
       await op.reset();
       return { ok: true, detail: "Store and app state reset to the clean fixture" };
     case "stockout":
-      await op.setStock(DEMO_STOCKOUT_SKU, 0);
+      await op.setStock(activeCatalog().stockoutSku, 0);
       await note("usual bread set to 0 stock at the sandbox store");
       return { ok: true, detail: "Usual bread sold out at the store; the worker sees the stockout event on its next tick" };
     case "drop":

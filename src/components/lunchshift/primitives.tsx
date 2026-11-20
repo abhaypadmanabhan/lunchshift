@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
-import { CATALOG, RECIPES } from "@/lib/domain/fixture";
+import { RECIPES } from "@/lib/domain/fixture";
+import { allSkus } from "@/lib/domain/catalog";
+const CATALOG = allSkus();
 
 /** A literal value (id, SKU, version, key). The only place DM Mono appears outside the audit log. */
 export function Code({ children, className }: { children: React.ReactNode; className?: string }) {

@@ -5,7 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { CATALOG, CATALOG_VERSION } from "../lib/domain/fixture";
+import { activeCatalog } from "../lib/domain/catalog";
 import { fingerprint } from "../lib/domain/rules";
 import type { HoldLine, HoldRequest, MerchantHold, Order, Sku } from "../lib/domain/types";
 
@@ -56,7 +56,7 @@ function seed(db: DatabaseSync) {
   const ins = db.prepare("INSERT INTO products (id, sku, stock, price_cents) VALUES (?, ?, ?, ?)");
   // Fixture state for the unattended full-auto proof: a SKU can start the day sold out (no stock event emitted).
   const presetOut = process.env.GROCER_PRESET_STOCKOUT;
-  for (const s of CATALOG) ins.run(s.id, JSON.stringify(s), s.id === presetOut ? 0 : s.stock, s.priceCents);
+  for (const s of activeCatalog().skus) ins.run(s.id, JSON.stringify(s), s.id === presetOut ? 0 : s.stock, s.priceCents);
 }
 
 function readSkus(db: DatabaseSync): Sku[] {
@@ -65,7 +65,7 @@ function readSkus(db: DatabaseSync): Sku[] {
     stock: number;
     price_cents: number;
   }[];
-  return rows.map((r) => ({ ...(JSON.parse(r.sku) as Sku), stock: r.stock, priceCents: r.price_cents, catalogVersion: CATALOG_VERSION }));
+  return rows.map((r) => ({ ...(JSON.parse(r.sku) as Sku), stock: r.stock, priceCents: r.price_cents, catalogVersion: activeCatalog().version }));
 }
 
 function rowToHold(r: Record<string, unknown>): MerchantHold {
@@ -106,7 +106,7 @@ function placeHold(db: DatabaseSync, key: string | undefined, req: HoldRequest):
       db.exec("COMMIT");
       return { status: 409, body: { error: "run_already_has_active_hold" } };
     }
-    if (req.catalogVersion !== CATALOG_VERSION) {
+    if (req.catalogVersion !== activeCatalog().version) {
       db.exec("ROLLBACK");
       return { status: 422, body: { error: "catalog_version_mismatch" } };
     }
@@ -277,7 +277,7 @@ function handle(db: DatabaseSync, method: string, url: URL, auth: string, key: s
     return { status: 403, body: { error: "insufficient_scope", detail: "agent credential has no payment scope", scopes: AGENT_SCOPES } };
   }
   if (method === "GET" && p === "/whoami") return { status: 200, body: { role: isAgent ? "agent" : "operator", scopes: AGENT_SCOPES } };
-  if (method === "GET" && p === "/catalog") return { status: 200, body: { catalogVersion: CATALOG_VERSION, skus: readSkus(db) } };
+  if (method === "GET" && p === "/catalog") return { status: 200, body: { catalogVersion: activeCatalog().version, skus: readSkus(db) } };
   if (method === "GET" && p === "/events") {
     const since = Number(url.searchParams.get("since") ?? 0);
     const rows = db.prepare("SELECT * FROM stock_events WHERE seq > ? ORDER BY seq").all(since) as Record<string, unknown>[];

@@ -1,7 +1,8 @@
 // The weekly run state machine. Resumable: every step is persisted, and a replayed or repeated
 // event re-enters at the persisted state. The merchant hold uses a stable operation key and is
 // only marked confirmed after an independent read-back.
-import { ALTERNATIVE_RECIPE_IDS, PICKUP_SLOT, USUAL_SKU_BY_ROLE } from "../lib/domain/fixture";
+import { ALTERNATIVE_RECIPE_IDS, PICKUP_SLOT } from "../lib/domain/fixture";
+import { activeCatalog } from "../lib/domain/catalog";
 import {
   buildBasket,
   checkRecipe,
@@ -284,7 +285,7 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
   const needs = roleNeeds(planRecipes);
   const usual = new Map<string, Sku>();
   for (const role of needs.keys()) {
-    const s = byId.get(USUAL_SKU_BY_ROLE[role]);
+    const s = byId.get(activeCatalog().usualByRole[role]);
     if (s) usual.set(role, s);
   }
   const original = buildBasket(planRecipes, usual, 1).basket;
@@ -389,7 +390,7 @@ async function fullPass(ctx: Ctx): Promise<ProcessResult> {
   // 7. Whole-lunch repair for every lunch that needs a broken role.
   const skuForRole = (role: string): Sku | undefined => {
     if (brokenRoles.has(role)) return undefined;
-    const u = chosen.get(role) ?? byId.get(USUAL_SKU_BY_ROLE[role]);
+    const u = chosen.get(role) ?? byId.get(activeCatalog().usualByRole[role]);
     if (u && u.stock > 0 && check(u, 1).eligible) return u;
     return cat.skus
       .filter((s) => s.role === role)

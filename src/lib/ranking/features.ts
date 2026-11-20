@@ -2,7 +2,8 @@
 // Recipe vector = how well a recipe fits the CURRENT query context, one labelled dimension each.
 // Query vector = fixed weights (0 when the dimension is not asked for). Score = dot product of
 // two unit vectors (cosine). Every dimension is kept by name so the audit trail can show why.
-import { CATALOG, RECIPES, USUAL_SKU_BY_ROLE } from "../domain/fixture";
+import { RECIPES } from "../domain/fixture";
+import { activeCatalog } from "../domain/catalog";
 import type { Household, PlannedLunch, RankedCandidate, RankQuery, Recipe } from "../domain/types";
 
 export const FEATURE_DIMS = [
@@ -37,9 +38,9 @@ const PRICE_CAP_CENTS = 600; // marginal basket cost at which price_fit reaches 
 const UNKNOWN_PACK_CENTS = 300;
 
 export function defaultPriceBook(): PriceBook {
-  const byId = new Map(CATALOG.map((s) => [s.id, s.priceCents]));
+  const byId = new Map(activeCatalog().skus.map((s) => [s.id, s.priceCents]));
   const book: PriceBook = {};
-  for (const [role, skuId] of Object.entries(USUAL_SKU_BY_ROLE)) {
+  for (const [role, skuId] of Object.entries(activeCatalog().usualByRole)) {
     const cents = byId.get(skuId);
     if (cents !== undefined) book[role] = cents;
   }
