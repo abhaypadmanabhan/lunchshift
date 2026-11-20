@@ -5,7 +5,7 @@ import { DEMO_STOCKOUT_SKU, HOUSEHOLD, RECIPES } from "../src/lib/domain/fixture
 import type { AutonomyMode, Household, KpiSet, Ranker } from "../src/lib/domain/types";
 import { startGrocer, AGENT_TOKEN, OPERATOR_TOKEN } from "../src/grocer/server";
 import { GrocerClient, GrocerOperator } from "../src/grocer/client";
-import { processRun, type WorkerDeps } from "../src/worker/runWeekly";
+import { approveProposal, processRun, type WorkerDeps } from "../src/worker/runWeekly";
 import { FixtureMemory, MemoryStore, RecordingAnalytics, StaticAutonomy, TemplateExplainer } from "../src/worker/testing";
 import { LocalVectorRanker } from "../src/lib/ranking/local";
 import { buildRankQuery } from "../src/lib/ranking/features";
@@ -129,6 +129,21 @@ const scenarios: { name: string; auto: boolean; fn: () => Promise<Omit<Scenario,
       const k = (await w.store.getKpis(w.runId))!;
       await w.grocer.close();
       return { pass: r.run.status === "proposed" && holds.length === 0 && Boolean(r.proposal), detail: `status ${r.run.status}, holds ${holds.length}`, kpis: k };
+    },
+  },
+  {
+    name: "Human sign-off: suggest_only proposal + one parent approval places one verified hold",
+    auto: false,
+    fn: async () => {
+      const w = await world("suggest_only");
+      await w.op.setStock(DEMO_STOCKOUT_SKU, 0);
+      const r1 = await w.run();
+      const r2 = await approveProposal(w.deps, w.runId);
+      await w.run(); // a later tick must not re-dispatch
+      const holds = await w.client.listHolds(w.runId);
+      const k = (await w.store.getKpis(w.runId))!;
+      await w.grocer.close();
+      return { pass: r1.run.status === "proposed" && r2.run.status === "hold_verified" && holds.length === 1 && k.humanClicksPerOrder === 1, detail: `${r1.run.status} -> approve -> ${r2.run.status}, holds ${holds.length}, parent clicks ${k.humanClicksPerOrder}` };
     },
   },
   {

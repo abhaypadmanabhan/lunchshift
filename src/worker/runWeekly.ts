@@ -77,6 +77,8 @@ type Ctx = {
   run: Run;
   household: Household;
   analyticsUser: string;
+  /** The parent explicitly approved this run's proposal (one click). Authorizes this order only. */
+  parentApproved?: boolean;
 };
 
 async function ev(ctx: Ctx, e: Parameters<AppStore["appendEvent"]>[0]) {
@@ -107,7 +109,8 @@ async function readMode(ctx: Ctx, why: string, logUnchanged = true): Promise<{ r
   const m = ctx.household.mandate;
   const mandateLive = !m.revoked && new Date(m.expiresAt).getTime() > Date.now();
   const cap = mandateLive ? m.maxAutonomy : "suggest_only";
-  const effective = minMode(reading.mode, cap);
+  // A parent's explicit approval of this run's proposal authorizes this one order, within a live mandate.
+  const effective = ctx.parentApproved && mandateLive ? "auto_swap_and_hold" : minMode(reading.mode, cap);
   const changed = effective !== ctx.run.effectiveMode || reading.mode !== ctx.run.observedMode;
   if (!changed && !logUnchanged) return { reading, effective };
   await ev(ctx, {
@@ -164,6 +167,7 @@ export async function processRun(
       updatedAt: now,
     } satisfies Run);
   const ctx: Ctx = { deps, run, household, analyticsUser: household.id };
+  if (existing) ctx.parentApproved = (await deps.store.listEvents(run.id)).some((e) => e.actor === "parent" && e.data.approved === true);
 
   if (!existing || existing.status === "scheduled") {
     run.status = "running";
@@ -679,4 +683,18 @@ async function computeKpis(ctx: Ctx, basket: Basket, byId: Map<string, Sku>, fin
     ])
     .catch(() => undefined);
   return k;
+}
+
+/** The parent's one click in suggest_only: approve this run's proposal. Re-enters the normal path with authority for this order. */
+export async function approveProposal(deps: WorkerDeps, runId: string): Promise<ProcessResult> {
+  const run = await deps.store.getRun(runId);
+  if (!run || run.status !== "proposed") throw new Error(`run ${runId} has no open proposal`);
+  await deps.store.appendEvent({
+    runId,
+    actor: "parent",
+    type: "note",
+    summary: "Parent approved the proposed swap and pickup hold for this week",
+    data: { approved: true },
+  });
+  return processRun(deps, { runId, householdId: run.householdId, weekOf: run.weekOf, trigger: run.trigger });
 }
