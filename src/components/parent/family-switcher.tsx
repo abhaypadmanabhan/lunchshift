@@ -57,7 +57,7 @@ export function FamilySwitcher({
               onClick={() => (f.active ? undefined : void switchTo(f.id))}
               className={cn(
                 "inline-flex min-h-11 items-center gap-2 border py-1 pr-4 pl-1 text-left transition-colors duration-[var(--dur-fast)] disabled:cursor-wait",
-                stacked ? "w-full rounded-xl" : "rounded-full",
+                stacked ? "w-full rounded-lg" : "rounded-full",
                 f.active ? "border-primary/50 bg-ok-soft" : stacked ? "border-transparent hover:bg-secondary" : "border-input/25 bg-card hover:bg-secondary",
                 busy === f.id && "animate-pulse motion-reduce:animate-none",
               )}
@@ -73,7 +73,7 @@ export function FamilySwitcher({
               </span>
               <span className="min-w-0 leading-tight">
                 <span className="block text-[0.9375rem] font-medium">{f.childName || "New child"}</span>
-                <span className={cn("block truncate text-[0.875rem] text-muted-foreground", !stacked && "max-w-[7.5rem]")}>
+                <span className={cn("block truncate text-[0.9375rem] text-muted-foreground", !stacked && "max-w-[7.5rem]")}>
                   {f.allergies.length ? f.allergies.join(" · ") : f.onboarded ? "No allergies" : "Not set up"}
                 </span>
               </span>
@@ -87,7 +87,7 @@ export function FamilySwitcher({
             onClick={() => void create()}
             className={cn(
               "inline-flex min-h-11 items-center gap-1.5 border border-dashed border-input/50 px-4 py-2.5 text-[0.9375rem] text-muted-foreground hover:text-foreground disabled:cursor-wait",
-              stacked ? "w-full rounded-xl" : "rounded-full",
+              stacked ? "w-full rounded-lg" : "rounded-full",
             )}
           >
             <Plus className="size-4" aria-hidden /> New family

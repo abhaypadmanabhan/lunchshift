@@ -35,14 +35,14 @@ export function MealTile({ recipeId, name, imageUrl, className }: { recipeId: st
   const art = ART[recipeId] ?? fallback(name);
   if (imageUrl) {
     return (
-      <span aria-hidden className={cn("relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-card ring-1 ring-border", className)}>
+      <span aria-hidden className={cn("relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-card ring-1 ring-border", className)}>
         {/* eslint-disable-next-line @next/next/no-img-element -- local Open Food Facts snapshot, already small */}
         <img src={imageUrl} alt="" className="size-full object-contain p-1" loading="lazy" />
       </span>
     );
   }
   return (
-    <span aria-hidden className={cn("relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl", FIELD[art.field], className)}>
+    <span aria-hidden className={cn("relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg", FIELD[art.field], className)}>
       {/* a plate seen from above: one soft ring, then the monogram */}
       <span className="absolute inset-[0.4rem] rounded-full bg-card/45 ring-1 ring-current/10" />
       <span className="relative text-[1.25rem] font-semibold tracking-[-0.03em]">{art.mark}</span>

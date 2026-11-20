@@ -117,7 +117,7 @@ export function FamilyTab({
         <SectionTitle>
           <span id="child-title">Your child</span>
         </SectionTitle>
-        <div className="rounded-xl bg-card p-5 shadow-[0_1px_0_var(--border)]">
+        <div className="rounded-lg bg-card p-5 border">
           <label htmlFor={ids.name} className="text-[0.9375rem] text-muted-foreground">
             Name
           </label>
@@ -135,7 +135,7 @@ export function FamilyTab({
         <SectionTitle>
           <span id="allergy-title">Allergies</span>
         </SectionTitle>
-        <div className="rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+        <div className="rounded-lg bg-card border">
           {draft.allergies.length ? (
             <ul className="divide-y">
               {draft.allergies.map((a) => (
@@ -208,7 +208,7 @@ export function FamilyTab({
         <SectionTitle>
           <span id="week-title">Budget and pickup</span>
         </SectionTitle>
-        <div className="divide-y rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+        <div className="divide-y rounded-lg bg-card border">
           <div className="flex items-center justify-between gap-4 px-5 py-4">
             <label htmlFor={ids.budget} className="text-base">
               Weekly budget
@@ -237,7 +237,7 @@ export function FamilyTab({
         <SectionTitle>
           <span id="approval-title">How much can LunchShift do?</span>
         </SectionTitle>
-        <div className="rounded-xl bg-card p-5 shadow-[0_1px_0_var(--border)]">
+        <div className="rounded-lg bg-card p-5 border">
           <AutonomyControl view={view} onRefresh={onRefresh} />
           <p className="mt-4 text-base font-medium">LunchShift can hold, never pay.</p>
           <p className="mt-1 text-[0.9375rem] text-muted-foreground">
@@ -251,7 +251,7 @@ export function FamilyTab({
       <button
         type="button"
         onClick={onSetup}
-        className="flex w-full items-center gap-4 rounded-xl bg-card px-5 py-4 text-left shadow-[0_1px_0_var(--border)] hover:bg-secondary/60"
+        className="flex w-full items-center gap-4 rounded-lg bg-card px-5 py-4 text-left border hover:bg-secondary/60"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-base font-medium">Tell LunchShift something new</span>
@@ -260,7 +260,7 @@ export function FamilyTab({
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </button>
 
-      <div className="sticky bottom-[4.75rem] z-10 space-y-3 rounded-xl bg-background/90 py-2 backdrop-blur-sm">
+      <div className="sticky bottom-[4.75rem] z-10 space-y-3 rounded-lg bg-background py-2 ">
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
         <AppButton className="w-full" disabled={!canSave} busy={saving} onClick={() => void save()}>
           {dirty ? "Save and re-plan this week" : "No changes to save"}

@@ -13,7 +13,7 @@ export function ActivityTab({ view }: { view: RunView }) {
 
   if (!items.length) {
     return (
-      <div className="rounded-xl bg-card px-5 py-10 text-center shadow-[0_1px_0_var(--border)]">
+      <div className="rounded-lg bg-card px-5 py-10 text-center border">
         <p className="text-base font-medium">Nothing has happened yet this week</p>
         <p className="mt-1 text-[0.9375rem] text-muted-foreground">Everything LunchShift does on your behalf shows up here, in order.</p>
       </div>
@@ -25,7 +25,7 @@ export function ActivityTab({ view }: { view: RunView }) {
       <SectionTitle aside={dayLabel(items[0].at)}>
         <span id="activity-title">What LunchShift did</span>
       </SectionTitle>
-      <ol className="divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+      <ol className="divide-y overflow-hidden rounded-lg bg-card border">
         {items.map((e) => {
           const key = `${e.runId}:${e.seq}`;
           const open = openKey === key;

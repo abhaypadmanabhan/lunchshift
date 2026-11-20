@@ -54,7 +54,7 @@ export function OrderCard({ view, onOpen, onRefresh }: { view: RunView; onOpen: 
   if (order) {
     const byAgent = order.placedBy === "agent";
     return (
-      <section aria-labelledby="order-card-title" className="ls-enter rounded-xl bg-card p-5 shadow-[0_1px_0_var(--border)]">
+      <section aria-labelledby="order-card-title" className="ls-enter rounded-lg bg-card p-5 border">
         <p className="text-[0.9375rem] text-muted-foreground">{byAgent ? "Order placed by LunchShift" : "Order placed"}</p>
         <div className="mt-1 flex items-baseline justify-between gap-4">
           <h2 id="order-card-title" className="font-mono text-[1.375rem] font-medium tracking-[-0.01em]">
@@ -92,7 +92,7 @@ export function OrderCard({ view, onOpen, onRefresh }: { view: RunView; onOpen: 
   return (
     <section
       aria-labelledby="place-title"
-      className="ls-enter relative overflow-hidden rounded-2xl bg-[linear-gradient(160deg,var(--ok-soft),var(--card)_70%)] p-6 shadow-[0_1px_0_var(--border),0_10px_30px_-18px_oklch(0.47_0.085_155/0.45)]"
+      className="ls-enter relative overflow-hidden rounded-lg border bg-card p-6"
     >
       <p className="text-[0.9375rem] font-medium text-ok">Groceries held at the store</p>
       <h2 id="place-title" className="mt-1 text-[1.5rem] font-semibold leading-tight tracking-[-0.02em]">
@@ -169,8 +169,8 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
       <section
         aria-labelledby="order-title"
         className={cn(
-          "relative overflow-hidden rounded-2xl px-6 pt-8 pb-7 text-center",
-          cancelled ? "bg-card shadow-[0_1px_0_var(--border)]" : "bg-[radial-gradient(120%_90%_at_50%_0%,var(--ok-soft),var(--card)_75%)] shadow-[0_1px_0_var(--border),0_14px_40px_-20px_oklch(0.47_0.085_155/0.5)]",
+          "relative overflow-hidden rounded-lg px-6 pt-8 pb-7 text-center",
+          cancelled ? "bg-card border" : "bg-card border",
         )}
       >
         {cancelled ? null : (
@@ -191,7 +191,7 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
         {order.status === "placed" || order.status === "ready" ? <p className="mt-1 text-[0.9375rem] text-muted-foreground">Show this at the pickup desk.</p> : null}
       </section>
 
-      <dl className="divide-y rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+      <dl className="divide-y rounded-lg bg-card border">
         {[
           ["Pickup", slotLabel(order.slot)],
           ["Total", money(order.totalCents)],
@@ -209,7 +209,7 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
         <h3 id="timeline-title" className="px-1 text-lg font-semibold tracking-[-0.01em]">
           Progress
         </h3>
-        <div className="rounded-xl bg-card p-5 shadow-[0_1px_0_var(--border)]">
+        <div className="rounded-lg bg-card p-5 border">
           <Timeline order={order} />
         </div>
       </section>
@@ -223,13 +223,13 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
             {packs} item{packs === 1 ? "" : "s"}
           </span>
         </div>
-        <ul className="divide-y rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+        <ul className="divide-y rounded-lg bg-card border">
           {order.lines.map((l) => (
             <li key={l.skuId} className="flex items-baseline justify-between gap-4 px-5 py-3">
               <span className="flex min-w-0 items-center gap-3 text-base">
                 {view.cart?.catalog.find((c) => c.skuId === l.skuId)?.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- local Open Food Facts snapshot
-                  <img src={view.cart?.catalog.find((c) => c.skuId === l.skuId)?.imageUrl} alt="" className="size-9 shrink-0 rounded-md bg-card object-contain p-0.5 ring-1 ring-border" />
+                  <img src={view.cart?.catalog.find((c) => c.skuId === l.skuId)?.imageUrl} alt="" className="size-12 shrink-0 rounded-lg bg-card object-contain p-1 ring-1 ring-border" />
                 ) : null}
                 {skuName(view, l.skuId)}
                 {l.packs > 1 ? <span className="text-muted-foreground tabular-nums"> × {l.packs}</span> : null}
@@ -244,7 +244,7 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
         </ul>
       </section>
 
-      <p className="rounded-xl bg-sunken px-5 py-4 text-base">
+      <p className="rounded-lg bg-sunken px-5 py-4 text-base">
         <span className="font-medium">The agent never pays. You approve payment.</span>{" "}
         <span className="text-muted-foreground">It can hold and place orders within your rules, and nothing else.</span>
       </p>
@@ -260,7 +260,7 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
 export function OrdersTab({ view, onOpen }: { view: RunView; onOpen: (o: Order) => void }) {
   if (!view.orders.length) {
     return (
-      <div className="rounded-xl bg-card px-6 py-10 text-center shadow-[0_1px_0_var(--border)]">
+      <div className="rounded-lg bg-card px-6 py-10 text-center border">
         <p className="text-lg font-semibold tracking-[-0.01em]">No orders yet</p>
         <p className="mx-auto mt-1.5 max-w-[22rem] text-base text-muted-foreground">
           Once a Sunday pickup is held and the order is placed, it shows up here with its number and receipt.
@@ -278,7 +278,7 @@ export function OrdersTab({ view, onOpen }: { view: RunView; onOpen: (o: Order) 
           {view.orders.length} order{view.orders.length === 1 ? "" : "s"}
         </span>
       </div>
-      <ul className="ls-stagger divide-y overflow-hidden rounded-xl bg-card shadow-[0_1px_0_var(--border)]">
+      <ul className="ls-stagger divide-y overflow-hidden rounded-lg bg-card border">
         {view.orders.map((o) => {
           const current = view.order?.orderId === o.orderId;
           return (
