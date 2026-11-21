@@ -298,3 +298,14 @@ export function labelExcerpt(text: string, max = 160): string {
   // Labels in all caps read as shouting on a projector; sentence-case them.
   return clean === clean.toUpperCase() ? clean.charAt(0) + clean.slice(1).toLowerCase() : clean;
 }
+
+/** True when Stripe confirmed the parent's test-card payment for this order (only this week's order can be paid). */
+export function paidByCard(view: RunView, orderId: string | null | undefined): boolean {
+  return Boolean(orderId && view.payment?.status === "paid" && view.order?.orderId === orderId);
+}
+
+/** How this order is paid, in one short phrase: pay at pickup is the default; a test-card payment replaces it. */
+export function paymentPhrase(view: RunView, orderId: string | null | undefined): string {
+  if (paidByCard(view, orderId)) return "Paid by card (test)";
+  return view.payment?.status === "ready" || view.payment?.status === "pending" ? "Pay at pickup or by test card" : "Pay at pickup";
+}

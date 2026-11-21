@@ -3,6 +3,7 @@ import { CogneeMemory } from "./cognee";
 import { FallbackMemory } from "./fallback";
 
 export { CogneeMemory, datasetNameFor, householdDocument } from "./cognee";
+export { COGNEE_BUILDING, isMemoryBuilding } from "./status";
 export { FallbackMemory, extractFactMarkers, factMarker } from "./fallback";
 
 /** Cognee when COGNEE_API_KEY and COGNEE_BASE_URL are set, else the labelled fallback. */

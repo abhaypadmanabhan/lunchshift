@@ -9,9 +9,9 @@ Built for the tokens& Personal Agents Hackathon (Nov 20, 2026). Products are rea
 ## Try it
 
 - **Live:** https://lunchshift-web-production.up.railway.app (set up your own family through the chat, or pick a sample family).
-- **Guided demo:** [/demo](https://lunchshift-web-production.up.railway.app/demo): the eight-step story with a **Next step** bar. Runbook: `DEMO.md`.
+- **Guided demo:** [/demo](https://lunchshift-web-production.up.railway.app/demo): the eight-step story with a **Next step** bar. Runbook: [DEMO.md](DEMO.md).
 - **Console:** [/console](https://lunchshift-web-production.up.railway.app/console): evidence, autonomy mode, store receipt, the six KPIs and the audit trail.
-- **Video:** `docs/proof/final-demo-v2.mp4` (2:24, narrated; the earlier cut: `docs/proof/final-demo.mp4`). The unedited guided-demo run: `docs/proof/backup-story.mp4`. Architecture: `docs/ARCHITECTURE.md`. Numbers: `docs/proof/metrics.png`. Security review: `SECURITY.md`.
+- **Video:** [docs/proof/final-demo-v2.mp4](docs/proof/final-demo-v2.mp4) (2:24, narrated; the earlier cut: [final-demo.mp4](docs/proof/final-demo.mp4)). The unedited guided-demo run: [backup-story.mp4](docs/proof/backup-story.mp4). Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Numbers: [metrics.png](docs/proof/metrics.png). Security review: [SECURITY.md](SECURITY.md).
 
 It is one shared demo instance: other visitors see the same families, and **Reset demo** on the console returns it to a clean state.
 
@@ -21,7 +21,7 @@ A desktop web app: a sidebar (This week, Cart, Orders, Routines, Inbox, Memory, 
 
 - **Chat setup.** The parent writes "Noah is 7, tree nuts and eggs, no may-contain; Ivy is 5, sesame; both hate mushrooms; $50 a week; Sunday pickup". **Claude** extracts kids, allergies (with cross-contact tolerance), dislikes, budget and pickup as chips; code validates them; the parent confirms; they are saved to the household record (the authority) and to **Cognee** memory. No seed data is needed, and several kids per family share one menu that is safe for every kid.
 - **Live shopping.** *Plan this week* shops real Open Food Facts products item by item, compares options, and refuses unsafe ones with the label line and the fact it broke. The cart fills with a live budget meter.
-- **Review, hold, order.** The parent approves once (or the agent holds on its own, within the autonomy the parent and **Statsig** allow). The store holds the cart for pickup and the order is pay-at-pickup. LunchShift can hold, never pay.
+- **Review, hold, order.** The parent approves once (or the agent holds on its own, within the autonomy the parent and **Statsig** allow). The store holds the cart for pickup and the order is pay-at-pickup; the parent may instead pay with a Stripe test card. LunchShift can hold, never pay.
 - **Day to day.** The chat is the main interface ("Leo was just diagnosed with a sesame allergy", "no school Friday"). Routines (weekly plan, stock and label watch, school calendar, budget alert) run in the background worker with last and next run. The inbox lists what the agent did and what needs the parent. Every fact change is dated and revisioned.
 
 ## What it does
@@ -66,22 +66,40 @@ Any allergy works the same way. The nine major US allergens plus synonyms ("dair
 
 ## Run it
 
+Needs Node 22 (`>=22.13 <23`, see `package.json`). No API keys are needed: every service has a labelled fallback, and the checks below run offline.
+
 ```bash
+git clone https://github.com/abhaypadmanabhan/lunchshift && cd lunchshift
 npm install
-cp <your env> .env          # COGNEE_*, SINGLESTORE_*, STATSIG_SERVER_SECRET, ANTHROPIC_API_KEY (all optional: each has a labelled fallback)
-npm run kpi                 # offline scenario suite + six KPIs
-npm run grocer              # sandbox store on :4100 (own SQLite DB)
-npm run worker              # background agent; WORKER_SCHEDULE_AT=now makes the Sunday run due at start
-npm run dev                 # UI on :3000
-npm run demo -- stockout    # operator fixture action: sell out the usual bread (also: reset, drop, run)
-npm run audit               # replay the run's full decision from the store
-npm run stack               # grocer + worker + built UI in one process (run `npm run build` first)
-npm run demo:fullauto       # unattended proof: clean state, bread pre-sold-out, Sunday schedule fires, zero inputs
+cp .env.example .env        # optional: fill in only the keys you have; blank means that service's fallback
+
+npm run kpi                 # 27 scenarios + the six KPIs against the real sandbox store over HTTP (about 1 minute)
 npm run test:allergens      # any-allergy suite (normalizer, labels, conflicts, 18 households end to end)
-npm run smoke:sie-screen    # live SIE allergen classifier over the catalog for a few households
+npm run test:view           # switcher, Cognee status and payment copy
+npm run typecheck && npm run lint
 ```
 
-Proof of an unattended full-auto run (schedule fired, verified hold 8 s later, no parent or operator events): `docs/proof/fullauto-run.txt`.
+Run the app (three terminals, from the repo root):
+
+```bash
+npm run grocer              # 1. sandbox store on :4100 (own SQLite DB under .data/)
+npm run worker              # 2. background agent; WORKER_SCHEDULE_AT=now npm run worker makes the Sunday run due at start
+npm run dev                 # 3. web app on http://localhost:3000 (guided story: /demo, evidence: /console)
+```
+
+Or all three in one process, as deployed: `npm run build && npm run stack` (real Open Food Facts products by default).
+Without `LUNCHSHIFT_CATALOG=off`, `grocer`, `worker` and `dev` use the small fixture catalog; set it for all three or none.
+
+More:
+
+```bash
+npm run demo -- stockout    # operator fixture action: sell out the usual bread (also: reset, drop, run)
+npm run audit               # replay the run's full decision from the store
+npm run demo:fullauto       # unattended proof: clean state, bread pre-sold-out, Sunday schedule fires, zero inputs
+npm run smoke:sie-screen    # live SIE allergen classifier over the catalog (needs SIE_API_KEY)
+```
+
+Proof of an unattended full-auto run (schedule fired, verified hold 8 s later, no parent or operator events): [docs/proof/fullauto-run.txt](docs/proof/fullauto-run.txt).
 
 ## How we built and measured it
 

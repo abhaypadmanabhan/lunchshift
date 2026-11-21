@@ -6,6 +6,7 @@ import path from "node:path";
 import { HOUSEHOLD } from "@/lib/domain/fixture";
 import type { Household, MemoryProvider, MemoryRecall } from "@/lib/domain/types";
 import { extractFactMarkers, factMarker, fallbackRecall } from "./fallback";
+import { COGNEE_BUILDING } from "./status";
 
 const SEARCH_TIMEOUT_MS = 20_000;
 const WRITE_TIMEOUT_MS = 30_000;
@@ -14,6 +15,9 @@ const COGNIFY_POLL_MS = 4_000;
 const STATE_FILE = path.join(process.cwd(), ".data", "cognee.json");
 
 export const datasetNameFor = (householdId: string) => `${householdId}-household`;
+
+const BUILDING = "building";
+const COMPLETED = "DATASET_PROCESSING_COMPLETED";
 
 type Json = unknown;
 interface CogneeState {
@@ -39,14 +43,22 @@ export class CogneeMemory implements MemoryProvider {
   async seed(household: Household): Promise<{ datasetId?: string; ok: boolean; error?: string }> {
     const datasetName = datasetNameFor(household.id);
     try {
+      await this.markBuilding(datasetName, household.policyRevision);
       const form = new FormData();
       form.append("datasetName", datasetName);
       form.append("data", new Blob([householdDocument(household)], { type: "text/plain" }), `${household.id}-r${household.policyRevision}.txt`);
       const added = await this.call("POST", "/api/v1/add", form, WRITE_TIMEOUT_MS);
-      if (!added.ok) return { ok: false, error: `cognee add failed: ${added.error}` };
+      if (!added.ok) {
+        await this.unmarkBuilding(datasetName);
+        return { ok: false, error: `cognee add failed: ${added.error}` };
+      }
 
       const datasetId = findString(added.body, ["dataset_id", "datasetId"]) ?? (await this.lookupDatasetId(datasetName));
-      if (!datasetId) return { ok: false, error: "cognee add returned no dataset id" };
+      if (!datasetId) {
+        await this.unmarkBuilding(datasetName);
+        return { ok: false, error: "cognee add returned no dataset id" };
+      }
+      await this.markBuilding(datasetName, household.policyRevision, datasetId);
 
       const cog = await this.call("POST", "/api/v1/cognify", { datasetIds: [datasetId], runInBackground: true }, WRITE_TIMEOUT_MS);
       if (!cog.ok) {
@@ -56,11 +68,12 @@ export class CogneeMemory implements MemoryProvider {
 
       const status = await this.waitForCognify(datasetId);
       await this.saveState(datasetName, { datasetId, policyRevision: household.policyRevision, seededAt: new Date().toISOString(), cognify: status });
-      if (status !== "DATASET_PROCESSING_COMPLETED") {
+      if (status !== COMPLETED) {
         return { datasetId, ok: false, error: `cognify not completed within ${COGNIFY_MAX_WAIT_MS / 1000}s (last status ${status})` };
       }
       return { datasetId, ok: true };
     } catch (e) {
+      await this.unmarkBuilding(datasetName);
       return { ok: false, error: `cognee seed error: ${errText(e)}` };
     }
   }
@@ -69,7 +82,13 @@ export class CogneeMemory implements MemoryProvider {
     this.lastTimings = [];
     try {
       const datasetName = datasetNameFor(householdId);
-      const datasetId = (await this.loadState())[datasetName]?.datasetId ?? (await this.lookupDatasetId(datasetName));
+      const entry = (await this.loadState())[datasetName];
+      // A brand-new family's graph is still building: say so at once instead of waiting on searches that cannot answer yet.
+      const age = entry ? Date.now() - Date.parse(entry.seededAt) : Infinity;
+      if (entry?.cognify === BUILDING && age < COGNIFY_MAX_WAIT_MS) {
+        return fallbackRecall(this.fallbackHousehold, householdId, query, `${COGNEE_BUILDING} (started ${Math.round(age / 1000)} s ago)`);
+      }
+      const datasetId = entry?.datasetId || (await this.lookupDatasetId(datasetName));
       if (!datasetId) return fallbackRecall(this.fallbackHousehold, householdId, query, `cognee dataset ${datasetName} not found; run seed`);
 
       // Graph context connects member -> rule; the chunk read returns the exact stored markers.
@@ -118,7 +137,7 @@ export class CogneeMemory implements MemoryProvider {
       if (res.ok) {
         const found = findString(res.body, ["status"]) ?? (typeof res.body === "object" && res.body ? findStatusValue(res.body) : undefined);
         if (found) status = found;
-        if (status === "DATASET_PROCESSING_COMPLETED" || status === "DATASET_PROCESSING_ERRORED") return status;
+        if (status === COMPLETED || status === "DATASET_PROCESSING_ERRORED") return status;
       }
       await new Promise((r) => setTimeout(r, COGNIFY_POLL_MS));
     }
@@ -151,6 +170,19 @@ export class CogneeMemory implements MemoryProvider {
     } catch (e) {
       return { ok: false as const, error: errText(e) };
     }
+  }
+
+  /** Record that this family's first graph is building. A family with a finished graph keeps recalling it while a re-seed runs. */
+  private async markBuilding(datasetName: string, policyRevision: number, datasetId = "") {
+    const prev = (await this.loadState())[datasetName];
+    if (prev?.cognify === COMPLETED) return;
+    await this.saveState(datasetName, { datasetId: datasetId || prev?.datasetId || "", policyRevision, seededAt: prev?.cognify === BUILDING ? prev.seededAt : new Date().toISOString(), cognify: BUILDING });
+  }
+
+  /** The seed failed before cognify started: nothing is building, so recall goes back to the normal path. */
+  private async unmarkBuilding(datasetName: string) {
+    const prev = (await this.loadState())[datasetName];
+    if (prev?.cognify === BUILDING) await this.saveState(datasetName, { ...prev, cognify: "seed_failed" });
   }
 
   private async loadState(): Promise<CogneeState> {

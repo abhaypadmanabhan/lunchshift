@@ -7,6 +7,7 @@ import { Code, recipeName, skuInfo } from "./primitives";
 
 /** Label text with the sentences that matched the blocked allergen set in the refusal colour. */
 import { labelExcerpt } from "@/components/parent/copy";
+import { isMemoryBuilding } from "@/lib/memory/status";
 
 function LabelQuote({ text }: { text: string }) {
   // Consecutive matching sentences merge into one highlight so it reads as one warning.
@@ -57,7 +58,13 @@ export function RefusalHero({ view, onOpenEvent }: { view: RunView; onOpenEvent:
   const fact = view.household.facts.find((f) => f.id === hero.factId);
   const memory = view.memory;
   const recalled = memory && hero.factId ? memory.factIds.includes(hero.factId) : false;
-  const providerLabel = !memory ? "Not recalled yet" : memory.provider === "cognee" ? "Recalled from Cognee" : "Fallback memory";
+  const providerLabel = !memory
+    ? "Not recalled yet"
+    : memory.provider === "cognee"
+      ? "Recalled from Cognee"
+      : isMemoryBuilding(memory.error)
+        ? "Cognee still building · household record"
+        : "Fallback memory · household record";
   const heroEvent = findEvent(hero.candidateId);
   const stockoutAt = view.events.find((e) => e.type === "stockout_detected")?.at;
 

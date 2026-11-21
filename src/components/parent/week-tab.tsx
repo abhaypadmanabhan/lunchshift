@@ -6,7 +6,7 @@ import { ChevronRight } from "lucide-react";
 import type { Order, SwapProposal } from "@/lib/domain/types";
 import type { PlanRow, RunView } from "@/lib/domain/view";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { DAY_NAME, money, refusalName, refusalReason, statusHeadline, swapReasonShort, timeOfDay } from "./copy";
+import { DAY_NAME, money, paymentPhrase, refusalName, refusalReason, statusHeadline, swapReasonShort, timeOfDay } from "./copy";
 import { labelExcerpt } from "./copy";
 import { MealTile } from "./meal-tile";
 import { SafetyHero } from "./safety-hero";
@@ -88,7 +88,7 @@ function StatusCard({ view, onRefresh }: { view: RunView; onRefresh: () => Promi
         {head.body ? <p className="mt-1 text-base text-muted-foreground tabular-nums">{head.body}</p> : null}
         {holdActive && holdRef ? (
           <p className="mt-1 text-[0.9375rem] text-muted-foreground">
-            {view.payment?.status === "paid" ? "Paid (test)" : "Pay at pickup"} · ref <span className="font-mono text-foreground">{holdRef}</span>
+            {paymentPhrase(view, view.order?.orderId)} · ref <span className="font-mono text-foreground">{holdRef}</span>
           </p>
         ) : null}
       </div>

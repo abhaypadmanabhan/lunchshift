@@ -62,6 +62,22 @@ export function writePointer(p: Partial<Pointer>) {
 export const activeHouseholdId = () => readPointer().householdId;
 export const currentWeekOf = () => WEEKS[Math.min(readPointer().weekIndex, WEEKS.length - 1)];
 
+/**
+ * The family switcher shows one entry per child name. Every guided demo makes its own "Maya" through the chat,
+ * so the shared demo collects namesakes (the sample plus each chat-made copy). Per name: the active family wins,
+ * else the newest family made in the app, else the preset. `entries` are in creation order (presets first).
+ */
+export function visibleFamilies<T extends { id: string; childName: string; active: boolean }>(entries: T[], presetIds: ReadonlySet<string>): T[] {
+  const pick = new Map<string, T>();
+  for (const f of entries) {
+    const name = f.childName.trim().toLowerCase();
+    const cur = pick.get(name);
+    if (!cur || (!cur.active && (f.active || !presetIds.has(f.id)))) pick.set(name, f);
+  }
+  const keep = new Set(pick.values());
+  return entries.filter((f) => keep.has(f));
+}
+
 /** A blank family that starts with chat onboarding. `n` only seeds tests; the app passes a unique id. */
 export function blankFamily(n: number | string): Household {
   return {
