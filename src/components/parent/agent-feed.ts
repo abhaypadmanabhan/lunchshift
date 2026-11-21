@@ -1,6 +1,7 @@
 // The agent's side of the product: each audit event as one short line, credited to the service that did it.
 import type { AuditEvent } from "@/lib/domain/types";
 import type { RunView } from "@/lib/domain/view";
+import { isMemoryBuilding } from "@/lib/memory/status";
 import { DAY_NAME, money } from "./copy";
 
 export type Sponsor = "Cognee" | "Superlinked SIE" | "SingleStore" | "Claude" | "Statsig" | "Store" | "LunchShift" | "You" | "Stripe";
@@ -63,6 +64,7 @@ function line(e: AuditEvent, view: RunView): Line | Line[] | null {
       const n = Array.isArray(d.factIds) ? d.factIds.length : 0;
       const who = str(d.provider) === "cognee" ? ("Cognee" as const) : ("LunchShift" as const);
       const allergies = hard.length === 1 ? "allergy" : `${hard.length} allergies`;
+      if (isMemoryBuilding(str(d.error))) return { sponsor: "Cognee", text: `Still building ${child}'s memory (about 30 s) · ${allergies} read from the household record` };
       return { sponsor: who, text: `Remembered ${child}'s ${allergies}${n > hard.length ? ` and ${n - hard.length} preferences` : ""}` };
     }
     case "allergen_screened": {

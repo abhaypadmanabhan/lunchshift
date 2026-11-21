@@ -10,6 +10,7 @@ import { cartBasket } from "../../worker/parent";
 import { describe, nextWeeklyRun, routinesOf } from "../../worker/routines";
 import type { IntegrationStatus, KpiSuiteResult, PaymentView, PlanRow, RunView } from "../domain/view";
 import { stripeStatus } from "../payments/stripe";
+import { isMemoryBuilding } from "../memory/status";
 import { storeStatus } from "../store";
 import { getAutonomy } from "../autonomy";
 import type { AutonomyReading } from "../domain/types";
@@ -23,7 +24,7 @@ async function liveMode(userId: string): Promise<AutonomyReading> {
   return reading;
 }
 import { activeHousehold, ensureSeeded, grocerClient, runIdNow } from "../../worker/deps";
-import { PRESETS, activeHouseholdId, readPointer, WEEKS } from "../domain/families";
+import { PRESETS, activeHouseholdId, readPointer, visibleFamilies, WEEKS } from "../domain/families";
 
 const recipeName = (id: string) => RECIPES.find((r) => r.id === id)?.name ?? id;
 
@@ -153,7 +154,7 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
     {
       name: "Cognee",
       status: memory ? (memory.provider === "cognee" ? "live" : "fallback") : process.env.COGNEE_API_KEY ? "live" : "missing",
-      detail: memory ? (memory.provider === "cognee" ? `${memory.factIds.length} facts recalled` : "Fixture facts (Cognee unreachable)") : "Household memory",
+      detail: cogneeDetail(memory),
     },
     { name: "SingleStore", status: ss.provider === "singlestore" ? "live" : "fallback", detail: ss.provider === "singlestore" ? "System of record + vector SQL" : "SQLite stand-in (SingleStore unreachable)" },
     {
@@ -267,6 +268,14 @@ export async function buildView(runIdArg?: string): Promise<RunView> {
   };
 }
 
+/** What the Cognee row says. A new family's first graph takes about 30 s; that is not an outage. */
+export function cogneeDetail(memory: MemoryRecall | null): string {
+  if (!memory) return "Household memory";
+  if (memory.provider === "cognee") return `${memory.factIds.length} facts recalled`;
+  if (isMemoryBuilding(memory.error)) return "Building this family's memory (about 30 s) · rules come from the household record";
+  return "Cognee not reachable · rules come from the household record";
+}
+
 async function familiesView(store: Awaited<ReturnType<typeof ensureSeeded>>) {
   const active = activeHouseholdId();
   const ids = [...PRESETS.map((p) => p.id), ...readPointer().newFamilyIds];
@@ -282,10 +291,8 @@ async function familiesView(store: Awaited<ReturnType<typeof ensureSeeded>>) {
       onboarded: h.onboarded !== false,
     });
   }
-  // The guided demo makes its own "Maya" through the chat; show it instead of the sample Maya, not beside it.
-  const presetIds = new Set(PRESETS.map((p) => p.id));
-  const madeNames = new Set(out.filter((f) => !presetIds.has(f.id) && f.onboarded).map((f) => f.childName.toLowerCase()));
-  return out.filter((f) => f.active || !presetIds.has(f.id) || !madeNames.has(f.childName.toLowerCase()));
+  // The guided demo makes its own "Maya" through the chat; show one Maya, not one per demo run.
+  return visibleFamilies(out, new Set(PRESETS.map((p) => p.id)));
 }
 
 function weekView() {

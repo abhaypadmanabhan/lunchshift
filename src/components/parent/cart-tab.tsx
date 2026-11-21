@@ -7,7 +7,7 @@ import type { Order } from "@/lib/domain/types";
 import type { CartLineView, CartView, RunView } from "@/lib/domain/view";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { money, refusalName, refusalReason } from "./copy";
+import { money, paymentPhrase, refusalName, refusalReason } from "./copy";
 import { AppButton, EmptyCard, Notice, ProductTile, SectionTitle, useTween } from "./ui";
 import { postParent } from "./use-run-view";
 
@@ -230,7 +230,7 @@ function ReviewBar({ view, onRefresh, onOpenOrder }: { view: RunView; onRefresh:
         <ShieldCheck className="size-6 shrink-0 text-primary" aria-hidden />
         <p className="min-w-0 flex-1 leading-snug">
           <span className="block text-base font-medium">Order placed</span>
-          <span className="block text-[0.9375rem] text-muted-foreground">Pay at pickup</span>
+          <span className="block text-[0.9375rem] text-muted-foreground">{paymentPhrase(view, view.order.orderId)}</span>
         </p>
         <AppButton onClick={() => view.order && onOpenOrder(view.order)}>View order</AppButton>
       </div>

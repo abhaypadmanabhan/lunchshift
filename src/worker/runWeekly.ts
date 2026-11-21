@@ -138,12 +138,13 @@ async function readMode(ctx: Ctx, why: string, logUnchanged = true): Promise<{ r
   // Household rules newer than the standing approval: nothing autonomous until the parent approves again.
   const policyOk = (m.policyRevision ?? ctx.household.policyRevision) === ctx.household.policyRevision;
   const cap = mandateLive && policyOk && !ctx.awaitingApproval ? m.maxAutonomy : "suggest_only";
-  // A failed or defaulted read never authorizes anything. A parent's approval of this run's proposal requests
-  // a hold for this one order, but the parent's own maximum still caps it.
+  // A failed or defaulted read never authorizes anything.
   const readOk = reading.source === "statsig" && !reading.error;
   // On its own, the agent does the lower of Statsig's autonomy_mode (the operator ceiling) and the family's setting.
-  // A failed or defaulted read caps everything at suggest_only. An order the parent explicitly approved is not
-  // autonomous: it may be held, but only with a good config read and a live, current mandate.
+  // A failed or defaulted read caps everything at suggest_only.
+  // An order the parent explicitly approved is not autonomous: the approval itself authorizes one hold for this run,
+  // even when the family's setting is "Ask me" (suggest_only) or Statsig's mode is lower. Neither the parent's
+  // maximum nor the Statsig mode caps it; it still needs a good Statsig read, a live mandate and current rules.
   const ceiling: AutonomyMode = readOk ? reading.mode : "suggest_only";
   const effective: AutonomyMode = ctx.parentApproved && readOk && mandateLive && policyOk ? "auto_swap_and_hold" : minMode(ceiling, cap);
   const changed = effective !== ctx.run.effectiveMode || reading.mode !== ctx.run.observedMode;

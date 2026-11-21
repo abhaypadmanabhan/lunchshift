@@ -13,7 +13,7 @@ export const DEMO_STEPS: { title: string; caption: string }[] = [
   { title: "Save to memory", caption: "Each fact is confirmed, then saved to Cognee memory." },
   { title: "Plan this week", caption: "The agent shops live and refuses anything unsafe for Maya." },
   { title: "Review and hold", caption: "Under budget, and held for Sunday pickup on its own. Nothing paid." },
-  { title: "Order placed", caption: "The order is placed. The parent pays at pickup." },
+  { title: "Order placed", caption: "The order is placed. The parent pays, never the agent." },
   { title: "Next Sunday", caption: "A week later, Maya's usual bread is sold out." },
   { title: "Payoff", caption: "Peanut-risk bread refused, Monday swapped, pickup held. Zero clicks." },
 ];
