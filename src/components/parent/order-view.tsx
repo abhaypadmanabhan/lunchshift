@@ -5,7 +5,7 @@ import { cn } from "cn";
 import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { Order } from "@/lib/domain/types";
 import type { RunView } from "@/lib/domain/view";
-import { ORDER_STATUS, money, shortDate, skuName, slotLabel, timeOfDay } from "./copy";
+import { ORDER_STATUS, money, paidByCard, paymentPhrase, shortDate, skuName, slotLabel, timeOfDay } from "./copy";
 import { AppButton, Notice } from "./ui";
 import { postParent } from "./use-run-view";
 
@@ -63,7 +63,7 @@ export function OrderCard({ view, onOpen, onRefresh }: { view: RunView; onOpen: 
           <span className="text-lg font-semibold tabular-nums">{money(order.totalCents)}</span>
         </div>
         <p className="mt-1 text-base text-muted-foreground">
-          {slotLabel(order.slot)} · {view.payment?.status === "paid" ? "paid (test)" : "pay at pickup"}
+          {slotLabel(order.slot)} · {paymentPhrase(view, order.orderId).toLowerCase()}
         </p>
         <PayButton view={view} order={order} />
         <AppButton variant="secondary" className="mt-4 w-full" onClick={() => onOpen(order, false)}>
@@ -195,7 +195,7 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
         {[
           ["Pickup", slotLabel(order.slot)],
           ["Total", money(order.totalCents)],
-          ["Payment", view.payment?.status === "paid" && view.order?.orderId === order.orderId ? `Paid · test mode · ${view.payment.paymentIntentId ?? ""}` : "Pay at pickup"],
+          ["Payment", paidByCard(view, order.orderId) ? `Paid · test mode · ${view.payment?.paymentIntentId ?? ""}` : paymentPhrase(view, order.orderId)],
           ["Placed by", byAgent ? "LunchShift, within your rules" : "You"],
         ].map(([k, v]) => (
           <div key={k} className="flex items-baseline justify-between gap-4 px-5 py-3.5">
@@ -238,7 +238,7 @@ export function OrderScreen({ view, order, celebrate, onClose }: { view: RunView
             </li>
           ))}
           <li className="flex items-baseline justify-between gap-4 px-5 py-3.5">
-            <span className="text-base font-medium">Total at pickup</span>
+            <span className="text-base font-medium">{paidByCard(view, order.orderId) ? "Total paid (test)" : "Total at pickup"}</span>
             <span className="text-lg font-semibold tabular-nums">{money(order.totalCents)}</span>
           </li>
         </ul>

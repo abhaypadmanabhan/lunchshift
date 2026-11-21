@@ -18,10 +18,10 @@ Backup if anything breaks live: `docs/proof/backup-story.mp4` (the same eight st
 | 3 Save to memory | Chips turn to "Saved to memory" | "Confirmed facts go to the household record, which is the authority, and to **Cognee** memory, so the agent recalls them in every later session." |
 | 4 Plan this week | Cart fills item by item; the rail streams steps | "Now it shops real Open Food Facts products. For each item it compares options and refuses unsafe ones with the reason: this bread says *may contain peanuts*, so it never reaches the cart. A **Superlinked SIE** classifier reads the same labels and can only add refusals. Code enforces every rule; the model never decides what is safe." |
 | 5 Review and hold | Cart, budget meter | "Under budget. The parent approves once, and LunchShift asks the store to hold the cart for Sunday pickup. One hold, read back by key so a lost reply never makes two. It can hold. It can never pay." |
-| 6 Order placed | Order with number, pickup window and timeline | "The order is placed. The parent pays at pickup." |
+| 6 Order placed | Order with number, pickup window and timeline | "The order is placed. The parent pays, never the agent." |
 | 7 Next Sunday | Autonomy set to Swap and hold; the clock jumps a week | "The parent now trusts it to act alone. How far it may go is capped live by **Statsig**. A week later, Maya's usual bread is sold out." |
 | 8 Payoff | This week: Monday swapped, pickup held, zero clicks | "No safe bread means no sandwich, so it swapped the whole Monday lunch. **SingleStore** shortlisted safe lunches with vector search, SIE reranked them, Claude explained the pick, and it held the pickup on its own. Zero clicks." |
-| Close | `/console` (Open console) | "Every decision is in an append-only audit in SingleStore. Six outcomes are measured on every run: zero unsafe items, every lunch complete, zero clicks in auto mode, zero duplicate holds, on budget, every swap traced. `npm run kpi` runs 25 scenarios; the allergy suite covers all nine major allergens plus anything a parent types." |
+| Close | `/console` (Open console) | "Every decision is in an append-only audit in SingleStore. Six outcomes are measured on every run: zero unsafe items, every lunch complete, zero clicks in auto mode, zero duplicate holds, on budget, every swap traced. `npm run kpi` runs 27 scenarios; the allergy suite covers all nine major allergens plus anything a parent types." |
 
 ## If something goes wrong
 
@@ -32,6 +32,6 @@ Backup if anything breaks live: `docs/proof/backup-story.mp4` (the same eight st
 
 ## Proof to point at
 
-- `npm run kpi`: 25 scenarios, about 4 seconds. `npm run test:allergens`: all nine allergens, custom ones, 32 label edge cases.
+- `npm run kpi`: 27 scenarios, about 6 seconds. `npm run test:allergens`: all nine allergens, custom ones, 32 label edge cases.
 - `npm run audit`: replays a run's full decision from SingleStore.
 - `docs/proof/backup-story.mp4`: the eight steps above, unattended.
