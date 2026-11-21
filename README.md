@@ -73,7 +73,7 @@ git clone https://github.com/abhaypadmanabhan/lunchshift && cd lunchshift
 npm install
 cp .env.example .env        # optional: fill in only the keys you have; blank means that service's fallback
 
-npm run kpi                 # 27 scenarios + the six KPIs against the real sandbox store over HTTP (about 1 minute)
+npm run kpi                 # 27 scenarios + the six KPIs against the real sandbox store over HTTP (seconds)
 npm run test:allergens      # any-allergy suite (normalizer, labels, conflicts, 18 households end to end)
 npm run test:view           # switcher, Cognee status and payment copy
 npm run typecheck && npm run lint
