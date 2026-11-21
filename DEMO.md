@@ -21,7 +21,7 @@ Backup if anything breaks live: `docs/proof/backup-story.mp4` (the same eight st
 | 6 Order placed | Order with number, pickup window and timeline | "The order is placed. The parent pays, never the agent." |
 | 7 Next Sunday | Autonomy set to Swap and hold; the clock jumps a week | "The parent now trusts it to act alone. How far it may go is capped live by **Statsig**. A week later, Maya's usual bread is sold out." |
 | 8 Payoff | This week: Monday swapped, pickup held, zero clicks | "No safe bread means no sandwich, so it swapped the whole Monday lunch. **SingleStore** shortlisted safe lunches with vector search, SIE reranked them, Claude explained the pick, and it held the pickup on its own. Zero clicks." |
-| Close | `/console` (Open console) | "Every decision is in an append-only audit in SingleStore. Six outcomes are measured on every run: zero unsafe items, every lunch complete, zero clicks in auto mode, zero duplicate holds, on budget, every swap traced. `npm run kpi` runs 25 scenarios; the allergy suite covers all nine major allergens plus anything a parent types." |
+| Close | `/console` (Open console) | "Every decision is in an append-only audit in SingleStore. Six outcomes are measured on every run: zero unsafe items, every lunch complete, zero clicks in auto mode, zero duplicate holds, on budget, every swap traced. `npm run kpi` runs 27 scenarios; the allergy suite covers all nine major allergens plus anything a parent types." |
 
 ## If something goes wrong
 
@@ -32,6 +32,6 @@ Backup if anything breaks live: `docs/proof/backup-story.mp4` (the same eight st
 
 ## Proof to point at
 
-- `npm run kpi`: 25 scenarios, about 4 seconds. `npm run test:allergens`: all nine allergens, custom ones, 32 label edge cases.
+- `npm run kpi`: 27 scenarios, about 6 seconds. `npm run test:allergens`: all nine allergens, custom ones, 32 label edge cases.
 - `npm run audit`: replays a run's full decision from SingleStore.
 - `docs/proof/backup-story.mp4`: the eight steps above, unattended.
